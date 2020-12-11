@@ -1,0 +1,42 @@
+
+#include "core_context.h"
+
+namespace rin {
+
+CoreContext::CoreContext():
+	boolean_type(this, 1, false),
+	i8(this, 8, true), i16(this, 16, true), i32(this, 32, true),
+	i64(this, 64, true), i128(this, 128, true),
+	u8(this, 8, false), u16(this, 16, false), u32(this, 32, false),
+	u64(this, 64, false), u128(this, 128, false),
+	float_type(llvm::Type::getFloatTy(llvm)),
+	double_type(llvm::Type::getDoubleTy(llvm)) {}
+
+Type::Int* CoreContext::get_int_type(unsigned int bit_width, bool is_signed) {
+	switch (bit_width) {
+		case 8: return &(is_signed? i8: u8);
+		case 16: return &(is_signed? i16: u16);
+		case 32: return &(is_signed? i32: u32);
+		case 64: return &(is_signed? i64: u64);
+		case 128: return &(is_signed? i128: u128);
+		default: break;
+	}
+	auto &value = int_type_map[{ bit_width, is_signed }];
+	if (!value) value = new Type::Int(this, bit_width, is_signed);
+	return value;
+}
+
+Type::Array* CoreContext::get_array_type(Type *element_type, uint32_t size) {
+	auto &value = array_type_map[{ element_type, size }];
+	if (!value) value = new Type::Array(this, element_type, size);
+	return value;
+}
+
+CoreContext::~CoreContext() {
+	for (auto &[key, value] : int_type_map)
+		delete value;
+	for (auto &[key, value] : array_type_map)
+		delete value;
+}
+
+} // namespace rin
