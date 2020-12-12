@@ -34,12 +34,12 @@ public:
 		try {
 			cast(ctx, to, true);
 			return true;
-		} catch (CastException e) { return false; }
+		} catch (const CastException &e) { return false; }
 	}
 	inline std::optional<Value> safe_cast(Context &ctx, Type *to) const {
 		try {
 			return cast(ctx, to, true);
-		} catch (CastException e) { return std::nullopt; }
+		} catch (const CastException &e) { return std::nullopt; }
 	}
 	inline Type* get_type() const { return type; }
 	inline llvm::Value* get_llvm() const { return llvm; }

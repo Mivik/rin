@@ -9,7 +9,7 @@
 
 namespace rin {
 
-Value ConstantNode::codegen(Context &ctx) {
+Value ConstantNode::codegen(Context &ctx) const {
 	auto &core = ctx.get_core();
 	if (str == "true" || str == "false") {
 		auto type = core.get_boolean_type();
@@ -39,14 +39,14 @@ Value ConstantNode::codegen(Context &ctx) {
 	rin_unreachable("Unknown constant: " + str);
 }
 
-[[noreturn]] inline void binop_fail(const Value &lhs, const Value &rhs, TokenKind op) {
+[[noreturn]] inline void bin_op_fail(const Value &lhs, const Value &rhs, TokenKind op) {
 	throw CodegenException(
 			"Illegal binary operation on "
 			+ lhs.get_type()->to_string() + " and " + rhs.get_type()->to_string()
 			+ ": " + token_kind::name(op));
 }
 
-inline Type* binop_arithmetic_result_type(Type *lhs, Type *rhs) {
+inline Type* bin_op_arithmetic_result_type(Type *lhs, Type *rhs) {
 	const bool lhs_is_real = dynamic_cast<Type::Real*>(lhs);
 	const bool rhs_is_real = dynamic_cast<Type::Real*>(rhs);
 	if (lhs_is_real != rhs_is_real) return lhs_is_real? lhs: rhs;
@@ -55,7 +55,7 @@ inline Type* binop_arithmetic_result_type(Type *lhs, Type *rhs) {
 		? lhs : rhs;
 }
 
-inline Value binop_arithmetic_codegen(Context &ctx, Value lhs, Value rhs, TokenKind op) {
+inline Value bin_op_arithmetic_codegen(Context &ctx, Value lhs, Value rhs, TokenKind op) {
 	using bin_op = llvm::Instruction::BinaryOps;
 
 	const bool accept_real = op == Add || op == Sub || op == Mul || op == Div;
@@ -68,8 +68,7 @@ inline Value binop_arithmetic_codegen(Context &ctx, Value lhs, Value rhs, TokenK
 			+ lhs.get_type()->to_string() + " and "
 			+ rhs.get_type()->to_string() + ": " + token_kind::name(op));
 
-	auto &builder = ctx.get_builder();
-	auto result_type = binop_arithmetic_result_type(lhs.get_type(), rhs.get_type());
+	auto result_type = bin_op_arithmetic_result_type(lhs.get_type(), rhs.get_type());
 	lhs = lhs.cast(ctx, result_type);
 	rhs = rhs.cast(ctx, result_type);
 
@@ -98,9 +97,9 @@ inline Value binop_arithmetic_codegen(Context &ctx, Value lhs, Value rhs, TokenK
 				break;
 			case Div: llvm_op = int_type->is_signed()? bin_op::SDiv: bin_op::UDiv; break;
 			case Mod: llvm_op = int_type->is_signed()? bin_op::SRem: bin_op::URem; break;
-			default: binop_fail(lhs, rhs, op);
+			default: bin_op_fail(lhs, rhs, op);
 		}
-	} else binop_fail(lhs, rhs, op);
+	} else bin_op_fail(lhs, rhs, op);
 	return
 		{
 			result_type,
@@ -108,17 +107,43 @@ inline Value binop_arithmetic_codegen(Context &ctx, Value lhs, Value rhs, TokenK
 		};
 }
 
-Value BinOpNode::codegen(Context &ctx) {
-	auto &core = ctx.get_core();
-	auto &builder = ctx.get_builder();
+Value BinOpNode::codegen(Context &ctx) const {
 	auto lhs = lhs_node->codegen(ctx), rhs = rhs_node->codegen(ctx);
 	switch (op) {
 		case Add: case Sub: case Mul: case Div: case Mod:
 		case Shl: case Shr: case Or: case And: case Xor:
-			return binop_arithmetic_codegen(ctx, lhs, rhs, op);
+			return bin_op_arithmetic_codegen(ctx, lhs, rhs, op);
 		default: break;
 	}
-	binop_fail(lhs, rhs, op);
+	bin_op_fail(lhs, rhs, op);
+}
+
+[[noreturn]] inline void unary_op_fail(const Value &value, TokenKind op) {
+	throw CodegenException(
+			"Illegal unary operation on "
+			+ value.get_type()->to_string()
+			+ ": " + token_kind::name(op));
+}
+
+Value UnaryOpNode::codegen(Context &ctx) const {
+	auto &builder = ctx.get_builder();
+	auto value = value_node->codegen(ctx);
+	auto type = value.get_type();
+	// TODO Logical operators!!
+	if (dynamic_cast<Type::Real*>(type)) {
+		switch (op) {
+			case Add: return value;
+			case Sub: return { type, builder.CreateFNeg(value.get_llvm()) };
+			default: unary_op_fail(value, op);
+		}
+	} else if (auto int_type = dynamic_cast<Type::Int*>(value.get_type())) {
+		switch (op) {
+			case Add: return value;
+			case Sub: return { type, builder.CreateNeg(value.get_llvm()) };
+			case Not: return { type, builder.CreateNot(value.get_llvm()) };
+			default: unary_op_fail(value, op);
+		}
+	} else unary_op_fail(value, op);
 }
 
 } // namespace rin
