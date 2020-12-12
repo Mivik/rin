@@ -4,6 +4,7 @@
 #include "context.h"
 #include "type.h"
 #include "value.h"
+#include "utility.h"
 
 namespace rin {
 
@@ -13,14 +14,14 @@ public:
 	virtual R codegen(Context &ctx);
 };
 
-class ConstantNode : public ASTNode<std::unique_ptr<Value>> {
+class ConstantNode : public ASTNode<Ptr<Value>> {
 public:
-	ConstantNode(std::unique_ptr<ASTNode<Type*>> type_node, const std::string &str):
+	ConstantNode(Ptr<ASTNode<Type*>> type_node, const std::string &str):
 		type_node(std::move(type_node)), str(str) {}
 
-	std::unique_ptr<Value> codegen(Context &ctx) override;
+	Ptr<Value> codegen(Context &ctx) override;
 private:
-	std::unique_ptr<ASTNode<Type*>> type_node;
+	Ptr<ASTNode<Type*>> type_node;
 	std::string str;
 };
 

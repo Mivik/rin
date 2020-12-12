@@ -21,6 +21,7 @@ public:
 	Parser(const char *str): Parser(MemoryBuffer(str)) {}
 	Parser(const MemoryBuffer &buffer): lexer(buffer) {}
 
+	Ptr<ASTNode<Ptr<Value*>>> take_prim();
 	inline const MemoryBuffer& get_buffer() const { return lexer.get_buffer(); }
 private:
 	inline const Token&& expect(const Token &&token, TokenKind kind) {

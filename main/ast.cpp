@@ -6,7 +6,7 @@
 
 namespace rin {
 
-std::unique_ptr<Value> ConstantNode::codegen(Context &ctx) {
+Ptr<Value> ConstantNode::codegen(Context &ctx) {
 	auto type = type_node->codegen(ctx);
 	if (auto int_type = dynamic_cast<Type::Int*>(type)) {
 		auto llvm_int_type = ptr_cast<llvm::IntegerType>(int_type->get_llvm());
