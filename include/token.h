@@ -20,32 +20,23 @@ enum TokenKind {
 	// Binary operators
 	Add, Sub, Mul, Div, Mod, Shl, Shr, Or, And, Not, Xor, LOr, LAnd, LNot,
 	Assign, AddA, SubA, MulA, DivA, ModA, ShlA, ShrA, OrA, AndA, XorA,
-	Lt, Gt, Le, Ge, Eq, Neq,
+	Lt, Gt, Le, Ge, Eq, Neq
 };
 
-inline std::string token_kind_name(TokenKind kind) {
-#define H(n) case n: return #n;
+namespace token_kind {
+
+std::string name(TokenKind kind);
+
+inline bool is_unary(TokenKind kind) {
 	switch (kind) {
-		H(Eof)
-		H(Identifier)
-		H(Number) H(True) H(False)
-		H(String)
-		H(Comment) H(MLComment)
-		H(LPar) H(RPar) H(LBracket) H(RBracket) H(LBrace) H(RBrace)
-		H(Colon) H(Comma) H(Period)
-		// Keywords
-		H(Else) H(Enum) H(Fn) H(For) H(If) H(In)
-		H(Is) H(Let) H(Return) H(Var) H(When)
-		// Operators
-		H(Add) H(Sub) H(Mul) H(Div) H(Mod) H(Shl)
-		H(Shr) H(Or) H(And) H(Not) H(Xor) H(LOr)
-		H(LAnd) H(LNot) H(Assign) H(AddA) H(SubA)
-		H(MulA) H(DivA) H(ModA) H(ShlA) H(ShrA) H(OrA)
-		H(AndA) H(XorA) H(Lt) H(Gt) H(Le) H(Ge) H(Eq) H(Neq)
-		default: throw (std::string)"Illegal token kind: " + std::to_string(kind);
+		case Add: case Sub:
+		case Not: case LNot:
+			return true;
+		default: return false;
 	}
-#undef H
 }
+
+} // namespace token_kind
 
 struct SourceRange {
 	size_t begin, end;
@@ -59,8 +50,11 @@ struct Token {
 	SourceRange range;
 	Token(TokenKind kind, const SourceRange &range):
 		kind(kind), range(range) {}
-	inline std::string name() const { return token_kind_name(kind); }
+	inline std::string name() const { return token_kind::name(kind); }
 	std::string content(const MemoryBuffer &buffer) const;
+	inline std::string info(const MemoryBuffer &buffer) const {
+		return "[" + name() + "] \"" + content(buffer) + "\"";
+	}
 	inline operator bool() const { return kind != Eof; }
 };
 

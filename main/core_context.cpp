@@ -4,13 +4,13 @@
 namespace rin {
 
 CoreContext::CoreContext():
-	boolean_type(this, 1, false),
+	void_type(this), boolean_type(this),
 	i8(this, 8, true), i16(this, 16, true), i32(this, 32, true),
 	i64(this, 64, true), i128(this, 128, true),
 	u8(this, 8, false), u16(this, 16, false), u32(this, 32, false),
 	u64(this, 64, false), u128(this, 128, false),
-	float_type(llvm::Type::getFloatTy(llvm)),
-	double_type(llvm::Type::getDoubleTy(llvm)) {}
+	float_type(llvm::Type::getFloatTy(llvm), "float"),
+	double_type(llvm::Type::getDoubleTy(llvm), "double") {}
 
 Type::Int* CoreContext::get_int_type(unsigned int bit_width, bool is_signed) {
 	switch (bit_width) {

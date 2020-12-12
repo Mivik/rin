@@ -8,6 +8,7 @@ include_directories(${GTEST_INCLUDE_DIRS})
 add_executable(rin_test
 	lexer.cpp
 	main.cpp
+	parser.cpp
 	type.cpp
 )
 

@@ -4,25 +4,36 @@
 #include "context.h"
 #include "type.h"
 #include "value.h"
-#include "utility.h"
+#include "token.h"
 
 namespace rin {
 
 template<class R>
 class ASTNode {
 public:
-	virtual R codegen(Context &ctx);
+	virtual R codegen(Context &ctx) = 0;
+
+	virtual ~ASTNode() = default;
 };
 
-class ConstantNode : public ASTNode<Ptr<Value>> {
+class ConstantNode : public ASTNode<Value> {
 public:
-	ConstantNode(Ptr<ASTNode<Type*>> type_node, const std::string &str):
-		type_node(std::move(type_node)), str(str) {}
+	ConstantNode(const std::string &str): str(str) {}
 
-	Ptr<Value> codegen(Context &ctx) override;
+	Value codegen(Context &ctx) override;
 private:
-	Ptr<ASTNode<Type*>> type_node;
 	std::string str;
+};
+
+class BinOpNode : public ASTNode<Value> {
+public:
+	BinOpNode(Ptr<ASTNode<Value>> lhs, Ptr<ASTNode<Value>> rhs, TokenKind op):
+		lhs_node(std::move(lhs)), rhs_node(std::move(rhs)), op(op) {}
+
+	Value codegen(Context &ctx) override;
+private:
+	Ptr<ASTNode<Value>> lhs_node, rhs_node;
+	TokenKind op;
 };
 
 } // namespace rin

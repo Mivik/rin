@@ -1,5 +1,6 @@
 
 #include <vector>
+#include <chrono>
 
 #include <gtest/gtest.h>
 
@@ -15,7 +16,7 @@ inline std::pair<Lexer, MemoryBuffer> lex_pair(const char *str) {
 
 inline std::vector<Token> tokens(Lexer &lexer) {
 	std::vector<Token> ret;
-	while (Token token = lexer.lex())
+	while (Token token = lexer.take())
 		ret.push_back(token);
 	return ret;
 }
@@ -40,31 +41,8 @@ inline std::vector<Token> tokens(const char *str) {
 		if (value[i].kind != expected[i])
 			return ::testing::AssertionFailure()
 				<< "No. " << (i + 1) << " token differs. "
-				<< "Expected " << token_kind_name(expected[i]) << ", "
-				<< "got " << value[i].name()
-				<< " (" << value[i].content(buffer) << ")";
-	return ::testing::AssertionSuccess();
-}
-
-::testing::AssertionResult tokens_deq(
-	const char *content,
-	const std::vector<std::pair<TokenKind, const char*>> &expected
-) {
-	auto [lexer, buffer] = lex_pair(content);
-	auto value = tokens(lexer);
-	if (value.size() != expected.size())
-		return ::testing::AssertionFailure()
-			<< "Token list size differs. "
-			<< "Expected " << expected.size() << " tokens, "
-			<< "got " << value.size();
-	for (size_t i = 0; i < value.size(); ++i)
-		if (value[i].kind != expected[i].first)
-			return ::testing::AssertionFailure()
-				<< "No. " << (i + 1) << " token differs. "
-				<< "Expected " << token_kind_name(expected[i].first)
-				<< " (" << expected[i].second << "), "
-				<< "got " << value[i].name()
-				<< " (" << value[i].content(buffer) << ")";
+				<< "Expected " << token_kind::name(expected[i]) << ", "
+				<< "got " << value[i].info(buffer);
 	return ::testing::AssertionSuccess();
 }
 

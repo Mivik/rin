@@ -14,7 +14,8 @@ class CoreContext {
 public:
 	CoreContext();
 	inline llvm::LLVMContext& get_llvm() { return llvm; }
-	inline Type::Int* get_boolean_type() { return &boolean_type; }
+	inline Type::Void* get_void_type() { return &void_type; }
+	inline Type::Boolean* get_boolean_type() { return &boolean_type; }
 	inline Type::Int* get_i8_type() { return &i8; }
 	inline Type::Int* get_i16_type() { return &i16; }
 	inline Type::Int* get_i32_type() { return &i32; }
@@ -25,6 +26,8 @@ public:
 	inline Type::Int* get_u32_type() { return &u32; }
 	inline Type::Int* get_u64_type() { return &u64; }
 	inline Type::Int* get_u128_type() { return &u128; }
+	inline Type::Real* get_float_type() { return &float_type; }
+	inline Type::Real* get_double_type() { return &double_type; }
 	Type::Int* get_int_type(unsigned int bit_width, bool is_signed = true);
 	Type::Array* get_array_type(Type *element_type, uint32_t size);
 
@@ -33,7 +36,8 @@ public:
 	~CoreContext();
 private:
 	llvm::LLVMContext llvm;
-	Type::Int boolean_type;
+	Type::Void void_type;
+	Type::Boolean boolean_type;
 	Type::Int i8, i16, i32, i64, i128;
 	Type::Int u8, u16, u32, u64, u128;
 	Type::Real float_type, double_type;
@@ -56,7 +60,7 @@ private:
 	std::unordered_map<IntTypeKey, Type::Int*, IntTypeKey::Hash> int_type_map;
 
 	struct ArrayTypeKey {
-		Type* const element_type;
+		Type * const element_type;
 		const bool size;
 		ArrayTypeKey(Type *element_type, uint32_t size):
 			element_type(element_type), size(size) {}

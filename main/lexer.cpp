@@ -65,12 +65,12 @@ Token Lexer::lex() {
 			};
 			switch (tolower(input.take())) {
 				case 'u': {
-					if (input.take() == 'l')
-						if (input.take() != 'l') illegal_suffix();
+					if (tolower(input.take()) == 'l')
+						if (tolower(input.take()) != 'l') illegal_suffix();
 					break;
 				}
 				case 'l': {
-					if (input.take() != 'l') illegal_suffix();
+					if (tolower(input.take()) != 'l') illegal_suffix();
 					break;
 				}
 				default: input.rewind(); break;

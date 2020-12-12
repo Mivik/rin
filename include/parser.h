@@ -21,15 +21,15 @@ public:
 	Parser(const char *str): Parser(MemoryBuffer(str)) {}
 	Parser(const MemoryBuffer &buffer): lexer(buffer) {}
 
-	Ptr<ASTNode<Ptr<Value*>>> take_prim();
+	Ptr<ASTNode<Value>> take_prim();
+	Ptr<ASTNode<Value>> take_expr();
 	inline const MemoryBuffer& get_buffer() const { return lexer.get_buffer(); }
 private:
 	inline const Token&& expect(const Token &&token, TokenKind kind) {
 		if (token.kind != kind)
 			throw ParseException(
-				"Expected " + token_kind_name(kind) + ", "
-				+ "got " + token.name()
-				+ " (" + token.content(lexer.get_buffer()) + ")");
+				"Expected " + token_kind::name(kind) + ", "
+				+ "got " + token.info(get_buffer()));
 		return std::move(token);
 	}
 
