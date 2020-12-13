@@ -3,6 +3,8 @@
 
 #include <llvm/IR/Value.h>
 
+#include <optional>
+
 #include "context.h"
 #include "type.h"
 

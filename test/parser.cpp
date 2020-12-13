@@ -69,6 +69,7 @@ TEST(parser, bin_op) {
 		EXPECT_EQ(const_int->getZExtValue(), 1);
 	} while (false);
 	EXPECT_THROW(Parser("(1 + 3").take_expr(), ParseException);
+	EXPECT_THROW(Parser("1 !2").take_expr(), ParseException);
 	EXPECT_NO_FATAL_FAILURE(Parser("1 + -3 - -6").take_expr());
 }
 

@@ -89,26 +89,32 @@ inline void process_op(std::stack<ASTNode<Value>*> &st, TokenKind op) {
 }
 
 Ptr<ASTNode<Value>> Parser::take_expr() {
+	enum {
+		Empty, UnaryOp, BinOp, Prim
+	} last = Empty;
+
 	std::stack<ASTNode<Value>*> st;
 	std::stack<TokenKind> ops;
-	bool expecting_binop = false;
 	while (true) {
-		auto token = lexer.peek();
-		if (!token) break;
-		if (!expecting_binop)
-			token.kind = token_kind::as_unary_op(token.kind);
-		if (token_kind::is_unary_op(token.kind) || token_kind::is_binary_op(token.kind)) {
+		auto kind = lexer.peek().kind;
+		if (kind == Eof) break;
+		if (last != Prim)
+			kind = token_kind::as_unary_op(kind);
+		if (token_kind::is_unary_op(kind) || token_kind::is_binary_op(kind)) {
+			if ((token_kind::is_unary_op(kind) && (last == UnaryOp || last == Prim))
+				|| (token_kind::is_binary_op(kind) && (last != Prim)))
+				throw ParseException("Illegal operator: " + token_kind::name(kind));
 			lexer.take();
-			auto cur_pred = precedence_of(token.kind);
+			auto cur_pred = precedence_of(kind);
 			while (!ops.empty() &&
 				((precedence_of(ops.top()) < cur_pred) ||
 				(precedence_of(ops.top()) == cur_pred && !is_right_associative(cur_pred)))
 			) process_op(st, pop_stack(ops));
-			ops.push(token.kind);
-			expecting_binop = false;
+			ops.push(kind);
+			last = token_kind::is_unary_op(kind)? UnaryOp: BinOp;
 		} else if (auto ptr = take_prim()) {
 			st.push(ptr.release());
-			expecting_binop = true;
+			last = Prim;
 		} else break;
 	}
 	while (!ops.empty()) process_op(st, pop_stack(ops));
