@@ -45,14 +45,31 @@ TEST(parser, bin_op) {
 	EXPECT_TRUE(is_a(Parser("1ULL + 2").take_expr()->codegen(ctx),
 				core.get_u64_type()));
 	do {
-		auto value = Parser("(50 + (-3) * 7) / 4 % 5").take_expr()->codegen(ctx);
+		auto value = Parser("(50 + (-3) * (~7)) / 4 % 5").take_expr()->codegen(ctx);
 		EXPECT_EQ(value.get_type(), core.get_i32_type());
 		auto llvm = value.get_llvm();
 		auto const_int = llvm::dyn_cast<llvm::ConstantInt>(llvm);
 		EXPECT_TRUE(const_int);
-		EXPECT_EQ(const_int->getSExtValue(), 2);
+		EXPECT_EQ(const_int->getSExtValue(), 3);
+	} while (false);
+	do {
+		auto value = Parser("2 + 3 * 4 == 14").take_expr()->codegen(ctx);
+		EXPECT_EQ(value.get_type(), core.get_boolean_type());
+		auto llvm = value.get_llvm();
+		auto const_int = llvm::dyn_cast<llvm::ConstantInt>(llvm);
+		EXPECT_TRUE(const_int);
+		EXPECT_EQ(const_int->getZExtValue(), 1);
+	} while (false);
+	do {
+		auto value = Parser("(2 == 3 - (3 ^ 2)) == !false").take_expr()->codegen(ctx);
+		EXPECT_EQ(value.get_type(), core.get_boolean_type());
+		auto llvm = value.get_llvm();
+		auto const_int = llvm::dyn_cast<llvm::ConstantInt>(llvm);
+		EXPECT_TRUE(const_int);
+		EXPECT_EQ(const_int->getZExtValue(), 1);
 	} while (false);
 	EXPECT_THROW(Parser("(1 + 3").take_expr(), ParseException);
+	EXPECT_NO_FATAL_FAILURE(Parser("1 + -3 - -6").take_expr());
 }
 
 } // namespace rin
