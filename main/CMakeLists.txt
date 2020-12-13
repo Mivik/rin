@@ -1,5 +1,5 @@
 
-add_library(rin
+add_library(rin SHARED
 	ast.cpp
 	codegen.cpp
 	core_context.cpp
