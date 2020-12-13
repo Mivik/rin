@@ -100,9 +100,11 @@ Ptr<ASTNode<Value>> Parser::take_expr() {
 		if (kind == Eof) break;
 		if (last != Prim)
 			kind = token_kind::as_unary_op(kind);
-		if (token_kind::is_unary_op(kind) || token_kind::is_binary_op(kind)) {
-			if ((token_kind::is_unary_op(kind) && (last == UnaryOp || last == Prim))
-				|| (token_kind::is_binary_op(kind) && (last != Prim)))
+		const bool is_unary = token_kind::is_unary_op(kind);
+		const bool is_binary = token_kind::is_binary_op(kind);
+		if (is_unary || is_binary) {
+			if ((is_unary && (last == UnaryOp || last == Prim))
+				|| (is_binary && (last != Prim)))
 				throw ParseException("Illegal operator: " + token_kind::name(kind));
 			lexer.take();
 			auto cur_pred = precedence_of(kind);
@@ -111,7 +113,7 @@ Ptr<ASTNode<Value>> Parser::take_expr() {
 				(precedence_of(ops.top()) == cur_pred && !is_right_associative(cur_pred)))
 			) process_op(st, pop_stack(ops));
 			ops.push(kind);
-			last = token_kind::is_unary_op(kind)? UnaryOp: BinOp;
+			last = is_unary? UnaryOp: BinOp;
 		} else if (auto ptr = take_prim()) {
 			st.push(ptr.release());
 			last = Prim;
