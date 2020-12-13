@@ -10,10 +10,16 @@ int main() {
 	while (true) {
 		llvm::outs() << "> ";
 		if (!std::getline(std::cin, str)) break;
-		rin::Parser parser(str.data());
-		auto value = parser.take_expr()->codegen(ctx);
-		llvm::outs() << '[' << value.get_type()->to_string() << "] ";
-		value.get_llvm()->print(llvm::outs());
-		llvm::outs() << '\n';
+		try {
+			rin::Parser parser(str.data());
+			auto value = parser.take_expr()->codegen(ctx);
+			llvm::outs() << '[' << value.get_type()->to_string() << "] ";
+			value.get_llvm()->print(llvm::outs());
+			llvm::outs() << '\n';
+		} catch (const rin::LexException &e) {
+			llvm::errs() << "Syntax error: " << e.what() << '\n';
+		} catch (const rin::ParseException &e) {
+			llvm::errs() << "Syntax error: " << e.what() << '\n';
+		}
 	}
 }
