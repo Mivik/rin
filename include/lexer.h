@@ -4,7 +4,7 @@
 #include <cstring>
 #include <exception>
 #include <memory>
-#include <queue>
+#include <deque>
 #include <vector>
 
 #include "token.h"
@@ -58,19 +58,19 @@ public:
 		input(buffer) {}
 	const MemoryBuffer& get_buffer() const { return input.get_buffer(); }
 	inline Token peek() {
-		if (buffer.empty()) buffer.push(lex());
+		if (buffer.empty()) buffer.push_back(lex());
 		return buffer.front();
 	}
 	inline Token take() {
 		if (buffer.empty()) return lex();
-		Token ret = buffer.front(); buffer.pop();
+		Token ret = buffer.front(); buffer.pop_front();
 		return ret;
 	}
 private:
 	Token lex();
 
 	Reader input;
-	std::queue<Token> buffer;
+	std::deque<Token> buffer;
 };
 
 } // namespace rin

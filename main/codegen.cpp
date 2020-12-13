@@ -19,7 +19,7 @@ Value ConstantNode::codegen(Context &ctx) const {
 			};
 	}
 	if (isdigit(str[0])) {
-		auto tmp = str;
+		auto tmp = str; assert(!tmp.empty());
 		auto type = core.get_i32_type();
 		if (tolower(tmp.back()) == 'l') {
 			tmp.pop_back(); assert(!tmp.empty() && tolower(tmp.back()) == 'l');
@@ -28,6 +28,9 @@ Value ConstantNode::codegen(Context &ctx) const {
 				tmp.pop_back();
 				type = core.get_u64_type();
 			} else type = core.get_i64_type();
+		} else if (tolower(tmp.back()) == 'u') {
+			tmp.pop_back(); assert(!tmp.empty());
+			type = core.get_u32_type();
 		}
 		return { type, ptr_cast<llvm::Value>(
 					llvm::ConstantInt::get(
@@ -37,6 +40,34 @@ Value ConstantNode::codegen(Context &ctx) const {
 				) };
 	}
 	rin_unreachable("Unknown constant: " + str);
+}
+
+[[noreturn]] inline void unary_op_fail(const Value &value, TokenKind op) {
+	throw CodegenException(
+			"Illegal unary operation on "
+			+ value.get_type()->to_string()
+			+ ": " + token_kind::name(op));
+}
+
+Value UnaryOpNode::codegen(Context &ctx) const {
+	auto &builder = ctx.get_builder();
+	auto value = value_node->codegen(ctx);
+	auto type = value.get_type();
+	// TODO Logical operators!!
+	if (dynamic_cast<Type::Real*>(type)) {
+		switch (op) {
+			case UAdd: return value;
+			case USub: return { type, builder.CreateFNeg(value.get_llvm()) };
+			default: unary_op_fail(value, op);
+		}
+	} else if (dynamic_cast<Type::Int*>(value.get_type())) {
+		switch (op) {
+			case UAdd: return value;
+			case USub: return { type, builder.CreateNeg(value.get_llvm()) };
+			case Not: return { type, builder.CreateNot(value.get_llvm()) };
+			default: unary_op_fail(value, op);
+		}
+	} else unary_op_fail(value, op);
 }
 
 [[noreturn]] inline void bin_op_fail(const Value &lhs, const Value &rhs, TokenKind op) {
@@ -50,9 +81,12 @@ inline Type* bin_op_arithmetic_result_type(Type *lhs, Type *rhs) {
 	const bool lhs_is_real = dynamic_cast<Type::Real*>(lhs);
 	const bool rhs_is_real = dynamic_cast<Type::Real*>(rhs);
 	if (lhs_is_real != rhs_is_real) return lhs_is_real? lhs: rhs;
-	return
-		(lhs->scalar_size_in_bits() > rhs->scalar_size_in_bits())
-		? lhs : rhs;
+	const auto lhs_size = lhs->scalar_size_in_bits(), rhs_size = rhs->scalar_size_in_bits();
+	if (lhs_size != rhs_size)
+		return (lhs_size > rhs_size)? lhs: rhs;
+	if (auto lhs_int_type = dynamic_cast<Type::Int*>(lhs))
+		return lhs_int_type->is_signed()? lhs: rhs;
+	return lhs;
 }
 
 inline Value bin_op_arithmetic_codegen(Context &ctx, Value lhs, Value rhs, TokenKind op) {
@@ -68,6 +102,7 @@ inline Value bin_op_arithmetic_codegen(Context &ctx, Value lhs, Value rhs, Token
 			+ lhs.get_type()->to_string() + " and "
 			+ rhs.get_type()->to_string() + ": " + token_kind::name(op));
 
+	auto origin_lhs_type = lhs.get_type();
 	auto result_type = bin_op_arithmetic_result_type(lhs.get_type(), rhs.get_type());
 	lhs = lhs.cast(ctx, result_type);
 	rhs = rhs.cast(ctx, result_type);
@@ -90,9 +125,9 @@ inline Value bin_op_arithmetic_codegen(Context &ctx, Value lhs, Value rhs, Token
 			case Xor: llvm_op = bin_op::Xor; break;
 			case Or: llvm_op = bin_op::Or; break;
 			case And: llvm_op = bin_op::And; break;
-			case Shl: result_type = lhs.get_type(); llvm_op = bin_op::Shl; break;
+			case Shl: result_type = origin_lhs_type; llvm_op = bin_op::Shl; break;
 			case Shr:
-				result_type = lhs.get_type();
+				result_type = origin_lhs_type;
 				llvm_op = ptr_cast<Type::Int>(result_type)->is_signed()? bin_op::AShr: bin_op::LShr;
 				break;
 			case Div: llvm_op = int_type->is_signed()? bin_op::SDiv: bin_op::UDiv; break;
@@ -116,34 +151,6 @@ Value BinOpNode::codegen(Context &ctx) const {
 		default: break;
 	}
 	bin_op_fail(lhs, rhs, op);
-}
-
-[[noreturn]] inline void unary_op_fail(const Value &value, TokenKind op) {
-	throw CodegenException(
-			"Illegal unary operation on "
-			+ value.get_type()->to_string()
-			+ ": " + token_kind::name(op));
-}
-
-Value UnaryOpNode::codegen(Context &ctx) const {
-	auto &builder = ctx.get_builder();
-	auto value = value_node->codegen(ctx);
-	auto type = value.get_type();
-	// TODO Logical operators!!
-	if (dynamic_cast<Type::Real*>(type)) {
-		switch (op) {
-			case Add: return value;
-			case Sub: return { type, builder.CreateFNeg(value.get_llvm()) };
-			default: unary_op_fail(value, op);
-		}
-	} else if (auto int_type = dynamic_cast<Type::Int*>(value.get_type())) {
-		switch (op) {
-			case Add: return value;
-			case Sub: return { type, builder.CreateNeg(value.get_llvm()) };
-			case Not: return { type, builder.CreateNot(value.get_llvm()) };
-			default: unary_op_fail(value, op);
-		}
-	} else unary_op_fail(value, op);
 }
 
 } // namespace rin

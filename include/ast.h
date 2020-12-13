@@ -1,6 +1,8 @@
 
 #pragma once
 
+#include <string>
+
 #include "context.h"
 #include "type.h"
 #include "value.h"
@@ -12,6 +14,7 @@ template<class R>
 class ASTNode {
 public:
 	virtual R codegen(Context &ctx) const = 0;
+	virtual std::string to_string() const = 0;
 
 	virtual ~ASTNode() = default;
 };
@@ -21,6 +24,7 @@ public:
 	ConstantNode(const std::string &str): str(str) {}
 
 	Value codegen(Context &ctx) const override;
+	std::string to_string() const override;
 private:
 	std::string str;
 };
@@ -28,9 +32,12 @@ private:
 class UnaryOpNode : public ASTNode<Value> {
 public:
 	UnaryOpNode(Ptr<ASTNode<Value>> value, TokenKind op):
-		value_node(std::move(value)), op(op) {}
+		value_node(std::move(value)), op(op) {
+		assert(token_kind::is_unary_op(op));
+	}
 
 	Value codegen(Context &ctx) const override;
+	std::string to_string() const override;
 private:
 	Ptr<ASTNode<Value>> value_node;
 	TokenKind op;
@@ -39,9 +46,12 @@ private:
 class BinOpNode : public ASTNode<Value> {
 public:
 	BinOpNode(Ptr<ASTNode<Value>> lhs, Ptr<ASTNode<Value>> rhs, TokenKind op):
-		lhs_node(std::move(lhs)), rhs_node(std::move(rhs)), op(op) {}
+		lhs_node(std::move(lhs)), rhs_node(std::move(rhs)), op(op) {
+		assert(token_kind::is_binary_op(op));
+	}
 
 	Value codegen(Context &ctx) const override;
+	std::string to_string() const override;
 private:
 	Ptr<ASTNode<Value>> lhs_node, rhs_node;
 	TokenKind op;

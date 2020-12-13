@@ -1,5 +1,6 @@
 
 add_library(rin
+	ast.cpp
 	codegen.cpp
 	core_context.cpp
 	lexer.cpp

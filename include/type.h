@@ -31,7 +31,7 @@ private:
 	llvm::Type *llvm;
 };
 
-class Type::Void : public Type {
+class Type::Void final : public Type {
 public:
 	std::string to_string() const override { return "void"; }
 private:
@@ -40,7 +40,7 @@ private:
 	friend class CoreContext;
 };
 
-class Type::Boolean : public Type {
+class Type::Boolean final : public Type {
 public:
 	std::string to_string() const override { return "bool"; }
 private:
@@ -49,7 +49,7 @@ private:
 	friend class CoreContext;
 };
 
-class Type::Int : public Type {
+class Type::Int final : public Type {
 public:
 	inline unsigned int get_bit_width() const {
 		return ptr_cast<llvm::IntegerType>(llvm)->getIntegerBitWidth();
@@ -65,7 +65,7 @@ private:
 	friend class CoreContext;
 };
 
-class Type::Real : public Type {
+class Type::Real final : public Type {
 public:
 	bool is_primitive() const override { return true; }
 	std::string to_string() const override { return name; }
@@ -78,7 +78,7 @@ private:
 	friend class CoreContext;
 };
 
-class Type::Array : public Type {
+class Type::Array final : public Type {
 public:
 	inline Type* get_element_type() const { return element_type; }
 	inline uint32_t get_size() const { return size; }

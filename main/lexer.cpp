@@ -65,8 +65,10 @@ Token Lexer::lex() {
 			};
 			switch (tolower(input.take())) {
 				case 'u': {
-					if (tolower(input.take()) == 'l')
+					if (tolower(input.peek()) == 'l') {
+						input.take();
 						if (tolower(input.take()) != 'l') illegal_suffix();
+					}
 					break;
 				}
 				case 'l': {
