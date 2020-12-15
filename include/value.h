@@ -45,6 +45,8 @@ public:
 	}
 	inline Type* get_type() const { return type; }
 	inline llvm::Value* get_llvm() const { return llvm; }
+	inline bool is_ref() const { return dynamic_cast<Type::Ref*>(type); }
+	inline Value deref(Context &ctx);
 private:
 	Type *type;
 	llvm::Value *llvm;

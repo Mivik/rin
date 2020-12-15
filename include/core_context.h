@@ -30,6 +30,7 @@ public:
 	inline Type::Real* get_double_type() { return &double_type; }
 	Type::Int* get_int_type(unsigned int bit_width, bool is_signed = true);
 	Type::Array* get_array_type(Type *element_type, uint32_t size);
+	Type::Ref* get_ref_type(Type *type);
 
 	DISABLE_COPY(CoreContext)
 
@@ -75,6 +76,8 @@ private:
 		};
 	};
 	std::unordered_map<ArrayTypeKey, Type::Array*, ArrayTypeKey::Hash> array_type_map;
+
+	std::unordered_map<Type*, Type::Ref*> ref_type_map;
 };
 
 } // namespace rin

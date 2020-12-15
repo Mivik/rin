@@ -33,4 +33,12 @@ std::string Type::Array::to_string() const {
 	return '[' + element_type->to_string() + ", " + std::to_string(size) + ']';
 }
 
+Type::Ref::Ref(CoreContext *ctx, Type *sub_type):
+	Type(llvm::PointerType::get(sub_type->get_llvm(), 0)),
+	sub_type(sub_type) {}
+
+std::string Type::Ref::to_string() const {
+	return '&' + sub_type->to_string();
+}
+
 } // namespace rin

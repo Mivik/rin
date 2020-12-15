@@ -25,6 +25,13 @@ TEST(type, array) {
 				core.get_array_type(core.get_array_type(i8, 5), 5));
 }
 
+TEST(type, reference) {
+	CoreContext core;
+	const auto i8 = core.get_i8_type();
+	EXPECT_EQ(core.get_ref_type(i8), core.get_ref_type(i8));
+	EXPECT_EQ(core.get_ref_type(i8), core.get_ref_type(core.get_int_type(8, true)));
+}
+
 TEST(type, to_string) {
 	CoreContext core;
 	EXPECT_EQ(core.get_i8_type()->to_string(), "i8");
@@ -35,6 +42,7 @@ TEST(type, to_string) {
 	EXPECT_EQ(core.get_float_type()->to_string(), "float");
 	EXPECT_EQ(core.get_double_type()->to_string(), "double");
 	EXPECT_EQ(core.get_array_type(core.get_i8_type(), 54)->to_string(), "[i8, 54]");
+	EXPECT_EQ(core.get_ref_type(core.get_i8_type())->to_string(), "&i8");
 }
 
 } // namespace rin

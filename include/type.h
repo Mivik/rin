@@ -18,6 +18,7 @@ public:
 	class Boolean;
 	class Int;
 	class Real;
+	class Ref;
 	class Void;
 
 	inline llvm::Type* get_llvm() const { return llvm; }
@@ -85,8 +86,19 @@ public:
 	std::string to_string() const override;
 private:
 	Array(CoreContext *ctx, Type *element_type, uint32_t size);
-	Type * element_type;
+	Type *element_type;
 	uint32_t size;
+
+	friend class CoreContext;
+};
+
+class Type::Ref final : public Type {
+public:
+	std::string to_string() const override;
+	inline Type* get_sub_type() const { return sub_type; }
+private:
+	Ref(CoreContext *ctx, Type *ref_type);
+	Type *sub_type;
 
 	friend class CoreContext;
 };

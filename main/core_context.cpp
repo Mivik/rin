@@ -32,10 +32,18 @@ Type::Array* CoreContext::get_array_type(Type *element_type, uint32_t size) {
 	return value;
 }
 
+Type::Ref* CoreContext::get_ref_type(Type *type) {
+	auto &value = ref_type_map[type];
+	if (!value) value = new Type::Ref(this, type);
+	return value;
+}
+
 CoreContext::~CoreContext() {
-	for (auto &[key, value] : int_type_map)
+	for (auto &[_, value] : int_type_map)
 		delete value;
-	for (auto &[key, value] : array_type_map)
+	for (auto &[_, value] : array_type_map)
+		delete value;
+	for (auto &[_, value] : ref_type_map)
 		delete value;
 }
 

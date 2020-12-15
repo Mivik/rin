@@ -28,4 +28,14 @@ Value Value::cast(Context &ctx, Type *to, bool check_only) const {
 	return { to, ctx.get_builder().CreateCast(llvm_op, llvm, to->get_llvm()) };
 }
 
+Value Value::deref(Context &ctx) {
+	auto ref_type = dynamic_cast<Type::Ref*>(type);
+	assert(ref_type && "the receiver of deref() can only be a reference");
+	auto sub = ref_type->get_sub_type();
+	return {
+		sub,
+		ctx.get_builder().CreateLoad(sub->get_llvm(), llvm)
+	};
+}
+
 } // namespace rin
