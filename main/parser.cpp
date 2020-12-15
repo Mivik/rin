@@ -120,6 +120,8 @@ Ptr<ASTNode<Value>> Parser::take_expr() {
 		} else break;
 	}
 	while (!ops.empty()) process_op(st, pop_stack(ops));
+	if (st.empty())
+		throw ParseException("Missing operand");
 	assert(ops.empty() && st.size() == 1);
 	return Ptr<ASTNode<Value>>(st.top());
 }
