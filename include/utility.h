@@ -24,10 +24,20 @@ namespace rin::detail {
 #define rin_unreachable(msg) rin::detail::unreachable_internal(msg, __FILE__, __LINE__)
 
 template<class R, class T>
-inline R* ptr_cast(T *ptr) { return reinterpret_cast<R*>(ptr); }
+inline R* direct_cast(T *ptr) { return reinterpret_cast<R*>(ptr); }
 
 template<class R, class T>
-inline const R* ptr_cast(const T *ptr) { return reinterpret_cast<const R*>(ptr); }
+inline const R* direct_cast(const T *ptr) { return reinterpret_cast<const R*>(ptr); }
 
-template<class T>
-using Ptr = std::unique_ptr<T>;
+template<class T, class D = std::default_delete<T>>
+using Ptr = std::unique_ptr<T, D>;
+
+template<class R, class T, class D>
+Ptr<R, D> ptr_cast(Ptr<T, D> &&p) {
+	if (auto cast = dynamic_cast<R*>(p.get())) {
+		Ptr<R, D> ret(cast, std::move(p.get_deleter()));
+		p.release();
+		return ret;
+	}
+	return nullptr;
+}

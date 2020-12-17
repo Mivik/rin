@@ -35,6 +35,17 @@ TEST(parser, integer_constant) {
 				core.get_u64_type()));
 }
 
+TEST(parser, source_range) {
+	EXPECT_EQ(Parser("1+2").take_expr()->get_source_range(), SourceRange(0, 3));
+	do {
+		auto bin_op = ptr_cast<BinOpNode>(Parser(" 1+ 45 ").take_expr());
+		EXPECT_TRUE(bin_op);
+		EXPECT_EQ(bin_op->get_source_range(), SourceRange(1, 6));
+		EXPECT_EQ(bin_op->get_lhs_node()->get_source_range(), SourceRange(1, 2));
+		EXPECT_EQ(bin_op->get_rhs_node()->get_source_range(), SourceRange(4, 6));
+	} while (false);
+}
+
 TEST(parser, bin_op) {
 	CoreContext core;
 	Context ctx(core);

@@ -15,7 +15,7 @@ Value ConstantNode::codegen(Context &ctx) const {
 		auto type = core.get_boolean_type();
 		return {
 				type,
-				ptr_cast<llvm::Value>(llvm::ConstantInt::get(type->get_llvm(), str == "true"))
+				direct_cast<llvm::Value>(llvm::ConstantInt::get(type->get_llvm(), str == "true"))
 			};
 	}
 	if (isdigit(str[0])) {
@@ -32,9 +32,9 @@ Value ConstantNode::codegen(Context &ctx) const {
 			tmp.pop_back(); assert(!tmp.empty());
 			type = core.get_u32_type();
 		}
-		return { type, ptr_cast<llvm::Value>(
+		return { type, direct_cast<llvm::Value>(
 					llvm::ConstantInt::get(
-						ptr_cast<llvm::IntegerType>(type->get_llvm()),
+						direct_cast<llvm::IntegerType>(type->get_llvm()),
 						tmp, 10
 					)
 				) };
@@ -156,7 +156,7 @@ inline Value bin_op_arithmetic_codegen(Context &ctx, Value lhs, Value rhs, Token
 			case Shl: result_type = origin_lhs_type; llvm_op = bin_op::Shl; break;
 			case Shr:
 				result_type = origin_lhs_type;
-				llvm_op = ptr_cast<Type::Int>(result_type)->is_signed()? bin_op::AShr: bin_op::LShr;
+				llvm_op = direct_cast<Type::Int>(result_type)->is_signed()? bin_op::AShr: bin_op::LShr;
 				break;
 			case Div: llvm_op = int_result_type->is_signed()? bin_op::SDiv: bin_op::UDiv; break;
 			case Mod: llvm_op = int_result_type->is_signed()? bin_op::SRem: bin_op::URem; break;

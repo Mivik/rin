@@ -53,7 +53,7 @@ private:
 class Type::Int final : public Type {
 public:
 	inline unsigned int get_bit_width() const {
-		return ptr_cast<llvm::IntegerType>(llvm)->getIntegerBitWidth();
+		return direct_cast<llvm::IntegerType>(llvm)->getIntegerBitWidth();
 	}
 	inline bool is_signed() const { return signed_flag; }
 	bool operator==(const Type &other) const override;

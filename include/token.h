@@ -68,6 +68,18 @@ struct SourceRange {
 	SourceRange(size_t begin, size_t end):
 		begin(begin), end(end) {}
 	inline bool is_empty() const { return begin >= end; }
+	inline SourceRange operator+(const SourceRange &other) const {
+		return { begin, other.end };
+	}
+	inline bool operator==(const SourceRange &other) const {
+		return begin == other.begin && end == other.end;
+	}
+	inline bool operator!=(const SourceRange &other) const {
+		return begin != other.begin || end != other.end;
+	}
+	inline std::string to_string() const {
+		return '[' + std::to_string(begin) + ", " + std::to_string(end) + ')';
+	}
 };
 
 struct Token {

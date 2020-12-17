@@ -60,7 +60,7 @@ Ptr<ASTNode<Value>> Parser::take_prim() {
 		case True:
 		case False:
 			lexer.take();
-			return std::make_unique<ConstantNode>(token.content(get_buffer()));
+			return std::make_unique<ConstantNode>(token, get_buffer());
 		case LPar: {
 			lexer.take();
 			auto ret = take_expr();
@@ -78,10 +78,11 @@ inline T pop_stack(std::stack<T> &st) {
 	return ret;
 }
 
-inline void process_op(std::stack<ASTNode<Value>*> &st, TokenKind op) {
+inline void process_op(std::stack<ASTNode<Value>*> &st, const Token &token) {
+	const TokenKind op = token.kind;
 	if (token_kind::is_unary_op(op)) {
 		Ptr<ASTNode<Value>> value(pop_stack(st));
-		st.push(new UnaryOpNode(std::move(value), op));
+		st.push(new UnaryOpNode(std::move(value), token));
 	} else {
 		Ptr<ASTNode<Value>> rhs(pop_stack(st)), lhs(pop_stack(st));
 		st.push(new BinOpNode(std::move(lhs), std::move(rhs), op));
@@ -94,9 +95,10 @@ Ptr<ASTNode<Value>> Parser::take_expr() {
 	} last = Empty;
 
 	std::stack<ASTNode<Value>*> st;
-	std::stack<TokenKind> ops;
+	std::stack<Token> ops;
 	while (true) {
-		auto kind = lexer.peek().kind;
+		auto token = lexer.peek();
+		auto &kind = token.kind;
 		if (kind == Eof) break;
 		if (last != Prim)
 			kind = token_kind::as_unary_op(kind);
@@ -109,10 +111,10 @@ Ptr<ASTNode<Value>> Parser::take_expr() {
 			lexer.take();
 			auto cur_pred = precedence_of(kind);
 			while (!ops.empty() &&
-				((precedence_of(ops.top()) < cur_pred) ||
-				(precedence_of(ops.top()) == cur_pred && !is_right_associative(cur_pred)))
+				((precedence_of(ops.top().kind) < cur_pred) ||
+				(precedence_of(ops.top().kind) == cur_pred && !is_right_associative(cur_pred)))
 			) process_op(st, pop_stack(ops));
-			ops.push(kind);
+			ops.push(token);
 			last = is_unary? UnaryOp: BinOp;
 		} else if (auto ptr = take_prim()) {
 			st.push(ptr.release());
