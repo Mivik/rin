@@ -28,7 +28,9 @@ public:
 	}
 
 	Value(Type *type, llvm::Value *llvm):
-		type(type), llvm(llvm) {}
+		type(type), llvm(llvm) {
+		assert(!dynamic_cast<Type::Ref*>(type));
+	}
 
 	Value cast(Context &ctx, Type *to, bool check_only = false) const;
 

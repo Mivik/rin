@@ -9,11 +9,10 @@ namespace rin {
 class ParseException : public std::exception {
 public:
 	const char *what() const noexcept { return msg.data(); }
+
+	ParseException(const std::string &msg): msg(msg) {}
 private:
 	std::string msg;
-	ParseException(const std::string &msg): msg(msg) {}
-
-	friend class Parser;
 };
 
 class Parser {

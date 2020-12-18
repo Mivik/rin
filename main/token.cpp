@@ -29,6 +29,8 @@ std::string name(TokenKind kind) {
 		H(LAnd) H(LNot) H(Assign) H(AddA) H(SubA)
 		H(MulA) H(DivA) H(ModA) H(ShlA) H(ShrA) H(OrA)
 		H(AndA) H(XorA) H(Lt) H(Gt) H(Le) H(Ge) H(Eq) H(Neq)
+		// Unary operators
+		H(UAdd) H(USub)
 		default: throw "Illegal token kind: " + std::to_string(kind);
 	}
 #undef H

@@ -182,4 +182,10 @@ Value BinOpNode::codegen(Context &ctx) const {
 	bin_op_fail(lhs, rhs, op);
 }
 
+Value ValueNode::codegen(Context &ctx) const {
+	auto opt = ctx.lookup_value(name);
+	if (!opt) throw CodegenException("Unknown identifier: " + name);
+	return *opt;
+}
+
 } // namespace rin

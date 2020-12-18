@@ -2,6 +2,7 @@
 add_library(rin SHARED
 	ast.cpp
 	codegen.cpp
+	context.cpp
 	core_context.cpp
 	lexer.cpp
 	parser.cpp

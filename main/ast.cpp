@@ -36,4 +36,6 @@ std::string BinOpNode::to_string() const {
 	return '(' + lhs_node->to_string() + ' ' + str + ' ' + rhs_node->to_string() + ')';
 }
 
+std::string ValueNode::to_string() const { return name; }
+
 } // namespace rin

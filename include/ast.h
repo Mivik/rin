@@ -73,4 +73,16 @@ private:
 	TokenKind op;
 };
 
+class ValueNode : public ASTNode<Value> {
+public:
+	ValueNode(const Token &token, const MemoryBuffer &buffer):
+		ASTNode(token.range), name(token.content(buffer)) {}
+
+	inline std::string get_name() const { return name; }
+	Value codegen(Context &ctx) const override;
+	std::string to_string() const override;
+private:
+	std::string name;
+};
+
 } // namespace rin

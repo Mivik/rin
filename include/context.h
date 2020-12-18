@@ -18,11 +18,13 @@ public:
 	inline CoreContext& get_core() { return core; }
 	inline llvm::LLVMContext& get_llvm() { return core.get_llvm(); }
 	inline llvm::IRBuilder<>& get_builder() { return builder; }
+	std::optional<Value> lookup_value(const std::string &name);
 
 	DISABLE_COPY(Context)
 private:
 	CoreContext &core;
 	llvm::IRBuilder<> builder;
+	LayerMap<std::string, Value> value_map;
 };
 
 } // namespace rin

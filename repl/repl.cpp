@@ -1,6 +1,7 @@
 
 #include <iostream>
 
+#include "codegen.h"
 #include "parser.h"
 
 int main() {
@@ -20,6 +21,10 @@ int main() {
 			llvm::errs() << "Syntax error: " << e.what() << '\n';
 		} catch (const rin::ParseException &e) {
 			llvm::errs() << "Syntax error: " << e.what() << '\n';
+		} catch (const rin::CodegenException &e) {
+			llvm::errs() << "Codegen error: " << e.what() << '\n';
+		} catch (const rin::CastException &e) {
+			llvm::errs() << "Cast error: " << e.what() << '\n';
 		}
 	}
 }

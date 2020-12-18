@@ -13,7 +13,7 @@
 namespace rin {
 
 template<class K, class V>
-struct LayerMap {
+class LayerMap {
 public:
 	inline bool empty() const { return keys.empty(); }
 	inline int get_depth() const { return keys.size(); }

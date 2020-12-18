@@ -67,6 +67,9 @@ Ptr<ASTNode<Value>> Parser::take_prim() {
 			expect(lexer.take(), RPar);
 			return ret;
 		}
+		case Identifier:
+			lexer.take();
+			return std::make_unique<ValueNode>(token, get_buffer());
 		default: break;
 	}
 	return nullptr;
@@ -76,17 +79,6 @@ template<class T>
 inline T pop_stack(std::stack<T> &st) {
 	const T ret(st.top()); st.pop();
 	return ret;
-}
-
-inline void process_op(std::stack<ASTNode<Value>*> &st, const Token &token) {
-	const TokenKind op = token.kind;
-	if (token_kind::is_unary_op(op)) {
-		Ptr<ASTNode<Value>> value(pop_stack(st));
-		st.push(new UnaryOpNode(std::move(value), token));
-	} else {
-		Ptr<ASTNode<Value>> rhs(pop_stack(st)), lhs(pop_stack(st));
-		st.push(new BinOpNode(std::move(lhs), std::move(rhs), op));
-	}
 }
 
 Ptr<ASTNode<Value>> Parser::take_expr() {
@@ -102,6 +94,26 @@ Ptr<ASTNode<Value>> Parser::take_expr() {
 			st.pop();
 		}
 		throw ParseException(msg);
+	};
+	auto require = [&](int amount) {
+		if (st.size() >= amount) return;
+		error(
+			"Not enough operand(s). "
+			"Expected " + std::to_string(amount) +
+			", got " + std::to_string(st.size())
+		);
+	};
+	auto process_op = [&](std::stack<ASTNode<Value>*> &st, const Token &token) {
+		const TokenKind op = token.kind;
+		if (token_kind::is_unary_op(op)) {
+			require(1);
+			Ptr<ASTNode<Value>> value(pop_stack(st));
+			st.push(new UnaryOpNode(std::move(value), token));
+		} else {
+			require(2);
+			Ptr<ASTNode<Value>> rhs(pop_stack(st)), lhs(pop_stack(st));
+			st.push(new BinOpNode(std::move(lhs), std::move(rhs), op));
+		}
 	};
 	while (true) {
 		auto token = lexer.peek();
