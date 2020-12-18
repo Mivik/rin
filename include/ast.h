@@ -30,6 +30,8 @@ public:
 	ConstantNode(const Token &token, const MemoryBuffer &buffer):
 		ASTNode(token.range), str(token.content(buffer)) {}
 
+	inline std::string get_string_value() const { return str; }
+
 	Value codegen(Context &ctx) const override;
 	std::string to_string() const override;
 private:
@@ -39,8 +41,8 @@ private:
 class UnaryOpNode : public ASTNode<Value> {
 public:
 	UnaryOpNode(Ptr<ASTNode<Value>> value, const Token &token):
-		value_node(std::move(value)), op(token.kind),
-		ASTNode(token.range + value->get_source_range()) {
+		ASTNode(token.range + value->get_source_range()),
+		value_node(std::move(value)), op(token.kind) {
 		assert(token_kind::is_unary_op(op));
 	}
 
@@ -56,8 +58,8 @@ private:
 class BinOpNode : public ASTNode<Value> {
 public:
 	BinOpNode(Ptr<ASTNode<Value>> lhs, Ptr<ASTNode<Value>> rhs, TokenKind op):
-		lhs_node(std::move(lhs)), rhs_node(std::move(rhs)), op(op),
-		ASTNode(lhs->get_source_range() + rhs->get_source_range()) {
+		ASTNode(lhs->get_source_range() + rhs->get_source_range()),
+		lhs_node(std::move(lhs)), rhs_node(std::move(rhs)), op(op) {
 		assert(token_kind::is_binary_op(op));
 	}
 

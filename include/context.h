@@ -4,9 +4,12 @@
 #include <llvm/IR/IRBuilder.h>
 
 #include "core_context.h"
+#include "layer_map.h"
 #include "utility.h"
 
 namespace rin {
+
+class Value;
 
 class Context {
 public:

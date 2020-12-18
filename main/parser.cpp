@@ -96,6 +96,13 @@ Ptr<ASTNode<Value>> Parser::take_expr() {
 
 	std::stack<ASTNode<Value>*> st;
 	std::stack<Token> ops;
+	auto error = [&st](const std::string &msg) {
+		while (!st.empty()) {
+			delete st.top();
+			st.pop();
+		}
+		throw ParseException(msg);
+	};
 	while (true) {
 		auto token = lexer.peek();
 		auto &kind = token.kind;
@@ -107,7 +114,7 @@ Ptr<ASTNode<Value>> Parser::take_expr() {
 		if (is_unary || is_binary) {
 			if ((is_unary && (last == UnaryOp || last == Prim))
 				|| (is_binary && (last != Prim)))
-				throw ParseException("Illegal operator: " + token_kind::name(kind));
+				error("Illegal operator: " + token_kind::name(kind));
 			lexer.take();
 			auto cur_pred = precedence_of(kind);
 			while (!ops.empty() &&
@@ -123,7 +130,7 @@ Ptr<ASTNode<Value>> Parser::take_expr() {
 	}
 	while (!ops.empty()) process_op(st, pop_stack(ops));
 	if (st.empty())
-		throw ParseException("Missing operand");
+		error("Missing operand");
 	assert(ops.empty() && st.size() == 1);
 	return Ptr<ASTNode<Value>>(st.top());
 }
