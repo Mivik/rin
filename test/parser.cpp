@@ -1,6 +1,7 @@
 
 #include <gtest/gtest.h>
 
+#include "codegen.h"
 #include "parser.h"
 
 namespace rin {
@@ -81,7 +82,48 @@ TEST(parser, bin_op) {
 	} while (false);
 	EXPECT_THROW(Parser("(1 + 3").take_expr(), ParseException);
 	EXPECT_THROW(Parser("1 !2").take_expr(), ParseException);
+	EXPECT_THROW(Parser("2 +").take_expr(), ParseException);
 	EXPECT_NO_FATAL_FAILURE(Parser("1 + -3 - -6").take_expr());
+}
+
+TEST(parser, type) {
+	CoreContext core;
+	Context ctx(core);
+	EXPECT_EQ(Parser("i8").take_type()->codegen(ctx), core.get_i8_type());
+	EXPECT_EQ(Parser("u128").take_type()->codegen(ctx), core.get_u128_type());
+	EXPECT_EQ(Parser("*i8").take_type()->codegen(ctx), core.get_pointer_type(core.get_i8_type()));
+	EXPECT_EQ(Parser("[&const i32, 54]").take_type()->codegen(ctx),
+		core.get_array_type(core.get_ref_type(core.get_i32_type(), true), 54));
+	EXPECT_EQ(Parser("[[i32, 5], 5]").take_type()->codegen(ctx),
+				core.get_array_type(core.get_array_type(core.get_i32_type(), 5), 5));
+	EXPECT_THROW(Parser("&(&i8)").take_type()->codegen(ctx), CodegenException);
+	EXPECT_THROW(Parser("*(&i32)").take_type()->codegen(ctx), CodegenException);
+}
+
+TEST(parser, stmt) {
+	EXPECT_THROW(Parser("let i;").take_stmt(), CodegenException);
+	EXPECT_TRUE(dynamic_cast<VarDeclNode*>(
+		Parser("let i: i32;").take_stmt().get()
+	));
+	EXPECT_TRUE(dynamic_cast<BlockNode*>(
+		Parser(
+			"{\n"
+			"	let i: i32 = 5;\n"
+			"	500;\n"
+			"}"
+		).take_stmt().get()
+	));
+	EXPECT_THROW(Parser("let v = 5").take_stmt(), ParseException);
+}
+
+TEST(parser, function) {
+	CoreContext core;
+	Context ctx(core);
+	auto i8 = core.get_i8_type();
+	EXPECT_EQ(Parser("(i8, i8) -> i8").take_type()->codegen(ctx),
+		core.get_function_type(nullptr, i8, { i8, i8 }));
+	EXPECT_EQ(Parser("i8.() -> bool").take_type()->codegen(ctx),
+		core.get_function_type(i8, core.get_boolean_type(), {}));
 }
 
 } // namespace rin

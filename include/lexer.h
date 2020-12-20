@@ -17,12 +17,10 @@ class Token;
 class LexException : public std::exception {
 public:
 	const char *what() const noexcept { return msg.data(); }
+
+	LexException(const std::string &msg): msg(msg) {}
 private:
 	std::string msg;
-	LexException(const std::string &msg): msg(msg) {}
-
-	friend class Lexer;
-	friend class Reader;
 };
 
 class MemoryBuffer {
@@ -42,11 +40,12 @@ public:
 	Reader(const MemoryBuffer &buffer):
 		buffer(buffer), ptr(buffer.begin) {}
 
-	const MemoryBuffer& get_buffer() const { return buffer; }
-	size_t position() const { return ptr - buffer.begin; }
-	char peek() const { return (ptr >= buffer.end)? -1: *ptr; }
-	char take() { const char r = peek(); ++ptr; return r; }
+	inline const MemoryBuffer& get_buffer() const { return buffer; }
+	inline size_t position() const { return ptr - buffer.begin; }
+	inline char peek() const { return (ptr >= buffer.end)? -1: *ptr; }
+	inline char take() { const char r = peek(); ++ptr; return r; }
 	void rewind(size_t count = 1);
+	inline void rewind_to(size_t pos) { ptr = buffer.begin + pos; }
 private:
 	MemoryBuffer buffer;
 	const char *ptr;
@@ -65,6 +64,14 @@ public:
 		if (buffer.empty()) return lex();
 		Token ret = buffer.front(); buffer.pop_front();
 		return ret;
+	}
+	inline size_t position() {
+		if (buffer.empty()) return input.position();
+		return buffer.front().range.begin;
+	}
+	inline void rewind_to(size_t pos) {
+		input.rewind_to(pos);
+		buffer.clear();
 	}
 private:
 	Token lex();

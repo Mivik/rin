@@ -170,6 +170,30 @@ inline Value bin_op_arithmetic_codegen(Context &ctx, Value lhs, Value rhs, Token
 		};
 }
 
+inline Value assignment_codegen(Context &ctx, Value lhs, Value rhs, TokenKind op) {
+	auto ref_type = dynamic_cast<Type::Ref*>(lhs.get_type());
+	if (!ref_type)
+		throw CodegenException(
+			"The left side of assignment statement must be a reference"
+			", got" + ref_type->to_string()
+		);
+	TokenKind bop = Assign;
+	switch (op) {
+#define H(s) case s##A: bop = s; break;
+		H(Add) H(Sub) H(Mul) H(Div) H(Mod)
+		H(Shl) H(Shr) H(Or) H(And) H(Xor)
+#undef H
+		case Assign: break;
+		default: assert(false);
+	}
+	auto value =
+		bop == Assign
+		? rhs
+		: bin_op_arithmetic_codegen(ctx, lhs.deref(ctx), rhs, bop);
+	ctx.get_builder().CreateStore(lhs.get_llvm(), value.get_llvm());
+	return lhs;
+}
+
 Value BinOpNode::codegen(Context &ctx) const {
 	auto lhs = lhs_node->codegen(ctx), rhs = rhs_node->codegen(ctx);
 	switch (op) {
@@ -177,15 +201,107 @@ Value BinOpNode::codegen(Context &ctx) const {
 		case Shl: case Shr: case Or: case And: case Xor:
 		case Lt: case Le: case Gt: case Ge: case Eq: case Neq:
 			return bin_op_arithmetic_codegen(ctx, lhs, rhs, op);
+		case Assign: case AddA: case SubA: case MulA: case DivA:
+		case ModA: case ShlA: case ShrA: case OrA: case AndA: case XorA:
+			return assignment_codegen(ctx, lhs, rhs, op);
 		default: break;
 	}
 	bin_op_fail(lhs, rhs, op);
 }
 
-Value ValueNode::codegen(Context &ctx) const {
+Value NamedValueNode::codegen(Context &ctx) const {
 	auto opt = ctx.lookup_value(name);
 	if (!opt) throw CodegenException("Unknown identifier: " + name);
 	return *opt;
+}
+
+Type* NamedTypeNode::codegen(Context &ctx) const {
+	auto opt = ctx.lookup_type(name);
+	if (!opt) throw CodegenException("Unknown type: " + name);
+	return *opt;
+}
+
+Type* ArrayTypeNode::codegen(Context &ctx) const {
+	return ctx.get_core().get_array_type(
+		element_type_node->codegen(ctx),
+		size
+	);
+}
+
+Type* PointerTypeNode::codegen(Context &ctx) const {
+	return ctx.get_core().get_pointer_type(sub_type_node->codegen(ctx), const_flag);
+}
+
+Type* RefTypeNode::codegen(Context &ctx) const {
+	return ctx.get_core().get_ref_type(sub_type_node->codegen(ctx), const_flag);
+}
+
+Type* FunctionTypeNode::codegen(Context &ctx) const {
+	std::vector<Type*> param_types;
+	param_types.reserve(param_type_nodes.size());
+	for (auto param : param_type_nodes)
+		param_types.push_back(param->codegen(ctx));
+	auto receiver_type =
+		receiver_type_node
+		? receiver_type_node->codegen(ctx)
+		: nullptr;
+	return ctx.get_core().get_function_type(
+		receiver_type,
+		result_type_node->codegen(ctx),
+		param_types
+	);
+}
+
+Value VarDeclNode::codegen(Context &ctx) const {
+	Value ptr = ctx.get_core().get_void();
+	if (value_node) {
+		auto value = value_node->codegen(ctx);
+		if (type_node)
+			value = value.cast(ctx, type_node->codegen(ctx));
+		ptr = ctx.allocate_stack(value.get_type(), value);
+	} else
+		ptr = ctx.allocate_stack(type_node->codegen(ctx));
+	ctx.declare_value(name, ptr.pointer_subscript(ctx));
+	return ctx.get_core().get_void();
+}
+
+Value BlockNode::codegen(Context &ctx) const {
+	Value last = ctx.get_core().get_void();
+	for (auto stmt : stmts)
+		last = stmt->codegen(ctx);
+	return last;
+}
+
+Prototype PrototypeNode::codegen(Context &ctx) const {
+	auto func_type =
+		dynamic_cast<Type::Function*>(type_node->codegen(ctx));
+	return {
+		name,
+		func_type,
+		param_names
+	};
+}
+
+void FunctionNode::codegen(Context &ctx) const {
+	auto prototype = prototype_node->codegen(ctx);
+	auto func = llvm::Function::Create(
+		llvm::dyn_cast<llvm::FunctionType>(
+			prototype.get_function_type()->get_llvm()
+		),
+		llvm::Function::ExternalLinkage,
+		prototype.get_name(),
+		ctx.get_module()
+	);
+	auto sub_ctx = ctx.sub_context(
+		llvm::IRBuilder<>(
+			llvm::BasicBlock::Create(
+				ctx.get_llvm(),
+				"entry",
+				func
+			)
+		)
+	);
+	body_node->codegen(sub_ctx);
 }
 
 } // namespace rin

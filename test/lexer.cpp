@@ -46,8 +46,8 @@ inline std::vector<Token> tokens(const char *str) {
 }
 
 inline constexpr const char *KEYWORDS[] = {
-	"else", "enum", "fn", "for", "if", "in",
-	"is", "let", "return", "var", "when"
+	"const", "else", "enum", "fn", "for", "if",
+	"in", "is", "let", "return", "var", "when"
 };
 
 TEST(lexer, identifier) {
@@ -89,10 +89,10 @@ TEST(lexer, operator) {
 
 TEST(lexer, delimiter) {
 	EXPECT_TRUE(tokens_eq(
-		"() [] {} : , .",
+		"() [] {} : , . ->",
 		{
 			LPar, RPar, LBracket, RBracket, LBrace, RBrace,
-			Colon, Comma, Period
+			Colon, Comma, Period, Arrow
 		}
 	));
 }

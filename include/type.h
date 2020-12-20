@@ -2,6 +2,7 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 
 #include <llvm/IR/Type.h>
 #include <llvm/IR/DerivedTypes.h>
@@ -16,11 +17,14 @@ class Type {
 public:
 	class Array;
 	class Boolean;
+	class Function;
 	class Int;
+	class Pointer;
 	class Real;
 	class Ref;
 	class Void;
 
+	const Type* deref(CoreContext &ctx) const;
 	inline llvm::Type* get_llvm() const { return llvm; }
 	inline size_t scalar_size_in_bits() const { return llvm->getScalarSizeInBits(); }
 	virtual bool operator==(const Type &other) const { return llvm == other.llvm; }
@@ -92,13 +96,47 @@ private:
 	friend class CoreContext;
 };
 
+class Type::Pointer final : public Type {
+public:
+	std::string to_string() const override;
+	inline Type* get_sub_type() const { return sub_type; }
+	inline bool is_const() const { return const_flag; }
+private:
+	Pointer(CoreContext *ctx, Type *ref_type, bool const_flag);
+
+	Type *sub_type;
+	bool const_flag;
+
+	friend class CoreContext;
+};
+
 class Type::Ref final : public Type {
 public:
 	std::string to_string() const override;
 	inline Type* get_sub_type() const { return sub_type; }
+	inline bool is_const() const { return const_flag; }
 private:
-	Ref(CoreContext *ctx, Type *ref_type);
+	Ref(CoreContext *ctx, Type *ref_type, bool const_flag);
+
 	Type *sub_type;
+	bool const_flag;
+
+	friend class CoreContext;
+};
+
+class Type::Function final : public Type {
+public:
+	std::string to_string() const override;
+	inline Type* get_receiver_type() const { return receiver_type; }
+	inline Type* get_result_type() const { return receiver_type; }
+	inline std::vector<Type*> get_parameter_types() const { return param_types; }
+private:
+	Function(CoreContext *ctx,
+		Type *receiver_type, Type *result_type,
+		const std::vector<Type*> &param_types);
+
+	Type *receiver_type, *result_type;
+	std::vector<Type*> param_types;
 
 	friend class CoreContext;
 };

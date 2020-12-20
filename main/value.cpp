@@ -1,8 +1,10 @@
+
+#include "codegen.h"
 #include "value.h"
 
 namespace rin {
 
-Value Value::cast(Context &ctx, Type *to, bool check_only) const {
+Value Value::cast(Context &ctx, Type *to, bool implicit_only, bool check_only) const {
 	using cast_op = llvm::Instruction::CastOps;
 
 	if (type == to) return *this;
@@ -29,11 +31,43 @@ Value Value::cast(Context &ctx, Type *to, bool check_only) const {
 
 Value Value::deref(Context &ctx) {
 	auto ref_type = dynamic_cast<Type::Ref*>(type);
-	assert(ref_type && "the receiver of deref() can only be a reference");
+	if (!ref_type) return *this;
 	auto sub = ref_type->get_sub_type();
 	return {
 		sub,
 		ctx.get_builder().CreateLoad(sub->get_llvm(), llvm)
+	};
+}
+
+Value Value::pointer_subscript(Context &ctx) {
+	auto ptr_type = dynamic_cast<Type::Pointer*>(type);
+	if (!ptr_type)
+		throw CodegenException(
+			"Subscripting a non-pointer type: " +
+			type->to_string()
+		);
+	return {
+		ctx.get_core().get_ref_type(
+			ptr_type->get_sub_type(),
+			ptr_type->is_const()
+		),
+		llvm
+	};
+}
+
+Value Value::pointer_subscript(Context &ctx, Value index) {
+	auto ptr_type = dynamic_cast<Type::Pointer*>(type);
+	if (!ptr_type)
+		throw CodegenException(
+			"Subscripting a non-pointer type: " +
+			type->to_string()
+		);
+	return {
+		ctx.get_core().get_ref_type(
+			ptr_type->get_sub_type(),
+			ptr_type->is_const()
+		),
+		ctx.get_builder().CreateGEP(llvm, index.llvm)
 	};
 }
 

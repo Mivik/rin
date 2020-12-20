@@ -10,6 +10,8 @@
 
 namespace rin {
 
+class Value;
+
 class CoreContext {
 public:
 	CoreContext();
@@ -30,7 +32,13 @@ public:
 	inline Type::Real* get_double_type() { return &double_type; }
 	Type::Int* get_int_type(unsigned int bit_width, bool is_signed = true);
 	Type::Array* get_array_type(Type *element_type, uint32_t size);
-	Type::Ref* get_ref_type(Type *type);
+	Type::Ref* get_ref_type(Type *type, bool const_flag = false);
+	Type::Pointer* get_pointer_type(Type *type, bool const_flag = false);
+	Type::Function* get_function_type(
+		Type *receiver_type, Type *result_type,
+		const std::vector<Type*> &param_types
+	);
+	Value get_void();
 
 	DISABLE_COPY(CoreContext)
 
@@ -43,41 +51,43 @@ private:
 	Type::Int u8, u16, u32, u64, u128;
 	Type::Real float_type, double_type;
 
-	struct IntTypeKey {
-		const unsigned int bit_width;
-		const bool signed_flag;
-		IntTypeKey(unsigned int bit_width, bool signed_flag):
-			bit_width(bit_width), signed_flag(signed_flag) {}
-		inline bool operator==(const IntTypeKey &other) const {
-			return bit_width == other.bit_width
-				&& signed_flag == other.signed_flag;
-		}
-		struct Hash {
-			inline size_t operator()(const IntTypeKey &key) const {
-				return key.bit_width ^ key.signed_flag;
-			}
-		};
-	};
-	std::unordered_map<IntTypeKey, Type::Int*, IntTypeKey::Hash> int_type_map;
+	std::unordered_map<
+		std::pair<unsigned int, bool>,
+		Type::Int*,
+		PairHash<unsigned int, bool>
+	> int_type_map;
 
-	struct ArrayTypeKey {
-		Type * const element_type;
-		const bool size;
-		ArrayTypeKey(Type *element_type, uint32_t size):
-			element_type(element_type), size(size) {}
-		inline bool operator==(const ArrayTypeKey &other) const {
-			return element_type == other.element_type
-				&& size == other.size;
-		}
-		struct Hash {
-			inline size_t operator()(const ArrayTypeKey &key) const {
-				return ((size_t) key.element_type) ^ key.size;
-			}
-		};
-	};
-	std::unordered_map<ArrayTypeKey, Type::Array*, ArrayTypeKey::Hash> array_type_map;
+	std::unordered_map<
+		std::pair<Type*, uint32_t>,
+		Type::Array*,
+		PairHash<Type*, uint32_t>
+	> array_type_map;
 
-	std::unordered_map<Type*, Type::Ref*> ref_type_map;
+	std::unordered_map<
+		std::pair<Type*, bool>,
+		Type::Ref*,
+		PairHash<Type*, bool>
+	> ref_type_map;
+
+	std::unordered_map<
+		std::pair<Type*, bool>,
+		Type::Pointer*,
+		PairHash<Type*, bool>
+	> pointer_type_map;
+
+	struct ArrayHash {
+		inline size_t operator()(const std::vector<Type*> &arr) const {
+			size_t ret = 0;
+			for (auto element : arr) ret = hash_combine(ret, std::hash<Type*>()(element));
+			return ret;
+		}
+	};
+	std::unordered_map<
+		std::pair<std::pair<Type*, Type*>, std::vector<Type*>>,
+		Type::Function*,
+		PairHash<std::pair<Type*, Type*>, std::vector<Type*>,
+				PairHash<Type*, Type*>, ArrayHash>
+	> function_type_map;
 };
 
 } // namespace rin

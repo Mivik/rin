@@ -14,9 +14,9 @@ enum TokenKind {
 	String,
 	Comment, MLComment,
 	LPar, RPar, LBracket, RBracket, LBrace, RBrace,
-	Colon, Comma, Period,
+	Colon, Semicolon, Comma, Period, Arrow,
 	// Keywords
-	Else, Enum, Fn, For, If, In, Is, Let, Return, Var, When,
+	Const, Else, Enum, Fn, For, If, In, Is, Let, Return, Var, When,
 	// Binary operators
 	Add, Sub, Mul, Div, Mod, Shl, Shr, Or, And, Not, Xor, LOr, LAnd, LNot,
 	Assign, AddA, SubA, MulA, DivA, ModA, ShlA, ShrA, OrA, AndA, XorA,
@@ -65,6 +65,8 @@ struct SourceRange {
 	static inline SourceRange empty() { return SourceRange(0, 0); }
 
 	size_t begin, end;
+	SourceRange(size_t pos):
+		begin(pos), end(pos) {}
 	SourceRange(size_t begin, size_t end):
 		begin(begin), end(end) {}
 	inline bool is_empty() const { return begin >= end; }

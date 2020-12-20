@@ -19,10 +19,10 @@ std::string name(TokenKind kind) {
 		H(String)
 		H(Comment) H(MLComment)
 		H(LPar) H(RPar) H(LBracket) H(RBracket) H(LBrace) H(RBrace)
-		H(Colon) H(Comma) H(Period)
+		H(Colon) H(Semicolon) H(Comma) H(Period) H(Arrow)
 		// Keywords
-		H(Else) H(Enum) H(Fn) H(For) H(If) H(In)
-		H(Is) H(Let) H(Return) H(Var) H(When)
+		H(Const) H(Else) H(Enum) H(Fn) H(For) H(If)
+		H(In) H(Is) H(Let) H(Return) H(Var) H(When)
 		// Operators
 		H(Add) H(Sub) H(Mul) H(Div) H(Mod) H(Shl)
 		H(Shr) H(Or) H(And) H(Not) H(Xor) H(LOr)

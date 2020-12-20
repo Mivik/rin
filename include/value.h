@@ -23,20 +23,24 @@ private:
 
 class Value {
 public:
-	static inline bool can_cast(Context &ctx, Type *from, Type *to) {
-		return Value(from, llvm::UndefValue::get(from->get_llvm())).can_cast(ctx, to);
+	static inline bool can_cast(Context &ctx, Type *from, Type *to, bool implicit_only = false) {
+		return Value(from, llvm::UndefValue::get(from->get_llvm())).can_cast(ctx, to, implicit_only);
+	}
+	static inline Value undef(Type *type) {
+		return {
+			type,
+			llvm::UndefValue::get(type->get_llvm())
+		};
 	}
 
 	Value(Type *type, llvm::Value *llvm):
-		type(type), llvm(llvm) {
-		assert(!dynamic_cast<Type::Ref*>(type));
-	}
+		type(type), llvm(llvm) {}
 
-	Value cast(Context &ctx, Type *to, bool check_only = false) const;
+	Value cast(Context &ctx, Type *to, bool implicit_only = false, bool check_only = false) const;
 
-	inline bool can_cast(Context &ctx, Type *to) const {
+	inline bool can_cast(Context &ctx, Type *to, bool implicit_only = false) const {
 		try {
-			cast(ctx, to, true);
+			cast(ctx, to, implicit_only, true);
 			return true;
 		} catch (const CastException &e) { return false; }
 	}
@@ -48,7 +52,9 @@ public:
 	inline Type* get_type() const { return type; }
 	inline llvm::Value* get_llvm() const { return llvm; }
 	inline bool is_ref() const { return dynamic_cast<Type::Ref*>(type); }
-	inline Value deref(Context &ctx);
+	Value deref(Context &ctx);
+	Value pointer_subscript(Context &ctx);
+	Value pointer_subscript(Context &ctx, Value index);
 private:
 	Type *type;
 	llvm::Value *llvm;

@@ -36,6 +36,96 @@ std::string BinOpNode::to_string() const {
 	return '(' + lhs_node->to_string() + ' ' + str + ' ' + rhs_node->to_string() + ')';
 }
 
-std::string ValueNode::to_string() const { return name; }
+std::string NamedValueNode::to_string() const { return name; }
+
+std::string NamedTypeNode::to_string() const { return name; }
+
+std::string ArrayTypeNode::to_string() const {
+	return '[' + element_type_node->to_string() + ", " + std::to_string(size) + ']';
+}
+
+std::string PointerTypeNode::to_string() const {
+	return (const_flag? "*const ": "*") + sub_type_node->to_string();
+}
+
+std::string RefTypeNode::to_string() const {
+	return (const_flag? "&const ": "&") + sub_type_node->to_string();
+}
+
+std::string FunctionTypeNode::to_string() const {
+	std::string ret;
+	if (receiver_type_node) {
+		ret += receiver_type_node->to_string();
+		ret += '.';
+	}
+	ret += '(';
+	for (size_t i = 0; i < param_type_nodes.size(); ++i) {
+		ret += param_type_nodes[i]->to_string();
+		if (i != param_type_nodes.size() - 1) ret += ", ";
+	}
+	ret += ") -> ";
+	ret += result_type_node->to_string();
+	return ret;
+}
+
+FunctionTypeNode::~FunctionTypeNode() {
+	for (auto param : param_type_nodes)
+		delete param;
+}
+
+std::string VarDeclNode::to_string() const {
+	std::string ret = "let";
+	if (!const_flag) ret += '*';
+	ret += ' ';
+	ret += name;
+	ret += " = ";
+	ret += value_node->to_string();
+	return ret;
+}
+
+std::string BlockNode::to_string() const {
+	if (stmts.empty()) return "{}";
+	std::string ret = "{", tmp;
+	for (size_t i = 0; i < stmts.size(); ++i) {
+		tmp += stmts[i]->to_string();
+		if (i != stmts.size() - 1) tmp += '\n';
+	}
+	ret += add_indent(tmp);
+	ret += "\n}";
+	return ret;
+}
+
+BlockNode::~BlockNode() {
+	for (auto stmt : stmts)
+		delete stmt;
+}
+
+std::string PrototypeNode::to_string() const {
+	std::string ret = "fn ";
+	if (auto receiver_type = type_node->get_receiver_type_node()) {
+		ret += receiver_type->to_string();
+		ret += '.';
+	}
+	ret += name;
+	ret += '(';
+	const auto &param_types = type_node->get_parameter_type_nodes();
+	for (size_t i = 0; i < param_names.size(); ++i) {
+		ret += param_types[i]->to_string();
+		ret += ' '; ret += param_names[i];
+		if (i != param_names.size() - 1) ret += ", ";
+	}
+	ret += ')';
+	if (auto result_type = type_node->get_result_type_node()) {
+		ret += ": ";
+		ret += result_type->to_string();
+	}
+	return ret;
+}
+
+std::string FunctionNode::to_string() const {
+	return
+		prototype_node->to_string() + ' ' +
+		body_node->to_string();
+}
 
 } // namespace rin

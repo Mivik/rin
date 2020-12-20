@@ -11,9 +11,11 @@ int main() {
 	while (true) {
 		llvm::outs() << "> ";
 		if (!std::getline(std::cin, str)) break;
+		str += ';';
 		try {
 			rin::Parser parser(str.data());
-			auto value = parser.take_expr()->codegen(ctx);
+			auto value = parser.take_stmt()->codegen(ctx);
+			if (value.get_type() == core.get_void_type()) continue;
 			llvm::outs() << '[' << value.get_type()->to_string() << "] ";
 			value.get_llvm()->print(llvm::outs());
 			llvm::outs() << '\n';

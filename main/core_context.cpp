@@ -1,5 +1,6 @@
 
 #include "core_context.h"
+#include "value.h"
 
 namespace rin {
 
@@ -32,10 +33,29 @@ Type::Array* CoreContext::get_array_type(Type *element_type, uint32_t size) {
 	return value;
 }
 
-Type::Ref* CoreContext::get_ref_type(Type *type) {
-	auto &value = ref_type_map[type];
-	if (!value) value = new Type::Ref(this, type);
+Type::Ref* CoreContext::get_ref_type(Type *type, bool const_flag) {
+	auto &value = ref_type_map[{ type, const_flag }];
+	if (!value) value = new Type::Ref(this, type, const_flag);
 	return value;
+}
+
+Type::Pointer* CoreContext::get_pointer_type(Type *type, bool const_flag) {
+	auto &value = pointer_type_map[{ type, const_flag }];
+	if (!value) value = new Type::Pointer(this, type, const_flag);
+	return value;
+}
+
+Type::Function* CoreContext::get_function_type(
+	Type *receiver_type, Type *result_type,
+	const std::vector<Type *> &param_types
+) {
+	auto &value = function_type_map[{ { receiver_type, result_type }, param_types }];
+	if (!value) value = new Type::Function(this, receiver_type, result_type, param_types);
+	return value;
+}
+
+Value CoreContext::get_void() {
+	return Value::undef(get_void_type());
 }
 
 CoreContext::~CoreContext() {
@@ -44,6 +64,10 @@ CoreContext::~CoreContext() {
 	for (auto &[_, value] : array_type_map)
 		delete value;
 	for (auto &[_, value] : ref_type_map)
+		delete value;
+	for (auto &[_, value] : pointer_type_map)
+		delete value;
+	for (auto &[_, value] : function_type_map)
 		delete value;
 }
 

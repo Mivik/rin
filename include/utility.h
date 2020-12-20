@@ -23,6 +23,8 @@ namespace rin::detail {
 
 #define rin_unreachable(msg) rin::detail::unreachable_internal(msg, __FILE__, __LINE__)
 
+namespace rin {
+
 template<class R, class T>
 inline R* direct_cast(T *ptr) { return reinterpret_cast<R*>(ptr); }
 
@@ -41,3 +43,21 @@ Ptr<R, D> ptr_cast(Ptr<T, D> &&p) {
 	}
 	return nullptr;
 }
+
+constexpr size_t hash_combine(size_t lhs, size_t rhs) {
+	return lhs ^ (rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2));
+}
+
+template<
+	class A, class B,
+	class AH = std::hash<A>, class BH = std::hash<B>
+>
+struct PairHash {
+	inline size_t operator()(const std::pair<A, B> &value) const {
+		return hash_combine(AH()(value.first), BH()(value.second));
+	}
+};
+
+std::string add_indent(const std::string &str);
+
+} // namespace rin

@@ -24,8 +24,8 @@ inline constexpr size_t string_hash(const char *str) {
 inline TokenKind word_kind(const std::string &str) {
 #define CASE(s, k) case string_hash(s): if (str == s) return k; break;
 	switch (string_hash(str.data())) {
-		CASE("else", Else) CASE("enum", Enum) CASE("fn", Fn)
-		CASE("for", For) CASE("if", If) CASE("in", In)
+		CASE("const", Const) CASE("else", Else) CASE("enum", Enum)
+		CASE("fn", Fn) CASE("for", For) CASE("if", If) CASE("in", In)
 		CASE("is", Is) CASE("let", Let) CASE("return", Return)
 		CASE("var", Var) CASE("when", When)
 		CASE("true", True) CASE("false", False)
@@ -99,10 +99,21 @@ Token Lexer::lex() {
 		} \
 		return token(kind); \
 	}
-		bop('+', Add) bop('-', Sub) bop('*', Mul)
+		bop('+', Add) bop('*', Mul)
 		bop('%', Mod) bop('^', Xor)
 #undef bop
 
+		case '-': {
+			if (input.peek() == '=') {
+				input.take();
+				return token(SubA);
+			}
+			if (input.peek() == '>') {
+				input.take();
+				return token(Arrow);
+			}
+			return token(Sub);
+		}
 		case '~': return token(Not);
 		case '<':
 		case '>': {
@@ -178,6 +189,7 @@ Token Lexer::lex() {
 		case '{': return token(LBrace);
 		case '}': return token(RBrace);
 		case ':': return token(Colon);
+		case ';': return token(Semicolon);
 		case ',': return token(Comma);
 		case '.': return token(Period);
 		default: throw LexException((std::string)"Unknown char " + st);

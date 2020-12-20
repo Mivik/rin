@@ -6,8 +6,10 @@ add_library(rin SHARED
 	core_context.cpp
 	lexer.cpp
 	parser.cpp
+	prototype.cpp
 	token.cpp
 	type.cpp
+	utility.cpp
 	value.cpp
 )
 
