@@ -1,6 +1,8 @@
 
 #pragma once
 
+#include <exception>
+
 #include "ast.h"
 #include "lexer.h"
 

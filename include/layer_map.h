@@ -1,14 +1,12 @@
 
 #pragma once
 
-#include <iostream>
-
 #include <cassert>
 #include <memory>
 #include <optional>
-#include <vector>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 namespace rin {
 

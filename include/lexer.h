@@ -2,9 +2,9 @@
 #pragma once
 
 #include <cstring>
+#include <deque>
 #include <exception>
 #include <memory>
-#include <deque>
 #include <vector>
 
 #include "token.h"

@@ -1,9 +1,10 @@
 
 #pragma once
 
-#include <llvm/IR/Value.h>
-
+#include <exception>
 #include <optional>
+
+#include <llvm/IR/Value.h>
 
 #include "context.h"
 #include "type.h"
