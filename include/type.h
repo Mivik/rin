@@ -19,6 +19,7 @@ public:
 	class Boolean;
 	class Function;
 	class Int;
+	class Nothing;
 	class Pointer;
 	class Real;
 	class Ref;
@@ -137,6 +138,15 @@ private:
 
 	Type *receiver_type, *result_type;
 	std::vector<Type*> param_types;
+
+	friend class CoreContext;
+};
+
+class Type::Nothing final : public Type {
+public:
+	std::string to_string() const override;
+private:
+	Nothing(CoreContext *ctx);
 
 	friend class CoreContext;
 };

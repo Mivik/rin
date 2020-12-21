@@ -290,6 +290,20 @@ private:
 	Ptr<BlockNode> body_node;
 };
 
+class ReturnNode : public StmtNode {
+public:
+	ReturnNode(
+		const SourceRange &range,
+		Ptr<ValueNode> value_node
+	): ASTNode(range), value_node(std::move(value_node)) {}
+
+	inline const ValueNode* get_value_node() const { return value_node.get(); }
+
+	OVERRIDE(Value)
+private:
+	Ptr<ValueNode> value_node;
+};
+
 #undef OVERRIDE
 
 } // namespace rin

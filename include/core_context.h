@@ -17,6 +17,7 @@ public:
 	CoreContext();
 	inline llvm::LLVMContext& get_llvm() { return llvm; }
 	inline Type::Void* get_void_type() { return &void_type; }
+	inline Type::Nothing* get_nothing_type() { return &nothing_type; }
 	inline Type::Boolean* get_boolean_type() { return &boolean_type; }
 	inline Type::Int* get_i8_type() { return &i8; }
 	inline Type::Int* get_i16_type() { return &i16; }
@@ -39,6 +40,7 @@ public:
 		const std::vector<Type*> &param_types
 	);
 	Value get_void();
+	Value get_nothing();
 
 	DISABLE_COPY(CoreContext)
 
@@ -46,6 +48,7 @@ public:
 private:
 	llvm::LLVMContext llvm;
 	Type::Void void_type;
+	Type::Nothing nothing_type;
 	Type::Boolean boolean_type;
 	Type::Int i8, i16, i32, i64, i128;
 	Type::Int u8, u16, u32, u64, u128;

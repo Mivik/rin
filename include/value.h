@@ -24,7 +24,7 @@ private:
 
 class Value {
 public:
-	static inline bool can_cast(Context &ctx, Type *from, Type *to, bool implicit_only = false) {
+	static inline bool can_cast(Context &ctx, Type *from, Type *to, bool implicit_only = true) {
 		return Value(from, llvm::UndefValue::get(from->get_llvm())).can_cast(ctx, to, implicit_only);
 	}
 	static inline Value undef(Type *type) {
@@ -37,9 +37,9 @@ public:
 	Value(Type *type, llvm::Value *llvm):
 		type(type), llvm(llvm) {}
 
-	Value cast(Context &ctx, Type *to, bool implicit_only = false, bool check_only = false) const;
+	Value cast(Context &ctx, Type *to, bool implicit_only = true, bool check_only = false) const;
 
-	inline bool can_cast(Context &ctx, Type *to, bool implicit_only = false) const {
+	inline bool can_cast(Context &ctx, Type *to, bool implicit_only = true) const {
 		try {
 			cast(ctx, to, implicit_only, true);
 			return true;

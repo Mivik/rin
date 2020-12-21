@@ -190,7 +190,10 @@ inline Value assignment_codegen(Context &ctx, Value lhs, Value rhs, TokenKind op
 		bop == Assign
 		? rhs
 		: bin_op_arithmetic_codegen(ctx, lhs.deref(ctx), rhs, bop);
-	ctx.get_builder().CreateStore(lhs.get_llvm(), value.get_llvm());
+	ctx.get_builder().CreateStore(
+		lhs.get_llvm(),
+		value.cast(ctx, ref_type->get_sub_type()).get_llvm()
+	);
 	return lhs;
 }
 
@@ -253,7 +256,7 @@ Type* FunctionTypeNode::codegen(Context &ctx) const {
 }
 
 Value VarDeclNode::codegen(Context &ctx) const {
-	Value ptr = ctx.get_core().get_void();
+	Value ptr = ctx.get_core().get_nothing();
 	if (value_node) {
 		auto value = value_node->codegen(ctx);
 		if (type_node)
@@ -262,11 +265,11 @@ Value VarDeclNode::codegen(Context &ctx) const {
 	} else
 		ptr = ctx.allocate_stack(type_node->codegen(ctx));
 	ctx.declare_value(name, ptr.pointer_subscript(ctx));
-	return ctx.get_core().get_void();
+	return ctx.get_core().get_nothing();
 }
 
 Value BlockNode::codegen(Context &ctx) const {
-	Value last = ctx.get_core().get_void();
+	Value last = ctx.get_core().get_nothing();
 	for (auto stmt : stmts)
 		last = stmt->codegen(ctx);
 	return last;
@@ -302,6 +305,11 @@ void FunctionNode::codegen(Context &ctx) const {
 		)
 	);
 	body_node->codegen(sub_ctx);
+}
+
+Value ReturnNode::codegen(Context &ctx) const {
+	// TODO
+	return ctx.get_core().get_nothing();
 }
 
 } // namespace rin

@@ -102,4 +102,9 @@ std::string Type::Function::to_string() const {
 	return ret;
 }
 
+Type::Nothing::Nothing(CoreContext *ctx):
+	Type(llvm::Type::getVoidTy(ctx->get_llvm())) {}
+
+std::string Type::Nothing::to_string() const { return "Nothing"; }
+
 } // namespace rin

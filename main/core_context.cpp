@@ -5,7 +5,7 @@
 namespace rin {
 
 CoreContext::CoreContext():
-	void_type(this), boolean_type(this),
+	void_type(this), nothing_type(this), boolean_type(this),
 	i8(this, 8, true), i16(this, 16, true), i32(this, 32, true),
 	i64(this, 64, true), i128(this, 128, true),
 	u8(this, 8, false), u16(this, 16, false), u32(this, 32, false),
@@ -56,6 +56,10 @@ Type::Function* CoreContext::get_function_type(
 
 Value CoreContext::get_void() {
 	return Value::undef(get_void_type());
+}
+
+Value CoreContext::get_nothing() {
+	return Value::undef(get_nothing_type());
 }
 
 CoreContext::~CoreContext() {

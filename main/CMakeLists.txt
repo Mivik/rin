@@ -4,6 +4,7 @@ add_library(rin SHARED
 	codegen.cpp
 	context.cpp
 	core_context.cpp
+	function.cpp
 	lexer.cpp
 	parser.cpp
 	prototype.cpp

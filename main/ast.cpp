@@ -80,6 +80,7 @@ std::string VarDeclNode::to_string() const {
 	ret += name;
 	ret += " = ";
 	ret += value_node->to_string();
+	ret += ';';
 	return ret;
 }
 
@@ -126,6 +127,10 @@ std::string FunctionNode::to_string() const {
 	return
 		prototype_node->to_string() + ' ' +
 		body_node->to_string();
+}
+
+std::string ReturnNode::to_string() const {
+	return "return " + value_node->to_string() + ';';
 }
 
 } // namespace rin
