@@ -9,6 +9,7 @@
 
 namespace rin {
 
+class Function;
 class Value;
 
 class Context {
@@ -17,33 +18,29 @@ public:
 	inline CoreContext& get_core() { return core; }
 	inline llvm::LLVMContext& get_llvm() { return core.get_llvm(); }
 	inline llvm::Module* get_module() { return module.get(); }
-	inline llvm::IRBuilder<>& get_builder() { return builder; }
+	inline Function* get_function() { return functions.back(); }
+	inline llvm::IRBuilder<>& get_builder() { return *builders.back(); }
 	std::optional<Value> lookup_value(const std::string &name) const;
 	std::optional<Type*> lookup_type(const std::string &name) const;
 	void declare_value(const std::string &name, const Value &value);
 	void declare_type(const std::string &name, Type *type);
 	Value allocate_stack(Type *type);
 	Value allocate_stack(Type *type, const Value &default_value);
-	Context sub_context(const llvm::IRBuilder<> &builder) const;
+	void add_layer(std::unique_ptr<llvm::IRBuilder<>> builder, Function *function);
+	void pop_layer();
+
+	std::unique_ptr<llvm::Module> finalize();
 
 	DISABLE_COPY(Context)
 
 	~Context();
 private:
-	Context(
-		CoreContext &core,
-		const std::shared_ptr<llvm::Module> module,
-		const llvm::IRBuilder<> &builder,
-		const std::shared_ptr<LayerMap<std::string, Value>> &value_map,
-		const std::shared_ptr<LayerMap<std::string, Type*>> &type_map
-	): core(core), module(module), builder(builder),
-		value_map(value_map), type_map(type_map) {}
-
 	CoreContext &core;
-	std::shared_ptr<llvm::Module> module;
-	llvm::IRBuilder<> builder;
-	std::shared_ptr<LayerMap<std::string, Value>> value_map;
-	std::shared_ptr<LayerMap<std::string, Type*>> type_map;
+	std::unique_ptr<llvm::Module> module;
+	std::vector<llvm::IRBuilder<>*> builders;
+	std::vector<Function*> functions;
+	LayerMap<std::string, Value> value_map;
+	LayerMap<std::string, Type*> type_map;
 };
 
 } // namespace rin

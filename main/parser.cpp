@@ -264,15 +264,16 @@ Ptr<FunctionNode> Parser::take_function() {
 	}
 	std::vector<TypeNode*> param_types;
 	std::vector<std::string> param_names;
+	Ptr<TypeNode> result_type;
 	try {
 		process_list(LPar, RPar, Comma, [&]() {
-			param_types.push_back(take_type().release());
 			param_names.push_back(
 				expect(lexer.take(), Identifier)
 					.content(get_buffer())
 			);
+			expect(lexer.take(), Colon);
+			param_types.push_back(take_type().release());
 		});
-		Ptr<TypeNode> result_type;
 		if (lexer.peek().kind == Colon) {
 			lexer.take();
 			result_type = take_type();
@@ -283,31 +284,31 @@ Ptr<FunctionNode> Parser::take_function() {
 					SourceRange(lexer.position()),
 					"void"
 				);
-		auto func_type_node =
-			std::make_unique<FunctionTypeNode>(
-				SourceRange(begin, lexer.position()),
-				std::move(receiver_type),
-				std::move(result_type),
-				param_types
-			);
-		auto prototype_node =
-			std::make_unique<PrototypeNode>(
-				func_type_node->get_source_range(),
-				name,
-				std::move(func_type_node),
-				param_names
-			);
-		auto block = take_block();
-		return std::make_unique<FunctionNode>(
-			SourceRange(begin, lexer.position()),
-			std::move(prototype_node),
-			std::move(block)
-		);
-	} catch (...) {
+	} catch (const std::exception &e) {
 		for (auto type : param_types)
 			delete type;
 		throw;
 	}
+	auto func_type_node =
+		std::make_unique<FunctionTypeNode>(
+			SourceRange(begin, lexer.position()),
+			std::move(receiver_type),
+			std::move(result_type),
+			param_types
+		);
+	auto prototype_node =
+		std::make_unique<PrototypeNode>(
+			func_type_node->get_source_range(),
+			name,
+			std::move(func_type_node),
+			param_names
+		);
+	auto block = take_block();
+	return std::make_unique<FunctionNode>(
+		SourceRange(begin, lexer.position()),
+		std::move(prototype_node),
+		std::move(block)
+	);
 }
 
 Ptr<BlockNode> Parser::take_block() {
@@ -360,6 +361,23 @@ Ptr<StmtNode> Parser::take_stmt() {
 			);
 		}
 		case LBrace: return take_block();
+		case Return: {
+			lexer.take();
+			if (lexer.peek().kind == Semicolon) {
+				lexer.take();
+				return std::make_unique<ReturnNode>(
+					SourceRange(begin, lexer.position()),
+					nullptr
+				);
+			} else {
+				auto type = take_expr();
+				expect(lexer.take(), Semicolon);
+				return std::make_unique<ReturnNode>(
+					SourceRange(begin, lexer.position()),
+					std::move(type)
+				);
+			}
+		}
 		default: {
 			auto ret = take_expr();
 			expect(lexer.take(), Semicolon);

@@ -1,5 +1,7 @@
 
+#include "codegen.h"
 #include "core_context.h"
+#include "function.h"
 #include "value.h"
 
 namespace rin {
@@ -62,6 +64,32 @@ Value CoreContext::get_nothing() {
 	return Value::undef(get_nothing_type());
 }
 
+Function* CoreContext::create_function(
+	const std::string &name,
+	const Value &value
+) {
+	const auto pair = std::make_pair(name, dynamic_cast<Type::Function*>(value.get_type()));
+	if (function_map.count(pair))
+		throw CodegenException(
+			"Redeclaring function: " + name
+			+ " (" + value.get_type()->to_string() + ')'
+		);
+	const auto func =
+		function_map[pair] = new Function::Static(value);
+	function_index[name].push_back(func);
+	return func;
+}
+
+const std::vector<Function*>& CoreContext::lookup_functions(
+	const std::string &name
+) {
+	static std::vector<Function*> empty;
+
+	auto iter = function_index.find(name);
+	if (iter == function_index.end()) return empty;
+	return iter->second;
+}
+
 CoreContext::~CoreContext() {
 	for (auto &[_, value] : int_type_map)
 		delete value;
@@ -72,6 +100,8 @@ CoreContext::~CoreContext() {
 	for (auto &[_, value] : pointer_type_map)
 		delete value;
 	for (auto &[_, value] : function_type_map)
+		delete value;
+	for (auto &[_, value] : function_map)
 		delete value;
 }
 

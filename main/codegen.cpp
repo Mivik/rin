@@ -5,6 +5,7 @@
 
 #include "ast.h"
 #include "codegen.h"
+#include "function.h"
 #include "utility.h"
 
 namespace rin {
@@ -287,7 +288,7 @@ Prototype PrototypeNode::codegen(Context &ctx) const {
 
 void FunctionNode::codegen(Context &ctx) const {
 	auto prototype = prototype_node->codegen(ctx);
-	auto func = llvm::Function::Create(
+	auto llvm = llvm::Function::Create(
 		llvm::dyn_cast<llvm::FunctionType>(
 			prototype.get_function_type()->get_llvm()
 		),
@@ -295,20 +296,50 @@ void FunctionNode::codegen(Context &ctx) const {
 		prototype.get_name(),
 		ctx.get_module()
 	);
-	auto sub_ctx = ctx.sub_context(
-		llvm::IRBuilder<>(
+	auto func = ctx.get_core().create_function(
+		prototype.get_name(),
+		{ prototype.get_function_type(), llvm }
+	);
+	ctx.add_layer(
+		std::make_unique<llvm::IRBuilder<>>(
 			llvm::BasicBlock::Create(
 				ctx.get_llvm(),
 				"entry",
-				func
+				llvm
 			)
-		)
+		),
+		func
 	);
-	body_node->codegen(sub_ctx);
+	std::vector<llvm::Value*> args;
+	for (auto &arg : llvm->args())
+		args.push_back(&arg);
+	auto type = prototype.get_function_type();
+	auto receiver_type = type->get_receiver_type();
+	const bool has_receiver = receiver_type;
+	if (receiver_type)
+		ctx.declare_value("this",
+			{ ctx.get_core().get_ref_type(receiver_type), args[0] }
+		);
+	const auto &param_types = type->get_parameter_types();
+	const auto &param_names = prototype.get_parameter_names();
+	for (size_t i = 0; i < param_types.size(); ++i)
+		ctx.declare_value(param_names[i], { param_types[i], args[i + has_receiver] });
+
+	body_node->codegen(ctx);
+	ctx.pop_layer();
 }
 
 Value ReturnNode::codegen(Context &ctx) const {
-	// TODO
+	auto result_type = ctx.get_function()->get_type()->get_result_type();
+	if (result_type == ctx.get_core().get_void_type()) {
+		if (value_node)
+			throw CodegenException(
+				"Returning a value in a void function: "
+				+ value_node->to_string()
+			);
+		ctx.get_builder().CreateRetVoid();
+	} else
+		ctx.get_builder().CreateRet(value_node->codegen(ctx).cast(ctx, result_type).get_llvm());
 	return ctx.get_core().get_nothing();
 }
 

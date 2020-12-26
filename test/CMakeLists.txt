@@ -4,6 +4,7 @@ find_package(GTest REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS})
 
 add_executable(rin_test
+	jit.cpp
 	layer_map.cpp
 	lexer.cpp
 	main.cpp

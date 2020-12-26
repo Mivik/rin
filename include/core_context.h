@@ -10,6 +10,7 @@
 
 namespace rin {
 
+class Function;
 class Value;
 
 class CoreContext {
@@ -41,6 +42,10 @@ public:
 	);
 	Value get_void();
 	Value get_nothing();
+
+	Function* create_function(const std::string &name, const Value &value);
+
+	const std::vector<Function*>& lookup_functions(const std::string &name);
 
 	DISABLE_COPY(CoreContext)
 
@@ -91,6 +96,14 @@ private:
 		PairHash<std::pair<Type*, Type*>, std::vector<Type*>,
 				PairHash<Type*, Type*>, ArrayHash>
 	> function_type_map;
+
+	std::unordered_map<
+		std::pair<std::string, Type::Function*>,
+		Function*,
+		PairHash<std::string, Type::Function*>
+	> function_map;
+
+	std::unordered_map<std::string, std::vector<Function*>> function_index;
 };
 
 } // namespace rin

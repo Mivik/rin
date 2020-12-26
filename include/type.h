@@ -4,8 +4,8 @@
 #include <cstdint>
 #include <vector>
 
-#include <llvm/IR/Type.h>
 #include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/Type.h>
 
 #include "utility.h"
 
@@ -31,6 +31,8 @@ public:
 	virtual bool operator==(const Type &other) const { return llvm == other.llvm; }
 	virtual bool is_primitive() const { return false; }
 	virtual std::string to_string() const = 0;
+
+	DISABLE_COPY(Type)
 protected:
 	Type(llvm::Type *llvm): llvm(llvm) {}
 private:
@@ -129,7 +131,7 @@ class Type::Function final : public Type {
 public:
 	std::string to_string() const override;
 	inline Type* get_receiver_type() const { return receiver_type; }
-	inline Type* get_result_type() const { return receiver_type; }
+	inline Type* get_result_type() const { return result_type; }
 	inline std::vector<Type*> get_parameter_types() const { return param_types; }
 private:
 	Function(CoreContext *ctx,
