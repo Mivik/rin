@@ -13,8 +13,8 @@ namespace rin {
 template<class K, class V>
 class LayerMap {
 public:
-	inline bool empty() const { return keys.empty(); }
-	inline int get_depth() const { return keys.size(); }
+	[[nodiscard]] inline bool empty() const { return keys.empty(); }
+	[[nodiscard]] inline int get_depth() const { return keys.size(); }
 	inline void add_layer() { keys.emplace_back(); }
 	void pop_layer() {
 		assert(!empty());
@@ -35,7 +35,7 @@ public:
 	// Notice that we throw an error instead of constructing a default
 	// value and insert it into current layer when the key is not found
 	// in the map.
-	V& operator[](const K &key) {
+	V &operator[](const K &key) {
 		auto iter = base.find(key);
 		assert(iter != base.end());
 		return iter->second.back();

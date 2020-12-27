@@ -12,7 +12,7 @@
 
 namespace rin {
 
-TEST(jit, manual) {
+TEST(exec, manual) {
 	llvm::LLVMContext ctx;
 	auto module = std::make_unique<llvm::Module>("program", ctx);
 	auto i32 = llvm::Type::getInt32Ty(ctx);
@@ -25,7 +25,7 @@ TEST(jit, manual) {
 	const auto block = llvm::BasicBlock::Create(ctx, "entry", func);
 	llvm::IRBuilder<> builder(ctx);
 	builder.SetInsertPoint(block);
-	std::vector<llvm::Value*> args;
+	std::vector<llvm::Value *> args;
 	for (auto &arg : func->args())
 		args.push_back(&arg);
 
@@ -38,7 +38,7 @@ TEST(jit, manual) {
 	EXPECT_EQ(add(-5, 10), 5);
 }
 
-TEST(jit, simple) {
+TEST(exec, simple) {
 	CoreContext core;
 	Context ctx(core);
 	Parser(R"(
@@ -47,12 +47,37 @@ TEST(jit, simple) {
 		}
 	)").take_function()->codegen(ctx);
 
-	ctx.get_module()->print(llvm::outs(), nullptr);
-
 	JITEngine engine(ctx.finalize());
 	auto add = engine.find_function<int, int, int>("mul");
 	EXPECT_EQ(add(5, 3), 15);
 	EXPECT_EQ(add(-5, 10), -50);
+}
+
+TEST(exec, variable) {
+	CoreContext core;
+	Context ctx(core);
+	Parser(R"(
+		fn grid_point_count(a: i32, b: i32): i32 {
+			let a = a + 1;
+			let b = b + 1;
+			return a * b;
+		}
+	)").take_function()->codegen(ctx);
+
+	JITEngine engine(ctx.finalize());
+	auto add = engine.find_function<int, int, int>("grid_point_count");
+	EXPECT_EQ(add(5, 3), 24);
+}
+
+TEST(exec, const_variable) {
+	CoreContext core;
+	Context ctx(core);
+	EXPECT_THROW(Parser(R"(
+		fn test() {
+			let a: i64 = 5;
+			a = 6;
+		}
+	)").take_function()->codegen(ctx), CodegenException);
 }
 
 } // namespace rin

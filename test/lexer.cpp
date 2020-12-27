@@ -21,7 +21,7 @@ inline std::vector<Token> tokens(Lexer &lexer) {
 }
 
 inline std::vector<Token> tokens(const char *str) {
-	auto [lexer, _] = lex_pair(str);
+	auto[lexer, _] = lex_pair(str);
 	return tokens(lexer);
 }
 
@@ -29,7 +29,7 @@ inline std::vector<Token> tokens(const char *str) {
 	const char *content,
 	const std::vector<TokenKind> &expected
 ) {
-	auto [lexer, buffer] = lex_pair(content);
+	auto[lexer, buffer] = lex_pair(content);
 	auto value = tokens(lexer);
 	if (value.size() != expected.size())
 		return ::testing::AssertionFailure()

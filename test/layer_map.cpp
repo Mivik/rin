@@ -3,8 +3,6 @@
 
 #include "layer_map.h"
 
-#include <cstdlib>
-
 namespace rin {
 
 TEST(layer_map, basic) {

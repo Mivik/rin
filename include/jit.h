@@ -12,7 +12,7 @@ namespace rin {
 
 class JITEngine {
 public:
-	JITEngine(std::unique_ptr<llvm::Module> module);
+	explicit JITEngine(std::unique_ptr<llvm::Module> module);
 
 	template<class R, class... Args>
 	std::function<R(Args...)> find_function(const std::string &name) {

@@ -10,7 +10,7 @@ Value Function::Static::invoke(
 	std::optional<Value> receiver,
 	const std::vector<Value> &args
 ) const {
-	std::vector<llvm::Value*> llvm_args;
+	std::vector<llvm::Value *> llvm_args;
 	const bool has_receiver = receiver.has_value();
 	llvm_args.resize(args.size() + has_receiver);
 	for (size_t i = 0; i < args.size(); ++i)

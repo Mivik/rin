@@ -15,44 +15,50 @@ CoreContext::CoreContext():
 	float_type(llvm::Type::getFloatTy(llvm), "float"),
 	double_type(llvm::Type::getDoubleTy(llvm), "double") {}
 
-Type::Int* CoreContext::get_int_type(unsigned int bit_width, bool is_signed) {
+Type::Int *CoreContext::get_int_type(unsigned int bit_width, bool is_signed) {
 	switch (bit_width) {
-		case 8: return &(is_signed? i8: u8);
-		case 16: return &(is_signed? i16: u16);
-		case 32: return &(is_signed? i32: u32);
-		case 64: return &(is_signed? i64: u64);
-		case 128: return &(is_signed? i128: u128);
-		default: break;
+		case 8:
+			return &(is_signed? i8: u8);
+		case 16:
+			return &(is_signed? i16: u16);
+		case 32:
+			return &(is_signed? i32: u32);
+		case 64:
+			return &(is_signed? i64: u64);
+		case 128:
+			return &(is_signed? i128: u128);
+		default:
+			break;
 	}
 	auto &value = int_type_map[{ bit_width, is_signed }];
 	if (!value) value = new Type::Int(this, bit_width, is_signed);
 	return value;
 }
 
-Type::Array* CoreContext::get_array_type(Type *element_type, uint32_t size) {
+Type::Array *CoreContext::get_array_type(Type *element_type, uint32_t size) {
 	auto &value = array_type_map[{ element_type, size }];
-	if (!value) value = new Type::Array(this, element_type, size);
+	if (!value) value = new Type::Array(element_type, size);
 	return value;
 }
 
-Type::Ref* CoreContext::get_ref_type(Type *type, bool const_flag) {
+Type::Ref *CoreContext::get_ref_type(Type *type, bool const_flag) {
 	auto &value = ref_type_map[{ type, const_flag }];
-	if (!value) value = new Type::Ref(this, type, const_flag);
+	if (!value) value = new Type::Ref(type, const_flag);
 	return value;
 }
 
-Type::Pointer* CoreContext::get_pointer_type(Type *type, bool const_flag) {
+Type::Pointer *CoreContext::get_pointer_type(Type *type, bool const_flag) {
 	auto &value = pointer_type_map[{ type, const_flag }];
-	if (!value) value = new Type::Pointer(this, type, const_flag);
+	if (!value) value = new Type::Pointer(type, const_flag);
 	return value;
 }
 
-Type::Function* CoreContext::get_function_type(
+Type::Function *CoreContext::get_function_type(
 	Type *receiver_type, Type *result_type,
 	const std::vector<Type *> &param_types
 ) {
-	auto &value = function_type_map[{ { receiver_type, result_type }, param_types }];
-	if (!value) value = new Type::Function(this, receiver_type, result_type, param_types);
+	auto &value = function_type_map[{{ receiver_type, result_type }, param_types }];
+	if (!value) value = new Type::Function(receiver_type, result_type, param_types);
 	return value;
 }
 
@@ -64,14 +70,14 @@ Value CoreContext::get_nothing() {
 	return Value::undef(get_nothing_type());
 }
 
-Function* CoreContext::create_function(
+Function *CoreContext::create_function(
 	const std::string &name,
 	const Value &value
 ) {
-	const auto pair = std::make_pair(name, dynamic_cast<Type::Function*>(value.get_type()));
+	const auto pair = std::make_pair(name, dynamic_cast<Type::Function *>(value.get_type()));
 	if (function_map.count(pair))
 		throw CodegenException(
-			"Redeclaring function: " + name
+			"Re-declaring function: " + name
 			+ " (" + value.get_type()->to_string() + ')'
 		);
 	const auto func =
@@ -80,10 +86,10 @@ Function* CoreContext::create_function(
 	return func;
 }
 
-const std::vector<Function*>& CoreContext::lookup_functions(
+const std::vector<Function *> &CoreContext::lookup_functions(
 	const std::string &name
 ) {
-	static std::vector<Function*> empty;
+	static std::vector<Function *> empty;
 
 	auto iter = function_index.find(name);
 	if (iter == function_index.end()) return empty;

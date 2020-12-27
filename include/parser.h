@@ -2,6 +2,7 @@
 #pragma once
 
 #include <exception>
+#include <utility>
 
 #include "ast.h"
 #include "lexer.h"
@@ -10,17 +11,17 @@ namespace rin {
 
 class ParseException : public std::exception {
 public:
-	const char *what() const noexcept { return msg.data(); }
+	[[nodiscard]] const char *what() const noexcept override { return msg.data(); }
 
-	ParseException(const std::string &msg): msg(msg) {}
+	explicit ParseException(std::string msg): msg(std::move(msg)) {}
 private:
 	std::string msg;
 };
 
 class Parser {
 public:
-	Parser(const char *str): Parser(MemoryBuffer(str)) {}
-	Parser(const MemoryBuffer &buffer): lexer(buffer) {}
+	explicit Parser(const char *str): Parser(MemoryBuffer(str)) {}
+	explicit Parser(const MemoryBuffer &buffer): lexer(buffer) {}
 
 	Ptr<TypeNode> take_type();
 	Ptr<ValueNode> take_prim();
@@ -28,20 +29,24 @@ public:
 	Ptr<StmtNode> take_stmt();
 	Ptr<BlockNode> take_block();
 	Ptr<FunctionNode> take_function();
-	inline const MemoryBuffer& get_buffer() const { return lexer.get_buffer(); }
+	[[nodiscard]] inline const MemoryBuffer &get_buffer() const { return lexer.get_buffer(); }
 private:
 	Ptr<FunctionTypeNode> take_function_type(
 		size_t begin,
 		Ptr<TypeNode> receiver_type = nullptr
 	);
 
-	inline const Token&& expect(const Token &&token, TokenKind kind) {
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "modernize-use-nodiscard"
+	inline Token expect(const Token &&token, TokenKind kind) const {
 		if (token.kind != kind)
 			throw ParseException(
 				"Expected " + token_kind::name(kind) + ", "
 				+ "got " + token.info(get_buffer()));
-		return std::move(token);
+		return token;
 	}
+#pragma clang diagnostic pop
+
 	template<class Func>
 	void process_list(
 		TokenKind begin, TokenKind end, TokenKind delimiter,

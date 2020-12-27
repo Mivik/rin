@@ -1,4 +1,6 @@
 
+#include <cassert>
+
 #include "lexer.h"
 #include "token.h"
 
@@ -15,23 +17,73 @@ std::string name(TokenKind kind) {
 	switch (kind) {
 		H(Eof)
 		H(Identifier)
-		H(Number) H(True) H(False)
+		H(Number)
+		H(True)
+		H(False)
 		H(String)
-		H(Comment) H(MLComment)
-		H(LPar) H(RPar) H(LBracket) H(RBracket) H(LBrace) H(RBrace)
-		H(Colon) H(Semicolon) H(Comma) H(Period) H(Arrow)
+		H(Comment)
+		H(MLComment)
+		H(LPar)
+		H(RPar)
+		H(LBracket)
+		H(RBracket)
+		H(LBrace)
+		H(RBrace)
+		H(Colon)
+		H(Semicolon)
+		H(Comma)
+		H(Period)
+		H(Arrow)
 		// Keywords
-		H(Const) H(Else) H(Enum) H(Fn) H(For) H(If)
-		H(In) H(Is) H(Let) H(Return) H(Var) H(When)
+		H(Const)
+		H(Else)
+		H(Enum)
+		H(Fn)
+		H(For)
+		H(If)
+		H(In)
+		H(Is)
+		H(Let)
+		H(Return)
+		H(Var)
+		H(When)
 		// Operators
-		H(Add) H(Sub) H(Mul) H(Div) H(Mod) H(Shl)
-		H(Shr) H(Or) H(And) H(Not) H(Xor) H(LOr)
-		H(LAnd) H(LNot) H(Assign) H(AddA) H(SubA)
-		H(MulA) H(DivA) H(ModA) H(ShlA) H(ShrA) H(OrA)
-		H(AndA) H(XorA) H(Lt) H(Gt) H(Le) H(Ge) H(Eq) H(Neq)
+		H(Add)
+		H(Sub)
+		H(Mul)
+		H(Div)
+		H(Mod)
+		H(Shl)
+		H(Shr)
+		H(Or)
+		H(And)
+		H(Not)
+		H(Xor)
+		H(LOr)
+		H(LAnd)
+		H(LNot)
+		H(Assign)
+		H(AddA)
+		H(SubA)
+		H(MulA)
+		H(DivA)
+		H(ModA)
+		H(ShlA)
+		H(ShrA)
+		H(OrA)
+		H(AndA)
+		H(XorA)
+		H(Lt)
+		H(Gt)
+		H(Le)
+		H(Ge)
+		H(Eq)
+		H(Neq)
 		// Unary operators
-		H(UAdd) H(USub)
-		default: throw "Illegal token kind: " + std::to_string(kind);
+		H(UAdd)
+		H(USub)
+		default:
+			assert(false);
 	}
 #undef H
 }

@@ -9,12 +9,16 @@ Context::Context(CoreContext &core, const std::string &name):
 	core(core), module(std::make_unique<llvm::Module>(name, core.get_llvm())),
 	builders({ new llvm::IRBuilder<>(core.get_llvm()) }) {
 #define P declare_type
-	P("i8", core.get_i8_type()); P("i16", core.get_i16_type());
-	P("i32", core.get_i32_type()); P("i64", core.get_i64_type());
+	P("i8", core.get_i8_type());
+	P("i16", core.get_i16_type());
+	P("i32", core.get_i32_type());
+	P("i64", core.get_i64_type());
 	P("i128", core.get_i128_type());
 
-	P("u8", core.get_u8_type()); P("u16", core.get_u16_type());
-	P("u32", core.get_u32_type()); P("u64", core.get_u64_type());
+	P("u8", core.get_u8_type());
+	P("u16", core.get_u16_type());
+	P("u32", core.get_u32_type());
+	P("u64", core.get_u64_type());
 	P("u128", core.get_u128_type());
 
 	P("bool", core.get_boolean_type());
@@ -53,7 +57,7 @@ std::optional<Value> Context::lookup_value(const std::string &name) const {
 	return value_map.try_get(name);
 }
 
-std::optional<Type*> Context::lookup_type(const std::string &name) const {
+std::optional<Type *> Context::lookup_type(const std::string &name) const {
 	return type_map.try_get(name);
 }
 
@@ -65,23 +69,23 @@ void Context::declare_type(const std::string &name, Type *type) {
 	type_map.set(name, type);
 }
 
-Value Context::allocate_stack(Type *type) {
+Value Context::allocate_stack(Type *type, bool is_const) {
 	auto block = get_builder().GetInsertBlock();
 	if (!block)
 		throw CodegenException("Attempt to allocate in top-level context");
 	auto func = block->getParent();
 	assert(func);
 	llvm::IRBuilder<> tmp_builder(core.get_llvm());
-	tmp_builder.SetInsertPoint(&func->getEntryBlock());
+	tmp_builder.SetInsertPoint(&*func->getEntryBlock().begin());
 	return {
-		core.get_pointer_type(type),
+		core.get_pointer_type(type, is_const),
 		tmp_builder.CreateAlloca(type->get_llvm(), 0, nullptr)
 	};
 }
 
-Value Context::allocate_stack(Type *type, const Value &value) {
-	auto ptr = allocate_stack(type);
-	get_builder().CreateStore(ptr.get_llvm(), value.get_llvm());
+Value Context::allocate_stack(Type *type, const Value &value, bool is_const) {
+	auto ptr = allocate_stack(type, is_const);
+	get_builder().CreateStore(value.get_llvm(), ptr.get_llvm());
 	return ptr;
 }
 

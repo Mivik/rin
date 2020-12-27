@@ -1,6 +1,5 @@
 
 #include <cassert>
-#include <cctype>
 #include <memory>
 #include <numeric>
 #include <stack>
@@ -11,8 +10,10 @@ namespace rin {
 
 inline int precedence_of(TokenKind op) {
 	switch (op) {
-		case UAdd: case USub:
-		case Not: case LNot:
+		case UAdd:
+		case USub:
+		case Not:
+		case LNot:
 			return 2;
 		case Mul:
 		case Div:
@@ -21,25 +22,41 @@ inline int precedence_of(TokenKind op) {
 		case Add:
 		case Sub:
 			return 4;
-		case Shl: case Shr:
+		case Shl:
+		case Shr:
 			return 5;
-		case Lt: case Le:
-		case Gt: case Ge:
+		case Lt:
+		case Le:
+		case Gt:
+		case Ge:
 			return 7;
-		case Eq: case Neq:
+		case Eq:
+		case Neq:
 			return 8;
-		case And: return 9;
-		case Xor: return 10;
-		case Or: return 11;
-		case LAnd: return 12;
-		case LOr: return 13;
+		case And:
+			return 9;
+		case Xor:
+			return 10;
+		case Or:
+			return 11;
+		case LAnd:
+			return 12;
+		case LOr:
+			return 13;
 		case Assign:
-		case AddA: case SubA:
-		case MulA: case DivA: case ModA:
-		case ShlA: case ShrA:
-		case AndA: case OrA: case XorA:
+		case AddA:
+		case SubA:
+		case MulA:
+		case DivA:
+		case ModA:
+		case ShlA:
+		case ShrA:
+		case AndA:
+		case OrA:
+		case XorA:
 			return 14;
-		default: return std::numeric_limits<int>::max();
+		default:
+			return std::numeric_limits<int>::max();
 	}
 }
 
@@ -49,7 +66,8 @@ inline bool is_right_associative(int precedence) {
 		case 2:
 		case 14:
 			return true;
-		default: return false;
+		default:
+			return false;
 	}
 }
 
@@ -57,7 +75,7 @@ Ptr<FunctionTypeNode> Parser::take_function_type(
 	size_t begin,
 	Ptr<TypeNode> receiver_type
 ) {
-	std::vector<TypeNode*> param_types;
+	std::vector<TypeNode *> param_types;
 	try {
 		process_list(LPar, RPar, Comma, [&]() {
 			param_types.push_back(take_type().release());
@@ -103,7 +121,8 @@ Ptr<TypeNode> Parser::take_type() {
 		case Identifier:
 			ret = std::make_unique<NamedTypeNode>(token, get_buffer());
 			break;
-		case Mul: case And: {
+		case Mul:
+		case And: {
 			bool const_flag = false;
 			if (lexer.peek().kind == Const) {
 				lexer.take();
@@ -135,7 +154,8 @@ Ptr<TypeNode> Parser::take_type() {
 			);
 			break;
 		}
-		default: throw ParseException("Expected type, got " + token.info(get_buffer()));
+		default:
+			throw ParseException("Expected type, got " + token.info(get_buffer()));
 	}
 	if (lexer.peek().kind == Period) {
 		auto cur = lexer.position();
@@ -164,14 +184,16 @@ Ptr<ValueNode> Parser::take_prim() {
 		case Identifier:
 			lexer.take();
 			return std::make_unique<NamedValueNode>(token, get_buffer());
-		default: break;
+		default:
+			break;
 	}
 	return nullptr;
 }
 
 template<class T>
 inline T pop_stack(std::stack<T> &st) {
-	const T ret(st.top()); st.pop();
+	const T ret(st.top());
+	st.pop();
 	return ret;
 }
 
@@ -180,7 +202,7 @@ Ptr<ValueNode> Parser::take_expr() {
 		Empty, UnaryOp, BinOp, Prim
 	} last = Empty;
 
-	std::stack<ValueNode*> st;
+	std::stack<ValueNode *> st;
 	std::stack<Token> ops;
 	auto error = [&st](const std::string &msg) {
 		while (!st.empty()) {
@@ -197,7 +219,7 @@ Ptr<ValueNode> Parser::take_expr() {
 				", got " + std::to_string(st.size())
 			);
 	};
-	auto process_op = [&](std::stack<ValueNode*> &st, const Token &token) {
+	auto process_op = [&](std::stack<ValueNode *> &st, const Token &token) {
 		const TokenKind op = token.kind;
 		if (token_kind::is_unary_op(op)) {
 			require(1);
@@ -224,9 +246,10 @@ Ptr<ValueNode> Parser::take_expr() {
 			lexer.take();
 			auto cur_pred = precedence_of(kind);
 			while (!ops.empty() &&
-				((precedence_of(ops.top().kind) < cur_pred) ||
-				(precedence_of(ops.top().kind) == cur_pred && !is_right_associative(cur_pred)))
-			) process_op(st, pop_stack(ops));
+				   ((precedence_of(ops.top().kind) < cur_pred) ||
+					(precedence_of(ops.top().kind) == cur_pred && !is_right_associative(cur_pred)))
+				)
+				process_op(st, pop_stack(ops));
 			ops.push(token);
 			last = is_unary? UnaryOp: BinOp;
 		} else if (auto ptr = take_prim()) {
@@ -253,8 +276,8 @@ Ptr<FunctionNode> Parser::take_function() {
 		lexer.take();
 		name = expect(lexer.take(), Identifier).content(get_buffer());
 	} else {
-		if (auto ptr = ptr_cast<NamedTypeNode>(std::move(receiver_type)))
-			name = ptr->get_name();
+		if (dynamic_cast<NamedTypeNode *>(receiver_type.get()))
+			name = ptr_cast<NamedTypeNode>(std::move(receiver_type))->get_name();
 		else {
 			throw ParseException(
 				"Expected function name, got type " +
@@ -262,7 +285,7 @@ Ptr<FunctionNode> Parser::take_function() {
 			);
 		}
 	}
-	std::vector<TypeNode*> param_types;
+	std::vector<TypeNode *> param_types;
 	std::vector<std::string> param_names;
 	Ptr<TypeNode> result_type;
 	try {
@@ -314,7 +337,7 @@ Ptr<FunctionNode> Parser::take_function() {
 Ptr<BlockNode> Parser::take_block() {
 	const auto begin = lexer.position();
 	expect(lexer.take(), LBrace);
-	std::vector<StmtNode*> stmts;
+	std::vector<StmtNode *> stmts;
 	try {
 		while (lexer.peek().kind != RBrace)
 			stmts.push_back(take_stmt().release());
@@ -331,8 +354,12 @@ Ptr<BlockNode> Parser::take_block() {
 }
 
 Ptr<StmtNode> Parser::take_stmt() {
-	while (lexer.peek().kind == Semicolon) // empty statement
-		lexer.take();
+	while (true) {
+		auto kind = lexer.peek().kind;
+		if (kind == Semicolon || kind == Comment || kind == MLComment)
+			lexer.take();
+		else break;
+	}
 	const auto begin = lexer.position();
 	switch (lexer.peek().kind) {
 		case Let: {
@@ -360,7 +387,8 @@ Ptr<StmtNode> Parser::take_stmt() {
 				const_flag
 			);
 		}
-		case LBrace: return take_block();
+		case LBrace:
+			return take_block();
 		case Return: {
 			lexer.take();
 			if (lexer.peek().kind == Semicolon) {

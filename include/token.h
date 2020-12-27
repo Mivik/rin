@@ -31,31 +31,59 @@ std::string name(TokenKind kind);
 
 inline TokenKind as_unary_op(TokenKind kind) {
 	switch (kind) {
-		case Add: return UAdd;
-		case Sub: return USub;
-		default: return kind;
+		case Add:
+			return UAdd;
+		case Sub:
+			return USub;
+		default:
+			return kind;
 	}
 }
 
 inline bool is_unary_op(TokenKind kind) {
 	switch (kind) {
-		case UAdd: case USub:
-		case Not: case LNot:
+		case UAdd:
+		case USub:
+		case Not:
+		case LNot:
 			return true;
-		default: return false;
+		default:
+			return false;
 	}
 }
 
 inline bool is_binary_op(TokenKind kind) {
 	switch (kind) {
-		case Add: case Sub:
-		case Mul: case Div: case Mod:
-		case Shl: case Shr: case Or: case And: case Xor:
-		case Assign: case AddA: case SubA: case MulA: case DivA:
-		case ModA: case ShlA: case ShrA: case OrA: case AndA: case XorA:
-		case Lt: case Gt: case Le: case Ge: case Eq: case Neq:
+		case Add:
+		case Sub:
+		case Mul:
+		case Div:
+		case Mod:
+		case Shl:
+		case Shr:
+		case Or:
+		case And:
+		case Xor:
+		case Assign:
+		case AddA:
+		case SubA:
+		case MulA:
+		case DivA:
+		case ModA:
+		case ShlA:
+		case ShrA:
+		case OrA:
+		case AndA:
+		case XorA:
+		case Lt:
+		case Gt:
+		case Le:
+		case Ge:
+		case Eq:
+		case Neq:
 			return true;
-		default: return false;
+		default:
+			return false;
 	}
 }
 
@@ -65,11 +93,11 @@ struct SourceRange {
 	static inline SourceRange empty() { return SourceRange(0, 0); }
 
 	size_t begin, end;
-	SourceRange(size_t pos):
+	explicit SourceRange(size_t pos):
 		begin(pos), end(pos) {}
 	SourceRange(size_t begin, size_t end):
 		begin(begin), end(end) {}
-	inline bool is_empty() const { return begin >= end; }
+	[[nodiscard]] inline bool is_empty() const { return begin >= end; }
 	inline SourceRange operator+(const SourceRange &other) const {
 		return { begin, other.end };
 	}
@@ -79,7 +107,7 @@ struct SourceRange {
 	inline bool operator!=(const SourceRange &other) const {
 		return begin != other.begin || end != other.end;
 	}
-	inline std::string to_string() const {
+	[[nodiscard]] inline std::string to_string() const {
 		return '[' + std::to_string(begin) + ", " + std::to_string(end) + ')';
 	}
 };
@@ -89,14 +117,14 @@ struct Token {
 	SourceRange range;
 	Token(TokenKind kind, const SourceRange &range):
 		kind(kind), range(range) {}
-	inline std::string name() const { return token_kind::name(kind); }
-	std::string content(const MemoryBuffer &buffer) const;
-	inline std::string info(const MemoryBuffer &buffer) const {
+	[[nodiscard]] inline std::string name() const { return token_kind::name(kind); }
+	[[nodiscard]] std::string content(const MemoryBuffer &buffer) const;
+	[[nodiscard]] inline std::string info(const MemoryBuffer &buffer) const {
 		auto ret = '[' + name() + ']';
 		if (!range.is_empty()) ret = ret + " \"" + content(buffer) + '"';
 		return ret;
 	}
-	inline operator bool() const { return kind != Eof; }
+	inline explicit operator bool() const { return kind != Eof; }
 };
 
 } // namespace rin

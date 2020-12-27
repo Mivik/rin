@@ -9,9 +9,12 @@ std::string UnaryOpNode::to_string() const {
 	std::string str;
 #define H(k, s) case k: str = s; break;
 	switch (op) {
-		H(UAdd, "+") H(USub, "-")
-		H(Not, "~") H(LNot, "!")
-		default: rin_unreachable("Illegal unary operator: " + token_kind::name(op));
+		H(UAdd, "+")
+		H(USub, "-")
+		H(Not, "~")
+		H(LNot, "!")
+		default:
+			rin_unreachable("Illegal unary operator: " + token_kind::name(op));
 	}
 #undef H
 	return '(' + str + ' ' + value_node->to_string() + ')';
@@ -21,16 +24,35 @@ std::string BinOpNode::to_string() const {
 	std::string str;
 #define H(k, s) case k: str = s; break;
 	switch (op) {
-		H(Add, '+') H(Sub, '-')
-		H(Mul, '*') H(Div, '/') H(Mod, '%')
-		H(Shl, "<<") H(Shr, ">>") H(Or, '|') H(And, '&') H(Xor, '^')
-		H(Assign, '=') H(AddA, "+=") H(SubA, "-=")
-		H(MulA, "*=") H(DivA, "/=") H(ModA, "%=")
-		H(ShlA, "<<=") H(ShrA, ">>=")
-		H(OrA, "|=") H(AndA, "&=") H(XorA, "^=")
-		H(Lt, '<') H(Gt, '>') H(Le, "<=") H(Ge, ">=")
-		H(Eq, "==") H(Neq, "!=")
-		default: rin_unreachable("Illegal binary operator: " + token_kind::name(op));
+		H(Add, '+')
+		H(Sub, '-')
+		H(Mul, '*')
+		H(Div, '/')
+		H(Mod, '%')
+		H(Shl, "<<")
+		H(Shr, ">>")
+		H(Or, '|')
+		H(And, '&')
+		H(Xor, '^')
+		H(Assign, '=')
+		H(AddA, "+=")
+		H(SubA, "-=")
+		H(MulA, "*=")
+		H(DivA, "/=")
+		H(ModA, "%=")
+		H(ShlA, "<<=")
+		H(ShrA, ">>=")
+		H(OrA, "|=")
+		H(AndA, "&=")
+		H(XorA, "^=")
+		H(Lt, '<')
+		H(Gt, '>')
+		H(Le, "<=")
+		H(Ge, ">=")
+		H(Eq, "==")
+		H(Neq, "!=")
+		default:
+			rin_unreachable("Illegal binary operator: " + token_kind::name(op));
 	}
 #undef H
 	return '(' + lhs_node->to_string() + ' ' + str + ' ' + rhs_node->to_string() + ')';
@@ -112,7 +134,8 @@ std::string PrototypeNode::to_string() const {
 	const auto &param_types = type_node->get_parameter_type_nodes();
 	for (size_t i = 0; i < param_names.size(); ++i) {
 		ret += param_types[i]->to_string();
-		ret += ' '; ret += param_names[i];
+		ret += ' ';
+		ret += param_names[i];
 		if (i != param_names.size() - 1) ret += ", ";
 	}
 	ret += ')';

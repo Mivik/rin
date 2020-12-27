@@ -2,6 +2,7 @@
 #pragma once
 
 #include <string>
+#include <utility>
 
 #include "codegen.h"
 #include "context.h"
@@ -15,33 +16,33 @@ namespace rin {
 template<class R>
 class ASTNode {
 protected:
-	ASTNode(const SourceRange &range): range(range) {}
+	explicit ASTNode(const SourceRange &range): range(range) {}
 
 	SourceRange range;
 public:
-	inline SourceRange get_source_range() const { return range; }
+	[[nodiscard]] inline SourceRange get_source_range() const { return range; }
 
 	virtual R codegen(Context &ctx) const = 0;
-	virtual std::string to_string() const = 0;
+	[[nodiscard]] virtual std::string to_string() const = 0;
 
 	virtual ~ASTNode() = default;
 };
 
 using ValueNode = ASTNode<Value>;
-using TypeNode = ASTNode<Type*>;
+using TypeNode = ASTNode<Type *>;
 using StmtNode = ASTNode<Value>;
 using DeclNode = ASTNode<void>;
 
 #define OVERRIDE(R) \
-	R codegen(Context &ctx) const override; \
-	std::string to_string() const override;
+    R codegen(Context &ctx) const override; \
+    std::string to_string() const override;
 
 class ConstantNode : public ValueNode {
 public:
 	ConstantNode(const Token &token, const MemoryBuffer &buffer):
 		ASTNode(token.range), str(token.content(buffer)) {}
 
-	inline const std::string& get_string_value() const { return str; }
+	[[nodiscard]] inline const std::string &get_string_value() const { return str; }
 
 	OVERRIDE(Value)
 private:
@@ -56,7 +57,7 @@ public:
 		assert(token_kind::is_unary_op(op));
 	}
 
-	inline const ValueNode* get_value_node() const { return value_node.get(); }
+	[[nodiscard]] inline const ValueNode *get_value_node() const { return value_node.get(); }
 
 	OVERRIDE(Value)
 private:
@@ -72,8 +73,8 @@ public:
 		assert(token_kind::is_binary_op(op));
 	}
 
-	inline const ValueNode* get_lhs_node() const { return lhs_node.get(); }
-	inline const ValueNode* get_rhs_node() const { return rhs_node.get(); }
+	[[nodiscard]] inline const ValueNode *get_lhs_node() const { return lhs_node.get(); }
+	[[nodiscard]] inline const ValueNode *get_rhs_node() const { return rhs_node.get(); }
 
 	OVERRIDE(Value)
 private:
@@ -83,12 +84,12 @@ private:
 
 class NamedTypeNode : public TypeNode {
 public:
-	NamedTypeNode(const SourceRange &range, const std::string &name):
-		ASTNode(range), name(name) {}
+	NamedTypeNode(const SourceRange &range, std::string name):
+		ASTNode(range), name(std::move(name)) {}
 	NamedTypeNode(const Token &token, const MemoryBuffer &buffer):
 		ASTNode(token.range), name(token.content(buffer)) {}
 
-	inline const std::string& get_name() const { return name; }
+	[[nodiscard]] inline const std::string &get_name() const { return name; }
 
 	OVERRIDE(Type*)
 private:
@@ -102,11 +103,11 @@ public:
 		Ptr<TypeNode> element_type_node,
 		unsigned int size
 	): ASTNode(range),
-		element_type_node(std::move(element_type_node)),
-		size(size) {}
+	   element_type_node(std::move(element_type_node)),
+	   size(size) {}
 
-	inline const TypeNode* get_element_type_node() const { return element_type_node.get(); }
-	inline unsigned int get_size() const { return size; }
+	[[nodiscard]] inline const TypeNode *get_element_type_node() const { return element_type_node.get(); }
+	[[nodiscard]] inline unsigned int get_size() const { return size; }
 
 	OVERRIDE(Type*)
 private:
@@ -121,11 +122,11 @@ public:
 		Ptr<TypeNode> sub_type_node,
 		bool const_flag
 	): ASTNode(range),
-		sub_type_node(std::move(sub_type_node)),
-		const_flag(const_flag) {}
+	   sub_type_node(std::move(sub_type_node)),
+	   const_flag(const_flag) {}
 
-	inline const TypeNode* get_sub_type_node() const { return sub_type_node.get(); }
-	inline bool is_const() const { return const_flag; }
+	[[nodiscard]] inline const TypeNode *get_sub_type_node() const { return sub_type_node.get(); }
+	[[nodiscard]] inline bool is_const() const { return const_flag; }
 
 	OVERRIDE(Type*)
 private:
@@ -140,11 +141,11 @@ public:
 		Ptr<TypeNode> sub_type_node,
 		bool const_flag
 	): ASTNode(range),
-		sub_type_node(std::move(sub_type_node)),
-		const_flag(const_flag) {}
+	   sub_type_node(std::move(sub_type_node)),
+	   const_flag(const_flag) {}
 
-	inline const TypeNode* get_sub_type_node() const { return sub_type_node.get(); }
-	inline bool is_const() const { return const_flag; }
+	[[nodiscard]] inline const TypeNode *get_sub_type_node() const { return sub_type_node.get(); }
+	[[nodiscard]] inline bool is_const() const { return const_flag; }
 
 	OVERRIDE(Type*)
 private:
@@ -158,49 +159,49 @@ public:
 		const SourceRange &range,
 		Ptr<TypeNode> receiver_type_node,
 		Ptr<TypeNode> result_type_node,
-		const std::vector<TypeNode*> &param_type_nodes
+		std::vector<TypeNode *> param_type_nodes
 	): ASTNode(range),
-		receiver_type_node(std::move(receiver_type_node)),
-		result_type_node(std::move(result_type_node)),
-		param_type_nodes(param_type_nodes) {}
+	   receiver_type_node(std::move(receiver_type_node)),
+	   result_type_node(std::move(result_type_node)),
+	   param_type_nodes(std::move(param_type_nodes)) {}
 
-	inline const TypeNode* get_receiver_type_node() const {
+	[[nodiscard]] inline const TypeNode *get_receiver_type_node() const {
 		return receiver_type_node.get();
 	}
-	inline const TypeNode* get_result_type_node() const {
+	[[nodiscard]] inline const TypeNode *get_result_type_node() const {
 		return result_type_node.get();
 	}
-	inline const std::vector<TypeNode*>& get_parameter_type_nodes() const {
+	[[nodiscard]] inline const std::vector<TypeNode *> &get_parameter_type_nodes() const {
 		return param_type_nodes;
 	}
 
-	virtual ~FunctionTypeNode() override;
+	~FunctionTypeNode() override;
 
 	OVERRIDE(Type*)
 private:
 	Ptr<TypeNode> receiver_type_node, result_type_node;
-	std::vector<TypeNode*> param_type_nodes;
+	std::vector<TypeNode *> param_type_nodes;
 };
 
 class PrototypeNode : public ASTNode<Prototype> {
 public:
 	PrototypeNode(
 		const SourceRange &range,
-		const std::string &name,
+		std::string name,
 		Ptr<FunctionTypeNode> type_node,
 		const std::vector<std::string> &param_names
-	): ASTNode(range), name(name),
-		type_node(std::move(type_node)),
-		param_names(param_names) {
+	): ASTNode(range), name(std::move(name)),
+	   type_node(std::move(type_node)),
+	   param_names(param_names) {
 		assert(param_names.size() ==
-			this->type_node->get_parameter_type_nodes().size());
+			   this->type_node->get_parameter_type_nodes().size());
 	}
 
-	inline const std::string& get_name() const { return name; }
-	inline const FunctionTypeNode* get_type_node() const {
+	[[nodiscard]] inline const std::string &get_name() const { return name; }
+	[[nodiscard]] inline const FunctionTypeNode *get_type_node() const {
 		return type_node.get();
 	}
-	inline const std::vector<std::string>& get_parameter_names() const {
+	[[nodiscard]] inline const std::vector<std::string> &get_parameter_names() const {
 		return param_names;
 	}
 
@@ -216,7 +217,7 @@ public:
 	NamedValueNode(const Token &token, const MemoryBuffer &buffer):
 		ASTNode(token.range), name(token.content(buffer)) {}
 
-	inline const std::string& get_name() const { return name; }
+	[[nodiscard]] inline const std::string &get_name() const { return name; }
 
 	OVERRIDE(Value)
 private:
@@ -227,20 +228,20 @@ class VarDeclNode : public StmtNode {
 public:
 	VarDeclNode(
 		const SourceRange &range,
-		const std::string &name,
+		std::string name,
 		Ptr<TypeNode> type_node,
 		Ptr<ValueNode> value_node,
 		bool const_flag
-	): StmtNode(range), name(name),
-		type_node(std::move(type_node)), value_node(std::move(value_node)),
-		const_flag(const_flag) {
+	): StmtNode(range), name(std::move(name)),
+	   type_node(std::move(type_node)), value_node(std::move(value_node)),
+	   const_flag(const_flag) {
 		if (!(this->type_node || this->value_node))
 			throw CodegenException("A variable should have either a default value or a type annotation");
 	}
 
-	inline const std::string& get_name() const { return name; }
-	inline const ValueNode* get_value_node() const { return value_node.get(); }
-	inline bool is_const() const { return const_flag; }
+	[[nodiscard]] inline const std::string &get_name() const { return name; }
+	[[nodiscard]] inline const ValueNode *get_value_node() const { return value_node.get(); }
+	[[nodiscard]] inline bool is_const() const { return const_flag; }
 
 	OVERRIDE(Value)
 private:
@@ -254,18 +255,18 @@ class BlockNode : public StmtNode {
 public:
 	BlockNode(
 		const SourceRange &range,
-		const std::vector<StmtNode*> &stmts
-	): ASTNode(range), stmts(stmts) {}
+		std::vector<StmtNode *> stmts
+	): ASTNode(range), stmts(std::move(stmts)) {}
 
-	inline const std::vector<StmtNode*>& get_statements() const {
+	[[nodiscard]] inline const std::vector<StmtNode *> &get_statements() const {
 		return stmts;
 	}
 
 	OVERRIDE(Value)
 
-	virtual ~BlockNode() override;
+	~BlockNode() override;
 private:
-	std::vector<StmtNode*> stmts;
+	std::vector<StmtNode *> stmts;
 };
 
 class FunctionNode : public DeclNode {
@@ -275,14 +276,14 @@ public:
 		Ptr<PrototypeNode> prototype_node,
 		Ptr<BlockNode> body_node
 	): ASTNode(range),
-		prototype_node(std::move(prototype_node)),
-		body_node(std::move(body_node)) {}
+	   prototype_node(std::move(prototype_node)),
+	   body_node(std::move(body_node)) {}
 
-	inline const std::string& get_name() const { return prototype_node->get_name(); }
-	inline const PrototypeNode* get_prototype_node() const {
+	[[nodiscard]] inline const std::string &get_name() const { return prototype_node->get_name(); }
+	[[nodiscard]] inline const PrototypeNode *get_prototype_node() const {
 		return prototype_node.get();
 	}
-	inline const BlockNode* get_body_node() const { return body_node.get(); }
+	[[nodiscard]] inline const BlockNode *get_body_node() const { return body_node.get(); }
 
 	OVERRIDE(void)
 private:
@@ -297,7 +298,7 @@ public:
 		Ptr<ValueNode> value_node
 	): ASTNode(range), value_node(std::move(value_node)) {}
 
-	inline const ValueNode* get_value_node() const { return value_node.get(); }
+	[[nodiscard]] inline const ValueNode *get_value_node() const { return value_node.get(); }
 
 	OVERRIDE(Value)
 private:

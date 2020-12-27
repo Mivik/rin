@@ -3,14 +3,15 @@
 
 #include <exception>
 #include <string>
+#include <utility>
 
 namespace rin {
 
 class CodegenException : public std::exception {
 public:
-	const char *what() const noexcept { return msg.data(); }
+	[[nodiscard]] const char *what() const noexcept override { return msg.data(); }
 
-	CodegenException(const std::string &msg): msg(msg) {}
+	explicit CodegenException(std::string msg): msg(std::move(msg)) {}
 private:
 	std::string msg;
 };
