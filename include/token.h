@@ -8,7 +8,7 @@ namespace rin {
 class MemoryBuffer;
 
 enum TokenKind {
-	Eof,
+	Eof, Newline,
 	Identifier,
 	Number, True, False,
 	String,

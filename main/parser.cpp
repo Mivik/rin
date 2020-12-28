@@ -184,6 +184,25 @@ Ptr<ValueNode> Parser::take_prim() {
 		case Identifier:
 			lexer.take();
 			return std::make_unique<NamedValueNode>(token, get_buffer());
+		case If: {
+			const auto begin = lexer.position();
+			lexer.take();
+			expect(lexer.take(), LPar);
+			auto cond = take_expr();
+			expect(lexer.take(), RPar);
+			auto body = take_stmt();
+			Ptr<StmtNode> else_body;
+			if (lexer.peek().kind == Else) {
+				lexer.take();
+				else_body = take_stmt();
+			}
+			return std::make_unique<IfNode>(
+				SourceRange(begin, lexer.position()),
+				std::move(cond),
+				std::move(body),
+				std::move(else_body)
+			);
+		}
 		default:
 			break;
 	}
@@ -252,13 +271,12 @@ Ptr<ValueNode> Parser::take_expr() {
 				process_op(st, pop_stack(ops));
 			ops.push(token);
 			last = is_unary? UnaryOp: BinOp;
-		} else if (auto ptr = take_prim()) {
-			st.push(ptr.release());
-			last = Prim;
-		} else {
-			// llvm::errs() << "Here: " << token.info(get_buffer()) << '\n' << ops.size() << '\n';
-			break;
-		}
+		} else if (last != Prim) {
+			if (auto ptr = take_prim()) {
+				st.push(ptr.release());
+				last = Prim;
+			} else break;
+		} else break;
 	}
 	while (!ops.empty()) process_op(st, pop_stack(ops));
 	if (st.empty())
@@ -339,8 +357,11 @@ Ptr<BlockNode> Parser::take_block() {
 	expect(lexer.take(), LBrace);
 	std::vector<StmtNode *> stmts;
 	try {
-		while (lexer.peek().kind != RBrace)
+		while (true) {
 			stmts.push_back(take_stmt().release());
+			if (lexer.peek().kind == RBrace) break;
+			expect_end_of_stmt();
+		}
 		expect(lexer.take(), RBrace);
 		return std::make_unique<BlockNode>(
 			SourceRange(begin, lexer.position()),
@@ -380,7 +401,6 @@ Ptr<StmtNode> Parser::take_stmt() {
 				lexer.take();
 				value_node = take_expr();
 			}
-			expect(lexer.take(), Semicolon);
 			return std::make_unique<VarDeclNode>(
 				SourceRange(begin, lexer.position()),
 				name, std::move(type_node), std::move(value_node),
@@ -391,26 +411,19 @@ Ptr<StmtNode> Parser::take_stmt() {
 			return take_block();
 		case Return: {
 			lexer.take();
-			if (lexer.peek().kind == Semicolon) {
-				lexer.take();
+			if (auto expr = take_expr()) {
+				return std::make_unique<ReturnNode>(
+					SourceRange(begin, lexer.position()),
+					std::move(expr)
+					);
+			} else {
 				return std::make_unique<ReturnNode>(
 					SourceRange(begin, lexer.position()),
 					nullptr
-				);
-			} else {
-				auto type = take_expr();
-				expect(lexer.take(), Semicolon);
-				return std::make_unique<ReturnNode>(
-					SourceRange(begin, lexer.position()),
-					std::move(type)
-				);
+					);
 			}
 		}
-		default: {
-			auto ret = take_expr();
-			expect(lexer.take(), Semicolon);
-			return ret;
-		}
+		default: return take_expr();
 	}
 }
 

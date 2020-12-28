@@ -47,6 +47,15 @@ private:
 	}
 #pragma clang diagnostic pop
 
+	inline void expect_end_of_stmt() {
+		if (!lexer.is_end_of_stmt())
+			throw ParseException(
+				"Expected end of statement"
+				", got " + lexer.peek().info(get_buffer())
+			);
+		lexer.take_end_of_stmt();
+	}
+
 	template<class Func>
 	void process_list(
 		TokenKind begin, TokenKind end, TokenKind delimiter,

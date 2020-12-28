@@ -1,6 +1,8 @@
 
 #include <gtest/gtest.h>
 
+#include <functional>
+
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Type.h>
@@ -43,7 +45,7 @@ TEST(exec, simple) {
 	Context ctx(core);
 	Parser(R"(
 		fn mul(a: i32, b: i32): i32 {
-			return a * b;
+			return a * b
 		}
 	)").take_function()->codegen(ctx);
 
@@ -58,9 +60,9 @@ TEST(exec, variable) {
 	Context ctx(core);
 	Parser(R"(
 		fn grid_point_count(a: i32, b: i32): i32 {
-			let a = a + 1;
-			let b = b + 1;
-			return a * b;
+			let a = a + 1
+			let b = b + 1
+			return a * b
 		}
 	)").take_function()->codegen(ctx);
 
@@ -74,10 +76,38 @@ TEST(exec, const_variable) {
 	Context ctx(core);
 	EXPECT_THROW(Parser(R"(
 		fn test() {
-			let a: i64 = 5;
-			a = 6;
+			let a: i64 = 5
+			a = 6
 		}
 	)").take_function()->codegen(ctx), CodegenException);
+}
+
+TEST(exec, if_stmt) {
+	CoreContext core;
+	Context ctx(core);
+	Parser(R"(
+		fn abs(x: i32): i32 {
+			if (x < 0) return -x
+			else return x
+		}
+	)").take_function()->codegen(ctx);
+	Parser(R"(
+		fn abs2(x: i32): i32 {
+			return if (x < 0) -x else x
+		}
+	)").take_function()->codegen(ctx);
+
+	 ctx.get_module()->print(llvm::errs(), nullptr);
+
+	JITEngine engine(ctx.finalize());
+
+	auto test_abs = [&](const std::function<int(int)> &func) {
+		EXPECT_EQ(abs(0), 0);
+		EXPECT_EQ(abs(5), 5);
+		EXPECT_EQ(abs(-6), 6);
+	};
+	test_abs(engine.find_function<int, int>("abs"));
+//	test_abs(engine.find_function<int, int>("abs2"));
 }
 
 } // namespace rin

@@ -99,19 +99,21 @@ TEST(parser, type) {
 }
 
 TEST(parser, stmt) {
-	EXPECT_THROW(Parser("let i;").take_stmt(), CodegenException);
+	EXPECT_THROW(Parser("let i").take_stmt(), CodegenException);
 	EXPECT_TRUE(dynamic_cast<VarDeclNode *>(
-					Parser("let i: i32;").take_stmt().get()
+					Parser("let i: i32").take_stmt().get()
 				));
-	EXPECT_TRUE(dynamic_cast<BlockNode *>(
-					Parser(R"(
+	EXPECT_TRUE(
+		dynamic_cast<BlockNode *>(
+			Parser(R"(
 			{
-				let i: i32 = 5;
-				100;
+				let i: i32 = 5
+				100
 			}
 		)").take_stmt().get()
-				));
-	EXPECT_THROW(Parser("let v = 5").take_stmt(), ParseException);
+		)
+	);
+
 }
 
 TEST(parser, function) {
@@ -119,7 +121,7 @@ TEST(parser, function) {
 	Context ctx(core);
 	auto i8 = core.get_i8_type();
 	EXPECT_EQ(Parser("(i8, i8) -> i8").take_type()->codegen(ctx),
-			  core.get_function_type(nullptr, i8, {i8, i8}));
+			  core.get_function_type(nullptr, i8, { i8, i8 }));
 	EXPECT_EQ(Parser("i8.() -> bool").take_type()->codegen(ctx),
 			  core.get_function_type(i8, core.get_boolean_type(), {}));
 }

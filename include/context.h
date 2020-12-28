@@ -16,11 +16,12 @@ class Value;
 class Context {
 public:
 	explicit Context(CoreContext &core, const std::string &name = "program");
-	inline CoreContext &get_core() { return core; }
-	inline llvm::LLVMContext &get_llvm() { return core.get_llvm(); }
-	inline llvm::Module *get_module() { return module.get(); }
-	inline Function *get_function() { return functions.back(); }
-	inline llvm::IRBuilder<> &get_builder() { return *builders.back(); }
+	inline CoreContext &get_core() const { return core; }
+	inline llvm::LLVMContext &get_llvm() const { return core.get_llvm(); }
+	inline llvm::Module *get_module() const { return module.get(); }
+	inline Function *get_function() const { return functions.back(); }
+	inline llvm::IRBuilder<> &get_builder() const { return *builders.back(); }
+	llvm::Function *get_llvm_function() const;
 	std::optional<Value> lookup_value(const std::string &name) const;
 	std::optional<Type *> lookup_type(const std::string &name) const;
 	void declare_value(const std::string &name, const Value &value);
@@ -29,6 +30,8 @@ public:
 	Value allocate_stack(Type *type, const Value &default_value, bool is_const);
 	void add_layer(std::unique_ptr<llvm::IRBuilder<>> builder, Function *function);
 	void pop_layer();
+
+	llvm::BasicBlock *create_basic_block(const std::string &name) const;
 
 	std::unique_ptr<llvm::Module> finalize();
 

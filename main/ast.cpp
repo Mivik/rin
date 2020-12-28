@@ -3,6 +3,13 @@
 
 namespace rin {
 
+bool ValueNode::has_return() const {
+	if (dynamic_cast<const ReturnNode *>(this)) return true;
+	if (auto block_node = dynamic_cast<const BlockNode *>(this))
+		return block_node->has_return_flag;
+	return false;
+}
+
 std::string ConstantNode::to_string() const { return str; }
 
 std::string UnaryOpNode::to_string() const {
@@ -102,8 +109,19 @@ std::string VarDeclNode::to_string() const {
 	ret += name;
 	ret += " = ";
 	ret += value_node->to_string();
-	ret += ';';
 	return ret;
+}
+
+BlockNode::BlockNode(const SourceRange &range, std::vector<StmtNode *> stmts):
+	StmtNode(range),
+	stmts(std::move(stmts)) {
+	auto iter = stmts.begin();
+	while (iter != stmts.end() && !dynamic_cast<ReturnNode *>(*iter))
+		++iter;
+	// TODO Warning here?
+	if (iter != stmts.end())
+		stmts.erase(++iter, stmts.end());
+	has_return_flag = stmts.empty() || stmts.back()->has_return();
 }
 
 std::string BlockNode::to_string() const {
@@ -153,7 +171,19 @@ std::string FunctionNode::to_string() const {
 }
 
 std::string ReturnNode::to_string() const {
-	return "return " + value_node->to_string() + ';';
+	return "return " + value_node->to_string();
+}
+
+std::string IfNode::to_string() const {
+	std::string ret = "if (";
+	ret += condition_node->to_string();
+	ret += ") ";
+	ret += then_node->to_string();
+	if (else_node) {
+		ret += " else ";
+		ret += else_node->to_string();
+	}
+	return ret;
 }
 
 } // namespace rin

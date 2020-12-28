@@ -16,6 +16,7 @@ std::string name(TokenKind kind) {
 #define H(n) case n: return #n;
 	switch (kind) {
 		H(Eof)
+		H(Newline)
 		H(Identifier)
 		H(Number)
 		H(True)

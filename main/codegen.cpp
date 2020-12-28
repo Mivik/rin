@@ -434,4 +434,65 @@ Value ReturnNode::codegen(Context &ctx) const {
 	return ctx.get_core().get_nothing();
 }
 
+Value IfNode::codegen(Context &ctx) const {
+	auto &builder = ctx.get_builder();
+	auto cond = condition_node->codegen(ctx);
+	const auto
+		then_block = ctx.create_basic_block("then"),
+		else_block = ctx.create_basic_block("else");
+	builder.CreateCondBr(
+		cond.get_llvm(),
+		then_block,
+		else_block
+	);
+	if (!else_node) {
+		builder.SetInsertPoint(then_block);
+		then_node->codegen(ctx);
+		if (!then_node->has_return())
+			builder.CreateBr(else_block);
+		builder.SetInsertPoint(else_block);
+		return ctx.get_core().get_nothing();
+	} else {
+		const auto then_ret = ({
+			builder.SetInsertPoint(then_block);
+			then_node->codegen(ctx);
+		}), else_ret = ({
+			builder.SetInsertPoint(else_block);
+			else_node->codegen(ctx);
+		});
+		if (then_ret.get_type() == else_ret.get_type()
+			&& then_ret.get_type() != ctx.get_core().get_nothing_type()) {
+			auto var = ctx.allocate_stack(then_ret.get_type(), false);
+			var = {
+				ctx.get_core().get_ref_type(dynamic_cast<Type::Pointer *>(var.get_type())->get_sub_type()),
+				var.get_llvm()
+			};
+
+			const auto merge_block = ctx.create_basic_block("merge");
+
+			builder.SetInsertPoint(then_block);
+			builder.CreateStore(then_ret.get_llvm(), var.get_llvm());
+			if (!then_node->has_return()) builder.CreateBr(merge_block);
+			builder.SetInsertPoint(else_block);
+			builder.CreateStore(else_ret.get_llvm(), var.get_llvm());
+			if (!else_node->has_return()) builder.CreateBr(merge_block);
+
+			builder.SetInsertPoint(merge_block);
+			return var;
+		} else {
+			if (!then_node->has_return() || !else_node->has_return()) {
+				const auto merge_block = ctx.create_basic_block("merge");
+
+				builder.SetInsertPoint(then_block);
+				if (!then_node->has_return()) builder.CreateBr(merge_block);
+				builder.SetInsertPoint(else_block);
+				if (!else_node->has_return()) builder.CreateBr(merge_block);
+
+				builder.SetInsertPoint(merge_block);
+			}
+			return ctx.get_core().get_nothing();
+		}
+	}
+}
+
 } // namespace rin

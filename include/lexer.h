@@ -60,18 +60,10 @@ private:
 class Lexer {
 public:
 	explicit Lexer(MemoryBuffer buffer):
-		input(buffer) {}
+		input(buffer), has_newline(false) {}
 	[[nodiscard]] const MemoryBuffer &get_buffer() const { return input.get_buffer(); }
-	inline Token peek() {
-		if (buffer.empty()) buffer.push_back(lex());
-		return buffer.front();
-	}
-	inline Token take() {
-		if (buffer.empty()) return lex();
-		Token ret = buffer.front();
-		buffer.pop_front();
-		return ret;
-	}
+	Token peek();
+	Token take();
 	inline size_t position() {
 		if (buffer.empty()) return input.position();
 		return buffer.front().range.begin;
@@ -80,11 +72,15 @@ public:
 		input.rewind_to(pos);
 		buffer.clear();
 	}
+
+	bool is_end_of_stmt();
+	void take_end_of_stmt();
 private:
 	Token lex();
 
 	Reader input;
 	std::deque<Token> buffer;
+	bool has_newline;
 };
 
 } // namespace rin

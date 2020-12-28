@@ -28,9 +28,15 @@ public:
 	virtual ~ASTNode() = default;
 };
 
-using ValueNode = ASTNode<Value>;
+class ValueNode : public ASTNode<Value> {
+protected:
+	explicit ValueNode(const SourceRange &range): ASTNode(range) {}
+public:
+	[[nodiscard]] bool has_return() const;
+};
+
+using StmtNode = ValueNode;
 using TypeNode = ASTNode<Type *>;
-using StmtNode = ASTNode<Value>;
 using DeclNode = ASTNode<void>;
 
 #define OVERRIDE(R) \
@@ -40,7 +46,7 @@ using DeclNode = ASTNode<void>;
 class ConstantNode : public ValueNode {
 public:
 	ConstantNode(const Token &token, const MemoryBuffer &buffer):
-		ASTNode(token.range), str(token.content(buffer)) {}
+		ValueNode(token.range), str(token.content(buffer)) {}
 
 	[[nodiscard]] inline const std::string &get_string_value() const { return str; }
 
@@ -52,7 +58,7 @@ private:
 class UnaryOpNode : public ValueNode {
 public:
 	UnaryOpNode(Ptr<ValueNode> value, const Token &token):
-		ASTNode(token.range + value->get_source_range()),
+		ValueNode(token.range + value->get_source_range()),
 		value_node(std::move(value)), op(token.kind) {
 		assert(token_kind::is_unary_op(op));
 	}
@@ -68,7 +74,7 @@ private:
 class BinOpNode : public ValueNode {
 public:
 	BinOpNode(Ptr<ValueNode> lhs, Ptr<ValueNode> rhs, TokenKind op):
-		ASTNode(lhs->get_source_range() + rhs->get_source_range()),
+		ValueNode(lhs->get_source_range() + rhs->get_source_range()),
 		lhs_node(std::move(lhs)), rhs_node(std::move(rhs)), op(op) {
 		assert(token_kind::is_binary_op(op));
 	}
@@ -215,7 +221,7 @@ private:
 class NamedValueNode : public ValueNode {
 public:
 	NamedValueNode(const Token &token, const MemoryBuffer &buffer):
-		ASTNode(token.range), name(token.content(buffer)) {}
+		ValueNode(token.range), name(token.content(buffer)) {}
 
 	[[nodiscard]] inline const std::string &get_name() const { return name; }
 
@@ -256,7 +262,7 @@ public:
 	BlockNode(
 		const SourceRange &range,
 		std::vector<StmtNode *> stmts
-	): ASTNode(range), stmts(std::move(stmts)) {}
+	);
 
 	[[nodiscard]] inline const std::vector<StmtNode *> &get_statements() const {
 		return stmts;
@@ -267,6 +273,9 @@ public:
 	~BlockNode() override;
 private:
 	std::vector<StmtNode *> stmts;
+	bool has_return_flag;
+
+	friend class ValueNode;
 };
 
 class FunctionNode : public DeclNode {
@@ -296,13 +305,35 @@ public:
 	ReturnNode(
 		const SourceRange &range,
 		Ptr<ValueNode> value_node
-	): ASTNode(range), value_node(std::move(value_node)) {}
+	): StmtNode(range), value_node(std::move(value_node)) {}
 
 	[[nodiscard]] inline const ValueNode *get_value_node() const { return value_node.get(); }
 
 	OVERRIDE(Value)
 private:
 	Ptr<ValueNode> value_node;
+};
+
+class IfNode : public StmtNode {
+public:
+	IfNode(
+		const SourceRange &range,
+		Ptr<ValueNode> condition_node,
+		Ptr<StmtNode> then_node,
+		Ptr<StmtNode> else_node
+	): StmtNode(range),
+	   condition_node(std::move(condition_node)),
+	   then_node(std::move(then_node)),
+	   else_node(std::move(else_node)) {}
+
+	[[nodiscard]] inline const ValueNode *get_condition_node() const { return condition_node.get(); }
+	[[nodiscard]] inline const StmtNode *get_then_node() const { return then_node.get(); }
+	[[nodiscard]] inline const StmtNode *get_else_node() const { return else_node.get(); }
+
+	OVERRIDE(Value)
+private:
+	Ptr<ValueNode> condition_node;
+	Ptr<StmtNode> then_node, else_node;
 };
 
 #undef OVERRIDE

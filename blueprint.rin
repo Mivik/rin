@@ -3,13 +3,13 @@ using std::builtin
 using std::io::{cin, cout}
 using std::random
 
-let engine = random::mt19937::new();
+let engine = random::mt19937::new()
 
-fn println(str: string) = cout.println(str);
+fn println(str: string) = cout.println(str)
 
 #[inline]
 fn factorial(n: i64): i64 =
-	range(1, n + 1).reduce(1, <a: i64, b: i64> a * b);
+	range(1, n + 1).reduce(1, <a: i64, b: i64> a * b)
 
 enum Language {
 	Cpp { version: string },
@@ -17,24 +17,25 @@ enum Language {
 }
 
 fn get_random_language(): Language {
-	return (engine(0, 99) < 50)?
-			Language::Cpp{ "C++11" }:
-			Language::Rust{};
+	return if (engine(0, 99) < 50)
+				Language::Cpp{ "C++11" }
+		   else
+		   		Language::Rust{}
 }
 
 fn main() {
-	let (a, b) = (cin.read[i32]()!!, cin.read[i32]()!!);
+	let (a, b) = (cin.read[i32]()!!, cin.read[i32]()!!)
 	for (i in range(a, b + 1))
-		println("${(i & 1 == 1)? "odd": "even"}: $i");
-	println("$a + $b = ${a + b}");
+		println("${(i & 1 == 1)? "odd": "even"}: $i")
+	println("$a + $b = ${a + b}")
 
-	println("$b! = ${factorial(b)}");
+	println("$b! = ${factorial(b)}")
 
-	println(range(1, a + 1).join(", "));
+	println(range(1, a + 1).join(", "))
 
 	when (get_random_language()) {
-		is Cpp(version) -> println("C++ $version");
-		is Rust -> println("Rust");
-		else -> builtin.trap();
+		is Cpp(version) -> println("C++ $version")
+		is Rust -> println("Rust")
+		else -> builtin.trap()
 	}
 }

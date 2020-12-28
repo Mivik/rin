@@ -35,22 +35,10 @@ Context::~Context() {
 	}
 }
 
-void Context::add_layer(
-	std::unique_ptr<llvm::IRBuilder<>> builder,
-	Function *function
-) {
-	value_map.add_layer();
-	type_map.add_layer();
-	builders.push_back(builder.release());
-	functions.push_back(function);
-}
-
-void Context::pop_layer() {
-	value_map.pop_layer();
-	type_map.pop_layer();
-	delete builders.back();
-	builders.pop_back();
-	functions.pop_back();
+llvm::Function *Context::get_llvm_function() const {
+	if (auto block = get_builder().GetInsertBlock())
+		return block->getParent();
+	else throw CodegenException("Top-level context doesn't have parent function");
 }
 
 std::optional<Value> Context::lookup_value(const std::string &name) const {
@@ -70,13 +58,9 @@ void Context::declare_type(const std::string &name, Type *type) {
 }
 
 Value Context::allocate_stack(Type *type, bool is_const) {
-	auto block = get_builder().GetInsertBlock();
-	if (!block)
-		throw CodegenException("Attempt to allocate in top-level context");
-	auto func = block->getParent();
-	assert(func);
+	auto func = get_llvm_function();
 	llvm::IRBuilder<> tmp_builder(core.get_llvm());
-	tmp_builder.SetInsertPoint(&*func->getEntryBlock().begin());
+	tmp_builder.SetInsertPoint(&*func->getEntryBlock().getFirstInsertionPt());
 	return {
 		core.get_pointer_type(type, is_const),
 		tmp_builder.CreateAlloca(type->get_llvm(), 0, nullptr)
@@ -91,6 +75,28 @@ Value Context::allocate_stack(Type *type, const Value &value, bool is_const) {
 
 std::unique_ptr<llvm::Module> Context::finalize() {
 	return std::move(module);
+}
+
+void Context::add_layer(
+	std::unique_ptr<llvm::IRBuilder<>> builder,
+	Function *function
+) {
+	value_map.add_layer();
+	type_map.add_layer();
+	builders.push_back(builder.release());
+	functions.push_back(function);
+}
+
+void Context::pop_layer() {
+	value_map.pop_layer();
+	type_map.pop_layer();
+	delete builders.back();
+	builders.pop_back();
+	functions.pop_back();
+}
+
+llvm::BasicBlock *Context::create_basic_block(const std::string &name) const {
+	return llvm::BasicBlock::Create(get_core().get_llvm(), name, get_llvm_function());
 }
 
 } // namespace rin

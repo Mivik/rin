@@ -1,4 +1,5 @@
 
+#include <cassert>
 #include <cctype>
 
 #include "lexer.h"
@@ -43,8 +44,57 @@ inline TokenKind word_kind(const std::string &str) {
 	return Identifier;
 }
 
+bool Lexer::is_end_of_stmt() {
+	const auto kind = peek().kind;
+	return has_newline || kind == Eof || kind == Semicolon;
+}
+
+void Lexer::take_end_of_stmt() {
+	peek();
+	if (has_newline) {
+		buffer.pop_front();
+		has_newline = false;
+	} else {
+		const auto kind = buffer.front().kind;
+		if (kind == Eof || kind == Semicolon)
+			take();
+		else assert(false);
+	}
+}
+
+Token Lexer::peek() {
+	if (buffer.empty())
+		while (true) {
+			const auto token = lex();
+			if (token.kind == Newline) {
+				if (buffer.empty()) buffer.push_back(token);
+			} else {
+				has_newline = !buffer.empty();
+				buffer.push_back(token);
+				break;
+			}
+		}
+	return buffer[has_newline];
+}
+
+Token Lexer::take() {
+	if (buffer.empty()) peek();
+	Token ret = buffer[has_newline];
+	if (has_newline) {
+		assert(buffer.front().kind == Newline);
+		buffer.pop_front();
+	}
+	buffer.pop_front();
+	has_newline = false;
+	return ret;
+}
+
 Token Lexer::lex() {
-	while (isspace(input.peek())) input.take();
+	while (true) {
+		char c = input.peek();
+		if (c != '\n' && isspace(c)) input.take();
+		else break;
+	}
 	if (input.peek() == -1) return Token(Eof, SourceRange::empty());
 	const size_t begin = input.position();
 	auto range = [&] { return SourceRange(begin, input.position()); };
@@ -53,6 +103,8 @@ Token Lexer::lex() {
 		throw LexException(msg + ": " + get_buffer().substr(range()));
 	};
 	switch (const char st = input.take()) {
+		case '\n':
+			return token(Newline);
 		case 'a' ... 'z':
 		case 'A' ... 'Z':
 		case '$':
