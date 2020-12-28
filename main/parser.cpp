@@ -359,8 +359,14 @@ Ptr<BlockNode> Parser::take_block() {
 	try {
 		while (true) {
 			stmts.push_back(take_stmt().release());
-			if (lexer.peek().kind == RBrace) break;
-			expect_end_of_stmt();
+			if (lexer.is_end_of_stmt()) {
+				do lexer.take_end_of_stmt();
+				while (lexer.is_end_of_stmt());
+				if (lexer.peek().kind == RBrace) break;
+			} else {
+				if (lexer.peek().kind == RBrace) break;
+				expect_end_of_stmt();
+			}
 		}
 		expect(lexer.take(), RBrace);
 		return std::make_unique<BlockNode>(
@@ -415,15 +421,16 @@ Ptr<StmtNode> Parser::take_stmt() {
 				return std::make_unique<ReturnNode>(
 					SourceRange(begin, lexer.position()),
 					std::move(expr)
-					);
+				);
 			} else {
 				return std::make_unique<ReturnNode>(
 					SourceRange(begin, lexer.position()),
 					nullptr
-					);
+				);
 			}
 		}
-		default: return take_expr();
+		default:
+			return take_expr();
 	}
 }
 

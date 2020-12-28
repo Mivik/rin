@@ -108,12 +108,17 @@ TEST(parser, stmt) {
 			Parser(R"(
 			{
 				let i: i32 = 5
-				100
+				100;
 			}
 		)").take_stmt().get()
 		)
 	);
-
+	EXPECT_NO_THROW(Parser(R"(
+		{
+			let i: i32 = 5;
+			;;;;;
+		}
+		)").take_stmt());
 }
 
 TEST(parser, function) {
