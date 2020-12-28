@@ -60,7 +60,8 @@ void Context::declare_type(const std::string &name, Type *type) {
 Value Context::allocate_stack(Type *type, bool is_const) {
 	auto func = get_llvm_function();
 	llvm::IRBuilder<> tmp_builder(core.get_llvm());
-	tmp_builder.SetInsertPoint(&*func->getEntryBlock().getFirstInsertionPt());
+	auto &entry = func->getEntryBlock();
+	tmp_builder.SetInsertPoint(&entry, entry.getFirstInsertionPt());
 	return {
 		core.get_pointer_type(type, is_const),
 		tmp_builder.CreateAlloca(type->get_llvm(), 0, nullptr)
