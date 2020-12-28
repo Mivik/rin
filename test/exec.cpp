@@ -97,8 +97,6 @@ TEST(exec, if_stmt) {
 		}
 	)").take_function()->codegen(ctx);
 
-	 ctx.get_module()->print(llvm::errs(), nullptr);
-
 	JITEngine engine(ctx.finalize());
 
 	auto test_abs = [&](const std::function<int(int)> &func) {
@@ -107,7 +105,7 @@ TEST(exec, if_stmt) {
 		EXPECT_EQ(abs(-6), 6);
 	};
 	test_abs(engine.find_function<int, int>("abs"));
-//	test_abs(engine.find_function<int, int>("abs2"));
+	test_abs(engine.find_function<int, int>("abs2"));
 }
 
 } // namespace rin
