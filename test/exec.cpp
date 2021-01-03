@@ -99,13 +99,51 @@ TEST(exec, if_stmt) {
 
 	JITEngine engine(ctx.finalize());
 
-	auto test_abs = [&](const std::function<int(int)> &func) {
+	auto test_abs = [&](const std::string &name) {
+		const auto fund = engine.find_function<int, int>(name);
 		EXPECT_EQ(abs(0), 0);
 		EXPECT_EQ(abs(5), 5);
 		EXPECT_EQ(abs(-6), 6);
 	};
-	test_abs(engine.find_function<int, int>("abs"));
-	test_abs(engine.find_function<int, int>("abs2"));
+	test_abs("abs");
+	test_abs("abs2");
+}
+
+TEST(exec, while_stmt) {
+	CoreContext core;
+	Context ctx(core);
+	Parser(R"(
+		fn factorial(n: i32): i32 {
+			let* i = n
+			let* ret = 1
+			while (i != 0) {
+				ret *= i
+				i -= 1
+			}
+			return ret
+		}
+	)").take_function()->codegen(ctx);
+	Parser(R"(
+		fn factorial2(n: i32): i32 {
+			let* i = n
+			let* ret = 1
+			do {
+				ret *= i
+				i -= 1
+			} while (i != 0)
+			return ret
+		}
+	)").take_function()->codegen(ctx);
+
+	JITEngine engine(ctx.finalize());
+
+	const auto test_fac = [&](const std::string &name) {
+		const auto func = engine.find_function<int, int>(name);
+		EXPECT_EQ(func(1), 1);
+		EXPECT_EQ(func(5), 120);
+	};
+	test_fac("factorial");
+	test_fac("factorial2");
 }
 
 } // namespace rin

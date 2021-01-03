@@ -429,6 +429,33 @@ Ptr<StmtNode> Parser::take_stmt() {
 				);
 			}
 		}
+		case While: {
+			lexer.take();
+			expect(lexer.take(), LPar);
+			auto cond = take_expr();
+			expect(lexer.take(), RPar);
+			auto body = take_stmt();
+			return std::make_unique<WhileNode>(
+				SourceRange(begin, lexer.position()),
+				std::move(cond),
+				std::move(body),
+				false
+			);
+		}
+		case Do: {
+			lexer.take();
+			auto body = take_stmt();
+			expect(lexer.take(), While);
+			expect(lexer.take(), LPar);
+			auto cond = take_expr();
+			expect(lexer.take(), RPar);
+			return std::make_unique<WhileNode>(
+				SourceRange(begin, lexer.position()),
+				std::move(cond),
+				std::move(body),
+				true
+			);
+		}
 		default:
 			return take_expr();
 	}

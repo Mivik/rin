@@ -26,8 +26,10 @@ inline TokenKind word_kind(const std::string &str) {
 #define CASE(s, k) case string_hash(s): if (str == s) return k; break;
 	switch (string_hash(str.data())) {
 		CASE("const", Const)
+		CASE("do", Do)
 		CASE("else", Else)
 		CASE("enum", Enum)
+		CASE("false", False)
 		CASE("fn", Fn)
 		CASE("for", For)
 		CASE("if", If)
@@ -35,10 +37,10 @@ inline TokenKind word_kind(const std::string &str) {
 		CASE("is", Is)
 		CASE("let", Let)
 		CASE("return", Return)
+		CASE("true", True)
 		CASE("var", Var)
 		CASE("when", When)
-		CASE("true", True)
-		CASE("false", False)
+		CASE("while", While)
 	}
 #undef CASE
 	return Identifier;
@@ -58,7 +60,8 @@ void Lexer::take_end_of_stmt() {
 		const auto kind = buffer.front().kind;
 		if (kind == Eof || kind == Semicolon)
 			take();
-		else assert(false);
+		else
+			assert(false);
 	}
 }
 

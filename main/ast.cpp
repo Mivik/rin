@@ -186,4 +186,12 @@ std::string IfNode::to_string() const {
 	return ret;
 }
 
+std::string WhileNode::to_string() const {
+	std::string ret = "while (";
+	ret += condition_node->to_string();
+	ret += ") ";
+	ret += body_node->to_string();
+	return ret;
+}
+
 } // namespace rin

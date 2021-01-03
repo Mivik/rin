@@ -46,8 +46,8 @@ inline std::vector<Token> tokens(const char *str) {
 }
 
 inline constexpr const char *KEYWORDS[] = {
-	"const", "else", "enum", "fn", "for", "if",
-	"in", "is", "let", "return", "var", "when"
+	"const", "do", "else", "enum", "fn", "for", "if",
+	"in", "is", "let", "return", "var", "when", "while"
 };
 
 TEST(lexer, identifier) {

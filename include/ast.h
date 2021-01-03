@@ -336,6 +336,29 @@ private:
 	Ptr<StmtNode> then_node, else_node;
 };
 
+class WhileNode : public StmtNode {
+public:
+	WhileNode(
+		const SourceRange &range,
+		Ptr<ValueNode> condition_node,
+		Ptr<StmtNode> body_node,
+		bool do_while
+	): StmtNode(range),
+	   condition_node(std::move(condition_node)),
+	   body_node(std::move(body_node)),
+	   do_while(do_while) {}
+
+	[[nodiscard]] inline const ValueNode *get_condition_node() const { return condition_node.get(); }
+	[[nodiscard]] inline const StmtNode *get_body_node() const { return body_node.get(); }
+	[[nodiscard]] inline bool is_do_while() const { return do_while; }
+
+	OVERRIDE(Value)
+private:
+	Ptr<ValueNode> condition_node;
+	Ptr<StmtNode> body_node;
+	bool do_while;
+};
+
 #undef OVERRIDE
 
 } // namespace rin

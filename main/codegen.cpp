@@ -436,12 +436,11 @@ Value ReturnNode::codegen(Context &ctx) const {
 
 Value IfNode::codegen(Context &ctx) const {
 	auto &builder = ctx.get_builder();
-	auto cond = condition_node->codegen(ctx);
 	const auto
 		then_block = ctx.create_basic_block("then"),
 		else_block = ctx.create_basic_block("else");
 	builder.CreateCondBr(
-		cond.get_llvm(),
+		condition_node->codegen(ctx).get_llvm(),
 		then_block,
 		else_block
 	);
@@ -493,6 +492,27 @@ Value IfNode::codegen(Context &ctx) const {
 			return ctx.get_core().get_nothing();
 		}
 	}
+}
+
+Value WhileNode::codegen(Context &ctx) const {
+	auto &builder = ctx.get_builder();
+	const auto
+		body_block = ctx.create_basic_block("body"),
+		final_block = ctx.create_basic_block("final");
+	auto cond_br = [&]() {
+		builder.CreateCondBr(
+			condition_node->codegen(ctx).get_llvm(),
+			body_block,
+			final_block
+		);
+	};
+	if (do_while) builder.CreateBr(body_block);
+	else cond_br();
+	builder.SetInsertPoint(body_block);
+	body_node->codegen(ctx);
+	cond_br();
+	builder.SetInsertPoint(final_block);
+	return ctx.get_core().get_nothing();
 }
 
 } // namespace rin

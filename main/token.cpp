@@ -37,6 +37,7 @@ std::string name(TokenKind kind) {
 		H(Arrow)
 		// Keywords
 		H(Const)
+		H(Do)
 		H(Else)
 		H(Enum)
 		H(Fn)
@@ -48,6 +49,7 @@ std::string name(TokenKind kind) {
 		H(Return)
 		H(Var)
 		H(When)
+		H(While)
 		// Operators
 		H(Add)
 		H(Sub)

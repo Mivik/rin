@@ -16,7 +16,7 @@ enum TokenKind {
 	LPar, RPar, LBracket, RBracket, LBrace, RBrace,
 	Colon, Semicolon, Comma, Period, Arrow,
 	// Keywords
-	Const, Else, Enum, Fn, For, If, In, Is, Let, Return, Var, When,
+	Const, Do, Else, Enum, Fn, For, If, In, Is, Let, Return, Var, When, While,
 	// Binary operators
 	Add, Sub, Mul, Div, Mod, Shl, Shr, Or, And, Not, Xor, LOr, LAnd, LNot,
 	Assign, AddA, SubA, MulA, DivA, ModA, ShlA, ShrA, OrA, AndA, XorA,
