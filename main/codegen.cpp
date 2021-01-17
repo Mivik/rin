@@ -392,6 +392,7 @@ void FunctionNode::codegen(Context &ctx) const {
 		prototype.get_name(),
 		{ prototype.get_function_type(), llvm }
 	);
+	ctx.declare_function(prototype.get_name(), func);
 	ctx.add_layer(
 		std::make_unique<llvm::IRBuilder<>>(
 			llvm::BasicBlock::Create(
@@ -513,6 +514,40 @@ Value WhileNode::codegen(Context &ctx) const {
 	cond_br();
 	builder.SetInsertPoint(final_block);
 	return ctx.get_core().get_nothing();
+}
+
+Value CallNode::codegen(Context &ctx) const {
+//	auto value = ctx.lookup_value(name);
+//	if (!value) throw CodegenException("No function named \"" + name + '"');
+//	auto func_type = dynamic_cast<Type::Function *>(value->get_type());
+//	if (!func_type)
+//		throw CodegenException("\"" + name + " is not a function");
+	auto func_opt = ctx.lookup_function(name);
+	if (!func_opt) throw CodegenException("No function named\"" + name + '"');
+	auto func = *func_opt;
+	auto para_types = func->get_type()->get_parameter_types();
+	std::optional<Value> receiver = std::nullopt;
+	if (receiver_node)
+		receiver = receiver_node->codegen(ctx);
+	const auto len = argument_nodes.size();
+	std::vector<Value> args;
+	args.reserve(len);
+	for (size_t i = 0; i < len; ++i) {
+		auto arg = argument_nodes[i]->codegen(ctx);
+		if (auto cast = arg.safe_cast(ctx, para_types[i]))
+			args.push_back(*cast);
+		else
+			throw CodegenException(
+				"The No. " + std::to_string(i + 1) +
+				" argument of function: Expected " + para_types[i]->to_string() +
+				", got" + arg.get_type()->to_string()
+			);
+	}
+	return func->invoke(
+		ctx,
+		receiver,
+		args
+	);
 }
 
 } // namespace rin

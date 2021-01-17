@@ -168,6 +168,7 @@ Ptr<TypeNode> Parser::take_type() {
 }
 
 Ptr<ValueNode> Parser::take_prim() {
+	const auto begin = lexer.position();
 	auto token = lexer.peek();
 	switch (token.kind) {
 		case Number:
@@ -183,9 +184,20 @@ Ptr<ValueNode> Parser::take_prim() {
 		}
 		case Identifier:
 			lexer.take();
+			if (lexer.peek().kind == LPar) {
+				std::vector<ValueNode *> args;
+				process_list(LPar, RPar, Comma, [&]() {
+					args.push_back(take_expr().release());
+				});
+				return std::make_unique<CallNode>(
+					SourceRange(begin, lexer.position()),
+					token.content(get_buffer()),
+					nullptr,
+					args
+				);
+			}
 			return std::make_unique<NamedValueNode>(token, get_buffer());
 		case If: {
-			const auto begin = lexer.position();
 			lexer.take();
 			expect(lexer.take(), LPar);
 			auto cond = take_expr();

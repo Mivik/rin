@@ -194,4 +194,20 @@ std::string WhileNode::to_string() const {
 	return ret;
 }
 
+std::string CallNode::to_string() const {
+	std::string ret;
+	if (receiver_node) {
+		ret = receiver_node->to_string();
+		ret += '.';
+	}
+	ret += name;
+	ret += '(';
+	for (size_t i = 0; i < argument_nodes.size(); ++i) {
+		if (i) ret += ", ";
+		ret += argument_nodes[i]->to_string();
+	}
+	ret += ')';
+	return ret;
+}
+
 } // namespace rin

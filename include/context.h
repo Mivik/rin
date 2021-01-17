@@ -24,8 +24,10 @@ public:
 	llvm::Function *get_llvm_function() const;
 	std::optional<Value> lookup_value(const std::string &name) const;
 	std::optional<Type *> lookup_type(const std::string &name) const;
+	std::optional<Function *> lookup_function(const std::string &name) const;
 	void declare_value(const std::string &name, const Value &value);
 	void declare_type(const std::string &name, Type *type);
+	void declare_function(const std::string &name, Function *func);
 	Value allocate_stack(Type *type, bool is_const);
 	Value allocate_stack(Type *type, const Value &default_value, bool is_const);
 	void add_layer(std::unique_ptr<llvm::IRBuilder<>> builder, Function *function);
@@ -45,6 +47,7 @@ private:
 	std::vector<Function *> functions;
 	LayerMap<std::string, Value> value_map;
 	LayerMap<std::string, Type *> type_map;
+	LayerMap<std::string, Function *> function_map;
 };
 
 } // namespace rin

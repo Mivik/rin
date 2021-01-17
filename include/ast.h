@@ -359,6 +359,29 @@ private:
 	bool do_while;
 };
 
+class CallNode : public ValueNode {
+public:
+	CallNode(
+		const SourceRange &range,
+		std::string name,
+		Ptr<ValueNode> receiver_node,
+		std::vector<ValueNode *> argument_nodes
+	): ValueNode(range),
+	   name(std::move(name)),
+	   receiver_node(std::move(receiver_node)),
+	   argument_nodes(std::move(argument_nodes)) {}
+
+	[[nodiscard]] inline std::string get_function_name() const { return name; }
+	[[nodiscard]] inline const ValueNode *get_receiver_node() const { return receiver_node.get(); }
+	[[nodiscard]] inline std::vector<ValueNode *> get_argument_nodes() const { return argument_nodes; }
+
+	OVERRIDE(Value)
+private:
+	std::string name;
+	Ptr<ValueNode> receiver_node;
+	std::vector<ValueNode *> argument_nodes;
+};
+
 #undef OVERRIDE
 
 } // namespace rin

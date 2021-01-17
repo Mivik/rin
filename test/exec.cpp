@@ -146,4 +146,31 @@ TEST(exec, while_stmt) {
 	test_fac("factorial2");
 }
 
+TEST(exec, call) {
+	CoreContext core;
+	Context ctx(core);
+	Parser(R"(
+		fn reciprocal(n: double): double {
+			return 1 / n
+		}
+	)").take_function()->codegen(ctx);
+	Parser(R"(
+		fn harmonic(n: i32): double {
+			let* ret: double = 0
+			let* i = 1
+			while (i <= n) {
+				ret += reciprocal(i)
+				i += 1
+			}
+			return ret
+		}
+	)").take_function()->codegen(ctx);
+
+	JITEngine engine(ctx.finalize());
+
+	const auto error = 1e-10;
+	const auto harmonic = engine.find_function<double, int>("harmonic");
+	EXPECT_NEAR(harmonic(2), 3. / 2, error);
+}
+
 } // namespace rin

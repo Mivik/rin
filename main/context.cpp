@@ -49,12 +49,20 @@ std::optional<Type *> Context::lookup_type(const std::string &name) const {
 	return type_map.try_get(name);
 }
 
+std::optional<Function *> Context::lookup_function(const std::string &name) const {
+	return function_map.try_get(name);
+}
+
 void Context::declare_value(const std::string &name, const Value &value) {
 	value_map.set(name, value);
 }
 
 void Context::declare_type(const std::string &name, Type *type) {
 	type_map.set(name, type);
+}
+
+void Context::declare_function(const std::string &name, Function *func) {
+	function_map.set(name, func);
 }
 
 Value Context::allocate_stack(Type *type, bool is_const) {
@@ -84,6 +92,7 @@ void Context::add_layer(
 ) {
 	value_map.add_layer();
 	type_map.add_layer();
+	function_map.add_layer();
 	builders.push_back(builder.release());
 	functions.push_back(function);
 }
@@ -91,6 +100,7 @@ void Context::add_layer(
 void Context::pop_layer() {
 	value_map.pop_layer();
 	type_map.pop_layer();
+	function_map.pop_layer();
 	delete builders.back();
 	builders.pop_back();
 	functions.pop_back();
