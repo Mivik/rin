@@ -38,12 +38,10 @@ public:
 	std::unique_ptr<llvm::Module> finalize();
 
 	DISABLE_COPY(Context)
-
-	~Context();
 private:
 	CoreContext &core;
 	std::unique_ptr<llvm::Module> module;
-	std::vector<llvm::IRBuilder<> *> builders;
+	std::vector<Ptr<llvm::IRBuilder<>>> builders;
 	std::vector<Function *> functions;
 	LayerMap<std::string, Value> value_map;
 	LayerMap<std::string, Type *> type_map;

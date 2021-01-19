@@ -97,11 +97,6 @@ std::string FunctionTypeNode::to_string() const {
 	return ret;
 }
 
-FunctionTypeNode::~FunctionTypeNode() {
-	for (auto param : param_type_nodes)
-		delete param;
-}
-
 std::string VarDeclNode::to_string() const {
 	std::string ret = "let";
 	if (!const_flag) ret += '*';
@@ -112,11 +107,11 @@ std::string VarDeclNode::to_string() const {
 	return ret;
 }
 
-BlockNode::BlockNode(const SourceRange &range, std::vector<StmtNode *> stmts):
+BlockNode::BlockNode(const SourceRange &range, std::vector<Ptr<StmtNode>> stmts):
 	StmtNode(range),
 	stmts(std::move(stmts)) {
 	auto iter = stmts.begin();
-	while (iter != stmts.end() && !dynamic_cast<ReturnNode *>(*iter))
+	while (iter != stmts.end() && !dynamic_cast<ReturnNode *>(iter->get()))
 		++iter;
 	// TODO Warning here?
 	if (iter != stmts.end())
@@ -134,11 +129,6 @@ std::string BlockNode::to_string() const {
 	ret += add_indent(tmp);
 	ret += "\n}";
 	return ret;
-}
-
-BlockNode::~BlockNode() {
-	for (auto stmt : stmts)
-		delete stmt;
 }
 
 std::string PrototypeNode::to_string() const {

@@ -6,8 +6,8 @@
 namespace rin {
 
 Context::Context(CoreContext &core, const std::string &name):
-	core(core), module(std::make_unique<llvm::Module>(name, core.get_llvm())),
-	builders({ new llvm::IRBuilder<>(core.get_llvm()) }) {
+	core(core), module(std::make_unique<llvm::Module>(name, core.get_llvm())) {
+	builders.push_back(std::make_unique<llvm::IRBuilder<>>(core.get_llvm()));
 #define P declare_type
 	P("i8", core.get_i8_type());
 	P("i16", core.get_i16_type());
@@ -26,13 +26,6 @@ Context::Context(CoreContext &core, const std::string &name):
 	P("double", core.get_double_type());
 	P("void", core.get_void_type());
 #undef P
-}
-
-Context::~Context() {
-	while (!builders.empty()) {
-		delete builders.back();
-		builders.pop_back();
-	}
 }
 
 llvm::Function *Context::get_llvm_function() const {
@@ -93,7 +86,7 @@ void Context::add_layer(
 	value_map.add_layer();
 	type_map.add_layer();
 	function_map.add_layer();
-	builders.push_back(builder.release());
+	builders.push_back(std::move(builder));
 	functions.push_back(function);
 }
 
@@ -101,7 +94,6 @@ void Context::pop_layer() {
 	value_map.pop_layer();
 	type_map.pop_layer();
 	function_map.pop_layer();
-	delete builders.back();
 	builders.pop_back();
 	functions.pop_back();
 }

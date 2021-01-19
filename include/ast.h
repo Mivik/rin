@@ -165,7 +165,7 @@ public:
 		const SourceRange &range,
 		Ptr<TypeNode> receiver_type_node,
 		Ptr<TypeNode> result_type_node,
-		std::vector<TypeNode *> param_type_nodes
+		std::vector<Ptr<TypeNode>> param_type_nodes
 	): ASTNode(range),
 	   receiver_type_node(std::move(receiver_type_node)),
 	   result_type_node(std::move(result_type_node)),
@@ -177,16 +177,14 @@ public:
 	[[nodiscard]] inline const TypeNode *get_result_type_node() const {
 		return result_type_node.get();
 	}
-	[[nodiscard]] inline const std::vector<TypeNode *> &get_parameter_type_nodes() const {
+	[[nodiscard]] inline const std::vector<Ptr<TypeNode>> &get_parameter_type_nodes() const {
 		return param_type_nodes;
 	}
-
-	~FunctionTypeNode() override;
 
 	OVERRIDE(Type*)
 private:
 	Ptr<TypeNode> receiver_type_node, result_type_node;
-	std::vector<TypeNode *> param_type_nodes;
+	std::vector<Ptr<TypeNode>> param_type_nodes;
 };
 
 class PrototypeNode : public ASTNode<Prototype> {
@@ -261,18 +259,16 @@ class BlockNode : public StmtNode {
 public:
 	BlockNode(
 		const SourceRange &range,
-		std::vector<StmtNode *> stmts
+		std::vector<Ptr<StmtNode>> stmts
 	);
 
-	[[nodiscard]] inline const std::vector<StmtNode *> &get_statements() const {
+	[[nodiscard]] inline const std::vector<Ptr<StmtNode>> &get_statements() const {
 		return stmts;
 	}
 
 	OVERRIDE(Value)
-
-	~BlockNode() override;
 private:
-	std::vector<StmtNode *> stmts;
+	std::vector<Ptr<StmtNode>> stmts;
 	bool has_return_flag;
 
 	friend class ValueNode;
@@ -365,7 +361,7 @@ public:
 		const SourceRange &range,
 		std::string name,
 		Ptr<ValueNode> receiver_node,
-		std::vector<ValueNode *> argument_nodes
+		std::vector<Ptr<ValueNode>> argument_nodes
 	): ValueNode(range),
 	   name(std::move(name)),
 	   receiver_node(std::move(receiver_node)),
@@ -373,13 +369,13 @@ public:
 
 	[[nodiscard]] inline std::string get_function_name() const { return name; }
 	[[nodiscard]] inline const ValueNode *get_receiver_node() const { return receiver_node.get(); }
-	[[nodiscard]] inline std::vector<ValueNode *> get_argument_nodes() const { return argument_nodes; }
+	[[nodiscard]] inline const std::vector<Ptr<ValueNode>> &get_argument_nodes() const { return argument_nodes; }
 
 	OVERRIDE(Value)
 private:
 	std::string name;
 	Ptr<ValueNode> receiver_node;
-	std::vector<ValueNode *> argument_nodes;
+	std::vector<Ptr<ValueNode>> argument_nodes;
 };
 
 #undef OVERRIDE

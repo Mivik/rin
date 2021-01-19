@@ -335,7 +335,7 @@ Type *RefTypeNode::codegen(Context &ctx) const {
 Type *FunctionTypeNode::codegen(Context &ctx) const {
 	std::vector<Type *> param_types;
 	param_types.reserve(param_type_nodes.size());
-	for (auto param : param_type_nodes)
+	for (const auto &param : param_type_nodes)
 		param_types.push_back(param->codegen(ctx));
 	auto receiver_type =
 		receiver_type_node
@@ -363,7 +363,7 @@ Value VarDeclNode::codegen(Context &ctx) const {
 
 Value BlockNode::codegen(Context &ctx) const {
 	Value last = ctx.get_core().get_nothing();
-	for (auto stmt : stmts)
+	for (const auto &stmt : stmts)
 		last = stmt->codegen(ctx);
 	return last;
 }

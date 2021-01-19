@@ -75,23 +75,17 @@ Ptr<FunctionTypeNode> Parser::take_function_type(
 	size_t begin,
 	Ptr<TypeNode> receiver_type
 ) {
-	std::vector<TypeNode *> param_types;
-	try {
-		process_list(LPar, RPar, Comma, [&]() {
-			param_types.push_back(take_type().release());
-		});
-		expect(lexer.take(), Arrow);
-		auto result_type = take_type();
-		return std::make_unique<FunctionTypeNode>(
-			SourceRange(begin, lexer.position()),
-			std::move(receiver_type), std::move(result_type),
-			param_types
-		);
-	} catch (...) {
-		for (auto type : param_types)
-			delete type;
-		throw;
-	}
+	std::vector<Ptr<TypeNode>> param_types;
+	process_list(LPar, RPar, Comma, [&]() {
+		param_types.push_back(std::move(take_type()));
+	});
+	expect(lexer.take(), Arrow);
+	auto result_type = take_type();
+	return std::make_unique<FunctionTypeNode>(
+		SourceRange(begin, lexer.position()),
+		std::move(receiver_type), std::move(result_type),
+		std::move(param_types)
+	);
 }
 
 Ptr<TypeNode> Parser::take_type() {
@@ -185,15 +179,15 @@ Ptr<ValueNode> Parser::take_prim() {
 		case Identifier:
 			lexer.take();
 			if (lexer.peek().kind == LPar) {
-				std::vector<ValueNode *> args;
+				std::vector<Ptr<ValueNode>> args;
 				process_list(LPar, RPar, Comma, [&]() {
-					args.push_back(take_expr().release());
+					args.push_back(std::move(take_expr()));
 				});
 				return std::make_unique<CallNode>(
 					SourceRange(begin, lexer.position()),
 					token.content(get_buffer()),
 					nullptr,
-					args
+					std::move(args)
 				);
 			}
 			return std::make_unique<NamedValueNode>(token, get_buffer());
@@ -223,7 +217,7 @@ Ptr<ValueNode> Parser::take_prim() {
 
 template<class T>
 inline T pop_stack(std::stack<T> &st) {
-	const T ret(st.top());
+	T ret(std::move(st.top()));
 	st.pop();
 	return ret;
 }
@@ -233,33 +227,26 @@ Ptr<ValueNode> Parser::take_expr() {
 		Empty, UnaryOp, BinOp, Prim
 	} last = Empty;
 
-	std::stack<ValueNode *> st;
+	std::stack<Ptr<ValueNode>> st;
 	std::stack<Token> ops;
-	auto error = [&st](const std::string &msg) {
-		while (!st.empty()) {
-			delete st.top();
-			st.pop();
-		}
-		throw ParseException(msg);
-	};
 	auto require = [&](size_t amount) {
 		if (st.size() < amount)
-			error(
+			throw ParseException(
 				"Not enough operand(s). "
 				"Expected " + std::to_string(amount) +
 				", got " + std::to_string(st.size())
 			);
 	};
-	auto process_op = [&](std::stack<ValueNode *> &st, const Token &token) {
+	auto process_op = [&](std::stack<Ptr<ValueNode>> &st, const Token &token) {
 		const TokenKind op = token.kind;
 		if (token_kind::is_unary_op(op)) {
 			require(1);
 			Ptr<ValueNode> value(pop_stack(st));
-			st.push(new UnaryOpNode(std::move(value), token));
+			st.push(std::make_unique<UnaryOpNode>(std::move(value), token));
 		} else {
 			require(2);
 			Ptr<ValueNode> rhs(pop_stack(st)), lhs(pop_stack(st));
-			st.push(new BinOpNode(std::move(lhs), std::move(rhs), op));
+			st.push(std::make_unique<BinOpNode>(std::move(lhs), std::move(rhs), op));
 		}
 	};
 	while (true) {
@@ -273,7 +260,7 @@ Ptr<ValueNode> Parser::take_expr() {
 		if (is_unary || is_binary) {
 			if ((is_unary && (last == UnaryOp || last == Prim))
 				|| (is_binary && (last != Prim)))
-				error("Illegal operator: " + token_kind::name(kind));
+				throw ParseException("Illegal operator: " + token_kind::name(kind));
 			lexer.take();
 			auto cur_pred = precedence_of(kind);
 			while (!ops.empty() &&
@@ -285,16 +272,16 @@ Ptr<ValueNode> Parser::take_expr() {
 			last = is_unary? UnaryOp: BinOp;
 		} else if (last != Prim) {
 			if (auto ptr = take_prim()) {
-				st.push(ptr.release());
+				st.push(std::move(ptr));
 				last = Prim;
 			} else break;
 		} else break;
 	}
 	while (!ops.empty()) process_op(st, pop_stack(ops));
 	if (st.empty())
-		error("Missing operand");
+		throw ParseException("Missing operand");
 	assert(ops.empty() && st.size() == 1);
-	return Ptr<ValueNode>(st.top());
+	return std::move(st.top());
 }
 
 Ptr<FunctionNode> Parser::take_function() {
@@ -315,39 +302,33 @@ Ptr<FunctionNode> Parser::take_function() {
 			);
 		}
 	}
-	std::vector<TypeNode *> param_types;
+	std::vector<Ptr<TypeNode>> param_types;
 	std::vector<std::string> param_names;
 	Ptr<TypeNode> result_type;
-	try {
-		process_list(LPar, RPar, Comma, [&]() {
-			param_names.push_back(
-				expect(lexer.take(), Identifier)
-					.content(get_buffer())
+	process_list(LPar, RPar, Comma, [&]() {
+		param_names.push_back(
+			expect(lexer.take(), Identifier)
+				.content(get_buffer())
+		);
+		expect(lexer.take(), Colon);
+		param_types.push_back(std::move(take_type()));
+	});
+	if (lexer.peek().kind == Colon) {
+		lexer.take();
+		result_type = take_type();
+	} else
+		// TODO preserve some type names like this
+		result_type =
+			std::make_unique<NamedTypeNode>(
+				SourceRange(lexer.position()),
+				"void"
 			);
-			expect(lexer.take(), Colon);
-			param_types.push_back(take_type().release());
-		});
-		if (lexer.peek().kind == Colon) {
-			lexer.take();
-			result_type = take_type();
-		} else
-			// TODO preserve some type names like this
-			result_type =
-				std::make_unique<NamedTypeNode>(
-					SourceRange(lexer.position()),
-					"void"
-				);
-	} catch (const std::exception &e) {
-		for (auto type : param_types)
-			delete type;
-		throw;
-	}
 	auto func_type_node =
 		std::make_unique<FunctionTypeNode>(
 			SourceRange(begin, lexer.position()),
 			std::move(receiver_type),
 			std::move(result_type),
-			param_types
+			std::move(param_types)
 		);
 	auto prototype_node =
 		std::make_unique<PrototypeNode>(
@@ -367,29 +348,23 @@ Ptr<FunctionNode> Parser::take_function() {
 Ptr<BlockNode> Parser::take_block() {
 	const auto begin = lexer.position();
 	expect(lexer.take(), LBrace);
-	std::vector<StmtNode *> stmts;
-	try {
-		while (true) {
-			stmts.push_back(take_stmt().release());
-			if (lexer.is_end_of_stmt()) {
-				do lexer.take_end_of_stmt();
-				while (lexer.is_end_of_stmt());
-				if (lexer.peek().kind == RBrace) break;
-			} else {
-				if (lexer.peek().kind == RBrace) break;
-				expect_end_of_stmt();
-			}
+	std::vector<Ptr<StmtNode>> stmts;
+	while (true) {
+		stmts.push_back(std::move(take_stmt()));
+		if (lexer.is_end_of_stmt()) {
+			do lexer.take_end_of_stmt();
+			while (lexer.is_end_of_stmt());
+			if (lexer.peek().kind == RBrace) break;
+		} else {
+			if (lexer.peek().kind == RBrace) break;
+			expect_end_of_stmt();
 		}
-		expect(lexer.take(), RBrace);
-		return std::make_unique<BlockNode>(
-			SourceRange(begin, lexer.position()),
-			stmts
-		);
-	} catch (...) {
-		for (auto stmt : stmts)
-			delete stmt;
-		throw;
 	}
+	expect(lexer.take(), RBrace);
+	return std::make_unique<BlockNode>(
+		SourceRange(begin, lexer.position()),
+		std::move(stmts)
+	);
 }
 
 Ptr<StmtNode> Parser::take_stmt() {
