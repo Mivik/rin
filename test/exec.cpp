@@ -170,7 +170,24 @@ TEST(exec, call) {
 
 	const auto error = 1e-10;
 	const auto harmonic = engine.find_function<double, int>("harmonic");
-	EXPECT_NEAR(harmonic(2), 3. / 2, error);
+	EXPECT_NEAR(harmonic(5), 137. / 60, error);
+}
+
+TEST(exec, explicit_casts) {
+	CoreContext core;
+	Context ctx(core);
+	EXPECT_THROW(Parser(R"(
+		fn t1() {
+			let real: double = 50
+			let int: i32 = real
+		}
+	)").take_function()->codegen(ctx), CastException);
+	Parser(R"(
+		fn t2() {
+			let /*with comment*/int: i32 = 50
+			let real: double = int
+		}
+	)").take_function()->codegen(ctx);
 }
 
 } // namespace rin

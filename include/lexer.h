@@ -62,8 +62,8 @@ public:
 	explicit Lexer(MemoryBuffer buffer):
 		input(buffer), has_newline(false) {}
 	[[nodiscard]] const MemoryBuffer &get_buffer() const { return input.get_buffer(); }
-	Token peek();
-	Token take();
+	Token peek(bool ignore_comment = true);
+	Token take(bool ignore_comment = true);
 	inline size_t position() {
 		if (buffer.empty()) return input.position();
 		return buffer.front().range.begin;

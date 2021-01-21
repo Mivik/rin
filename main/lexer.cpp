@@ -53,10 +53,8 @@ bool Lexer::is_end_of_stmt() {
 
 void Lexer::take_end_of_stmt() {
 	peek();
-	if (has_newline) {
-		buffer.pop_front();
-		has_newline = false;
-	} else {
+	if (has_newline) has_newline = false;
+	else {
 		const auto kind = buffer.front().kind;
 		if (kind == Eof || kind == Semicolon)
 			take();
@@ -65,31 +63,42 @@ void Lexer::take_end_of_stmt() {
 	}
 }
 
-Token Lexer::peek() {
-	if (buffer.empty())
+Token Lexer::peek(bool ignore_comment) {
+	if (ignore_comment) {
+		while (true) {
+			auto token = peek(false);
+			if (token.kind == Comment || token.kind == MLComment)
+				take(false);
+			else return token;
+		}
+	}
+	if (buffer.empty()) {
+		has_newline = false;
 		while (true) {
 			const auto token = lex();
-			if (token.kind == Newline) {
-				if (buffer.empty()) buffer.push_back(token);
-			} else {
-				has_newline = !buffer.empty();
+			if (token.kind == Newline)
+				has_newline = true;
+			else {
 				buffer.push_back(token);
 				break;
 			}
 		}
-	return buffer[has_newline];
+	}
+	return buffer.front();
 }
 
-Token Lexer::take() {
-	if (buffer.empty()) peek();
-	Token ret = buffer[has_newline];
-	if (has_newline) {
-		assert(buffer.front().kind == Newline);
-		buffer.pop_front();
+Token Lexer::take(bool ignore_comment) {
+	if (ignore_comment) {
+		while (true) {
+			auto token = take(false);
+			if (token.kind == Comment || token.kind == MLComment) continue;
+			else return token;
+		}
 	}
-	buffer.pop_front();
+	if (buffer.empty()) peek(false);
 	has_newline = false;
-	return ret;
+	Token ret = buffer.front();
+	buffer.pop_front(); return ret;
 }
 
 Token Lexer::lex() {

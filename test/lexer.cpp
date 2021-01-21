@@ -15,7 +15,7 @@ inline std::pair<Lexer, MemoryBuffer> lex_pair(const char *str) {
 
 inline std::vector<Token> tokens(Lexer &lexer) {
 	std::vector<Token> ret;
-	while (Token token = lexer.take())
+	while (Token token = lexer.take(false))
 		ret.push_back(token);
 	return ret;
 }

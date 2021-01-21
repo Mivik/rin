@@ -13,22 +13,29 @@ Value Value::cast(Context &ctx, Type *to, bool implicit_only, bool check_only) c
 			return undef(ref_type->get_sub_type()).cast(ctx, to, implicit_only, true);
 		return deref(ctx).cast(ctx, to, implicit_only, check_only);
 	}
+	auto explicit_only = [&]() {
+		if (implicit_only) throw CastException(type, to);
+	};
 	cast_op llvm_op;
 	const bool larger = type->scalar_size_in_bits() > to->scalar_size_in_bits();
 	if (dynamic_cast<Type::Real *>(to)) {
 		if (auto int_type = dynamic_cast<Type::Int *>(type))
 			llvm_op = int_type->is_signed()? cast_op::SIToFP: cast_op::UIToFP;
-		else if (dynamic_cast<Type::Real *>(type))
+		else if (dynamic_cast<Type::Real *>(type)) {
+			if (larger) explicit_only();
 			llvm_op = larger? cast_op::FPTrunc: cast_op::FPExt;
-		else throw CastException(type, to);
+		} else throw CastException(type, to);
 	} else if (auto to_int_type = dynamic_cast<Type::Int *>(to)) {
 		if (auto from_int_type = dynamic_cast<Type::Int *>(type)) {
+			if (larger) explicit_only();
 			if (from_int_type->is_signed())
 				llvm_op = larger? cast_op::Trunc: cast_op::SExt;
 			else
 				llvm_op = larger? cast_op::Trunc: cast_op::ZExt;
-		} else if (dynamic_cast<Type::Real *>(type))
+		} else if (dynamic_cast<Type::Real *>(type)) {
+			explicit_only();
 			llvm_op = to_int_type->is_signed()? cast_op::FPToSI: cast_op::FPToUI;
+		}
 		else throw CastException(type, to);
 	} else throw CastException(type, to);
 	if (check_only) return undef(to);
