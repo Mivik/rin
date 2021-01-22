@@ -34,7 +34,7 @@ public:
 
 	class Void;
 
-	const Type *deref(CoreContext &ctx) const;
+	Type *deref(CoreContext &ctx);
 	[[nodiscard]] inline llvm::Type *get_llvm() const { return llvm; }
 	[[nodiscard]] inline size_t scalar_size_in_bits() const { return llvm->getScalarSizeInBits(); }
 	virtual bool operator==(const Type &other) const { return llvm == other.llvm; }

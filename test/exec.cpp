@@ -177,17 +177,65 @@ TEST(exec, explicit_casts) {
 	CoreContext core;
 	Context ctx(core);
 	EXPECT_THROW(Parser(R"(
-		fn t1() {
+		fn test1() {
 			let real: double = 50
 			let int: i32 = real
 		}
 	)").take_function()->codegen(ctx), CastException);
-	Parser(R"(
-		fn t2() {
+	EXPECT_NO_THROW(Parser(R"(
+		fn test2() {
 			let /*with comment*/int: i32 = 50
 			let real: double = int
 		}
+	)").take_function()->codegen(ctx));
+}
+
+TEST(exec, array) {
+	{
+		CoreContext core;
+		Context ctx(core);
+
+		// Assigning to const array
+		EXPECT_THROW(Parser(R"(
+			fn test1() {
+				let arr: [i32, 32]
+				arr[0] = 2
+			}
+		)").take_function()->codegen(ctx), CodegenException);
+		// Implicitly cast a const array into non-const pointer
+		EXPECT_THROW(Parser(R"(
+			fn test2() {
+				let arr: [i32, 32]
+				let* ptr: *i32 = arr
+			}
+		)").take_function()->codegen(ctx), CastException);
+	}
+
+	CoreContext core;
+	Context ctx(core);
+	Parser(R"(
+		fn swap(x: &i32, y: &i32) {
+			let t: i32 = y
+			y = x
+			x = t
+		}
 	)").take_function()->codegen(ctx);
+	Parser(R"(
+		fn test(): i32 {
+			let* arr: [i32, 2]
+			arr[0] = 5
+			arr[1] = 6
+			swap(arr[0], arr[1])
+			let ptr: *i32 = arr
+			ptr[0] = ptr[1]
+			return arr[0]
+		}
+	)").take_function()->codegen(ctx);
+
+	JITEngine engine(ctx.finalize());
+
+	const auto test = engine.find_function<int>("test");
+	EXPECT_EQ(test(), 5);
 }
 
 } // namespace rin

@@ -8,14 +8,23 @@ Value Value::cast(Context &ctx, Type *to, bool implicit_only, bool check_only) c
 	using cast_op = llvm::Instruction::CastOps;
 
 	if (type == to) return *this;
+	auto explicit_only = [&]() {
+		if (implicit_only) throw CastException(type, to);
+	};
 	if (auto ref_type = dynamic_cast<Type::Ref *>(type)) {
+		if (auto to_ptr_type = dynamic_cast<Type::Pointer *>(to))
+			if (auto array_type = dynamic_cast<Type::Array *>(ref_type->get_sub_type())) {
+				if (array_type->get_element_type() != to_ptr_type->get_sub_type())
+					explicit_only();
+				if (to_ptr_type->is_const() < ref_type->is_const())
+					explicit_only();
+				if (check_only) return undef(to_ptr_type);
+				return { to_ptr_type, ctx.get_builder().CreateBitCast(llvm, to_ptr_type->get_llvm()) };
+			}
 		if (check_only)
 			return undef(ref_type->get_sub_type()).cast(ctx, to, implicit_only, true);
 		return deref(ctx).cast(ctx, to, implicit_only, check_only);
 	}
-	auto explicit_only = [&]() {
-		if (implicit_only) throw CastException(type, to);
-	};
 	cast_op llvm_op;
 	const bool larger = type->scalar_size_in_bits() > to->scalar_size_in_bits();
 	if (dynamic_cast<Type::Real *>(to)) {
@@ -35,8 +44,7 @@ Value Value::cast(Context &ctx, Type *to, bool implicit_only, bool check_only) c
 		} else if (dynamic_cast<Type::Real *>(type)) {
 			explicit_only();
 			llvm_op = to_int_type->is_signed()? cast_op::FPToSI: cast_op::FPToUI;
-		}
-		else throw CastException(type, to);
+		} else throw CastException(type, to);
 	} else throw CastException(type, to);
 	if (check_only) return undef(to);
 	return { to, ctx.get_builder().CreateCast(llvm_op, llvm, to->get_llvm()) };

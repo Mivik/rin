@@ -64,6 +64,7 @@ inline bool is_binary_op(TokenKind kind) {
 		case Or:
 		case And:
 		case Xor:
+		case LBracket:
 		case Assign:
 		case AddA:
 		case SubA:

@@ -5,8 +5,8 @@
 
 namespace rin {
 
-const Type *Type::deref(CoreContext &ctx) const {
-	if (auto ref = dynamic_cast<const Type::Ref *>(this))
+Type *Type::deref(CoreContext &ctx) {
+	if (auto ref = dynamic_cast<Type::Ref *>(this))
 		return ref->get_sub_type();
 	return this;
 }

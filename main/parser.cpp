@@ -10,6 +10,7 @@ namespace rin {
 
 inline int precedence_of(TokenKind op) {
 	switch (op) {
+		case LBracket: // pointer subscript
 		case UAdd:
 		case USub:
 		case Not:
@@ -255,6 +256,21 @@ Ptr<ValueNode> Parser::take_expr() {
 		if (kind == Eof) break;
 		if (last != Prim)
 			kind = token_kind::as_unary_op(kind);
+		if (kind == LBracket) {
+			lexer.take();
+			auto index = take_expr();
+			expect(lexer.take(), RBracket);
+			auto cur_pred = 2;
+			while (!ops.empty() &&
+				   ((precedence_of(ops.top().kind) < cur_pred) ||
+					(precedence_of(ops.top().kind) == cur_pred && !is_right_associative(cur_pred)))
+				)
+				process_op(st, pop_stack(ops));
+			ops.push(token);
+			st.push(std::move(index));
+			last = Prim;
+			continue;
+		}
 		const bool is_unary = token_kind::is_unary_op(kind);
 		const bool is_binary = token_kind::is_binary_op(kind);
 		if (is_unary || is_binary) {

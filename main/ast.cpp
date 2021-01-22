@@ -3,13 +3,6 @@
 
 namespace rin {
 
-bool ValueNode::has_return() const {
-	if (dynamic_cast<const ReturnNode *>(this)) return true;
-	if (auto block_node = dynamic_cast<const BlockNode *>(this))
-		return block_node->has_return_flag;
-	return false;
-}
-
 std::string ConstantNode::to_string() const { return str; }
 
 std::string UnaryOpNode::to_string() const {
@@ -110,13 +103,13 @@ std::string VarDeclNode::to_string() const {
 BlockNode::BlockNode(const SourceRange &range, std::vector<Ptr<StmtNode>> stmts):
 	StmtNode(range),
 	stmts(std::move(stmts)) {
-	auto iter = stmts.begin();
-	while (iter != stmts.end() && !dynamic_cast<ReturnNode *>(iter->get()))
+	auto iter = this->stmts.begin();
+	while (iter != this->stmts.end() && !dynamic_cast<ReturnNode *>(iter->get()))
 		++iter;
 	// TODO Warning here?
-	if (iter != stmts.end())
-		stmts.erase(++iter, stmts.end());
-	has_return_flag = stmts.empty() || stmts.back()->has_return();
+	if (iter != this->stmts.end())
+		this->stmts.erase(++iter, this->stmts.end());
+	has_return_flag = this->stmts.empty() || this->stmts.back()->has_return();
 }
 
 std::string BlockNode::to_string() const {

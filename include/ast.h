@@ -32,7 +32,7 @@ class ValueNode : public ASTNode<Value> {
 protected:
 	explicit ValueNode(const SourceRange &range): ASTNode(range) {}
 public:
-	[[nodiscard]] bool has_return() const;
+	[[nodiscard]] virtual bool has_return() const { return false; }
 };
 
 using StmtNode = ValueNode;
@@ -266,12 +266,12 @@ public:
 		return stmts;
 	}
 
+	[[nodiscard]] bool has_return() const override { return has_return_flag; }
+
 	OVERRIDE(Value)
 private:
 	std::vector<Ptr<StmtNode>> stmts;
 	bool has_return_flag;
-
-	friend class ValueNode;
 };
 
 class FunctionNode : public DeclNode {
@@ -304,6 +304,7 @@ public:
 	): StmtNode(range), value_node(std::move(value_node)) {}
 
 	[[nodiscard]] inline const ValueNode *get_value_node() const { return value_node.get(); }
+	[[nodiscard]] bool has_return() const override { return true; }
 
 	OVERRIDE(Value)
 private:
@@ -320,16 +321,20 @@ public:
 	): StmtNode(range),
 	   condition_node(std::move(condition_node)),
 	   then_node(std::move(then_node)),
-	   else_node(std::move(else_node)) {}
+	   else_node(std::move(else_node)),
+	   has_return_flag(this->else_node && this->then_node->has_return() && this->else_node->has_return()) {}
 
-	[[nodiscard]] inline const ValueNode *get_condition_node() const { return condition_node.get(); }
+	[[nodiscard]]
+	inline const ValueNode *get_condition_node() const { return condition_node.get(); }
 	[[nodiscard]] inline const StmtNode *get_then_node() const { return then_node.get(); }
 	[[nodiscard]] inline const StmtNode *get_else_node() const { return else_node.get(); }
+	[[nodiscard]] bool has_return() const override { return has_return_flag; }
 
 	OVERRIDE(Value)
 private:
 	Ptr<ValueNode> condition_node;
 	Ptr<StmtNode> then_node, else_node;
+	bool has_return_flag;
 };
 
 class WhileNode : public StmtNode {

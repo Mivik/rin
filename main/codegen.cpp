@@ -299,6 +299,22 @@ Value BinOpNode::codegen(Context &ctx) const {
 		case AndA:
 		case XorA:
 			return assignment_codegen(ctx, lhs, rhs, op);
+		case LBracket: { // pointer subscript
+			Type::Pointer *ptr_type = nullptr;
+			if (auto ref_type = dynamic_cast<Type::Ref *>(lhs.get_type())) {
+				if (auto array_type = dynamic_cast<Type::Array *>(ref_type->get_sub_type()))
+					ptr_type = ctx.get_core().get_pointer_type(
+						array_type->get_element_type(),
+						ref_type->is_const()
+					);
+			}
+			if (!ptr_type)
+				ptr_type = dynamic_cast<Type::Pointer *>(lhs.get_type()->deref(ctx.get_core()));
+			if (!ptr_type)
+				throw CodegenException("Attempt to subscript unknown type: " + lhs.get_type()->to_string());
+			auto ptr = lhs.cast(ctx, ptr_type);
+			return ptr.pointer_subscript(ctx, rhs.deref(ctx));
+		}
 		default:
 			break;
 	}
@@ -410,14 +426,21 @@ void FunctionNode::codegen(Context &ctx) const {
 	auto receiver_type = type->get_receiver_type();
 	const bool has_receiver = receiver_type;
 	if (receiver_type)
-		ctx.declare_value("this",
-						  { ctx.get_core().get_ref_type(receiver_type), args[0] }
+		ctx.declare_value(
+			"this",
+			{ ctx.get_core().get_ref_type(receiver_type), args[0] }
 		);
 	const auto &param_types = type->get_parameter_types();
 	const auto &param_names = prototype.get_parameter_names();
 	for (size_t i = 0; i < param_types.size(); ++i)
 		ctx.declare_value(param_names[i], { param_types[i], args[i + has_receiver] });
 	body_node->codegen(ctx);
+	if (!body_node->has_return()) {
+		if (type->get_result_type() == ctx.get_core().get_void_type())
+			ctx.get_builder().CreateRetVoid();
+		else
+			throw CodegenException("Non-void function does not return a value");
+	}
 	ctx.pop_layer();
 }
 
