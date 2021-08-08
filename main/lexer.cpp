@@ -26,10 +26,9 @@ inline TokenKind word_kind(std::string_view str) {
 		CASE("val", Val)
 		CASE("when", When)
 		CASE("while", While)
-		default:
-			return TokenKind::Identifier;
 	}
 #undef CASE
+	return TokenKind::Identifier;
 }
 
 Token Lexer::peek(bool ignore_comment) {
