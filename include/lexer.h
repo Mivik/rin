@@ -23,7 +23,7 @@ public:
 	explicit Reader(std::string_view buffer):
 		buffer(buffer), ptr(buffer.data()) {}
 
-	[[nodiscard]] std::string_view substr(SourceRange range) {
+	[[nodiscard]] std::string_view substr(SourceRange range) const {
 		return buffer.substr(range.begin, range.end - range.begin);
 	}
 	[[nodiscard]] size_t position() const { return ptr - buffer.data(); }

@@ -17,6 +17,7 @@ std::string name(TokenKind kind) {
 #define TOKEN(name) case TokenKind::name: return #name;
 
 #include "token.def"
+		default: assert(false);
 	}
 }
 

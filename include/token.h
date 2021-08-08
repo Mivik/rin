@@ -55,7 +55,7 @@ inline bool is_binary_op(TokenKind kind) {
 
 class SourceRange {
 public:
-	static inline SourceRange make_empty() { return SourceRange(0, 0); }
+	static SourceRange make_empty() { return SourceRange(0, 0); }
 
 	SourceRange(size_t begin, size_t end):
 		begin(begin), end(end) {}
@@ -86,9 +86,9 @@ public:
 
 	[[nodiscard]] std::string_view content(std::string_view buffer) const;
 	[[nodiscard]] std::string info(std::string_view buffer) const {
-		auto ret = '[' + name() + ']';
-		if (!range.empty()) ret = ret + " \"" + std::string(content(buffer)) + '"';
-		return ret;
+		auto res = '[' + name() + ']';
+		if (!range.empty()) res = res + " \"" + std::string(content(buffer)) + '"';
+		return res;
 	}
 
 	explicit operator bool() const { return kind != TokenKind::Eof; }

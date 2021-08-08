@@ -4,9 +4,9 @@
 namespace rin {
 
 inline constexpr size_t string_hash(std::string_view str) {
-	size_t ret = 0;
-	for (char c : str) ret = ret * 31 + c;
-	return ret;
+	size_t res = 0;
+	for (char c : str) res = res * 31 + c;
+	return res;
 }
 
 inline TokenKind word_kind(std::string_view str) {
@@ -54,9 +54,9 @@ Token Lexer::take(bool ignore_comment) {
 		}
 	}
 	if (buffer.empty()) return lex();
-	auto ret = buffer.front();
+	auto res = buffer.front();
 	buffer.pop_front();
-	return ret;
+	return res;
 }
 
 Token Lexer::lex() {
