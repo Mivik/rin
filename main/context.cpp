@@ -78,6 +78,8 @@ Context::~Context() {
 		delete value;
 	for (auto &[_, value] : struct_type_map)
 		delete value;
+	for (auto &[_, value] : function_type_map)
+		delete value;
 }
 
 } // namespace rin
