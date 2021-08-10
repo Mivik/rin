@@ -23,11 +23,14 @@ public:
 	explicit Reader(std::string_view buffer):
 		buffer(buffer), ptr(buffer.data()) {}
 
+	[[nodiscard]] std::string_view get_buffer() const { return buffer; }
 	[[nodiscard]] std::string_view substr(SourceRange range) const {
 		return buffer.substr(range.begin, range.end - range.begin);
 	}
 	[[nodiscard]] size_t position() const { return ptr - buffer.data(); }
-	[[nodiscard]] char peek() const { return (static_cast<size_t>(ptr - buffer.data()) >= buffer.size())? (char) EOF: *ptr; }
+	[[nodiscard]] char peek() const {
+		return (static_cast<size_t>(ptr - buffer.data()) >= buffer.size())? (char) EOF: *ptr;
+	}
 	void rewind_to(size_t pos) { ptr = buffer.data() + pos; }
 	char take() {
 		char r = peek();
@@ -49,6 +52,8 @@ public:
 	explicit Lexer(std::string_view buffer):
 		input(buffer) {}
 
+	[[nodiscard]] std::string_view get_buffer() const { return input.get_buffer(); }
+	[[nodiscard]] const Reader &get_reader() const { return input; }
 	size_t position() {
 		if (buffer.empty()) return input.position();
 		return buffer.front().range.begin;

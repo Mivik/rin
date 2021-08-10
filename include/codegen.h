@@ -36,31 +36,35 @@ public:
 		return value_map.try_get(name);
 	}
 
-	void declare_function(const std::string &name, std::unique_ptr<Function> func) {
+	void declare_function(const std::string &name, Ptr<Function> func) {
 		function_map[name].push_back(std::move(func));
 	}
 
 	[[nodiscard]] llvm::Function *get_llvm_function() const;
 
-	[[nodiscard]] std::unique_ptr<llvm::Module> finalize() { return std::move(module); }
+	[[nodiscard]] Ptr<llvm::Module> finalize() { return std::move(module); }
 
 	llvm::BasicBlock *create_basic_block(const std::string &name) const {
 		return llvm::BasicBlock::Create(ctx.get_llvm(), name, get_llvm_function());
 	}
 
-	void add_layer(std::unique_ptr<llvm::IRBuilder<>> builder, Function::Static *function);
+	void add_layer(Ptr<llvm::IRBuilder<>> builder, Function::Static *function);
 	void pop_layer();
 private:
 	struct Layer {
-		std::unique_ptr<llvm::IRBuilder<>> builder;
+		Ptr<llvm::IRBuilder<>> builder;
 		Function::Static *function;
 	};
 
+	void declare_builtin(const std::string &name, Type::Function *type, Function::Builtin::FuncType func) {
+		function_map[name].emplace_back(new Function::Builtin(type, std::move(func)));
+	}
+
 	Context &ctx;
-	std::unique_ptr<llvm::Module> module;
+	Ptr<llvm::Module> module;
 	std::vector<Layer> layers;
 	LayerMap<std::string, Value> value_map;
-	LayerMap<std::string, std::vector<std::unique_ptr<Function>>> function_map;
+	LayerMap<std::string, std::vector<Ptr<Function>>> function_map;
 };
 
 } // namespace rin

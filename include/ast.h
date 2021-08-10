@@ -24,7 +24,7 @@ public:
 #define OVERRIDE \
     Value codegen(Codegen &ctx) const override;
 
-class ConstantNode : public ASTNode {
+class ConstantNode final : public ASTNode {
 public:
 	ConstantNode(const Token &token, const Reader &input):
 		ASTNode(token.range), content(input.substr(token.range)) {}
@@ -36,7 +36,7 @@ private:
 	std::string_view content;
 };
 
-class UnaryOpNode : public ASTNode {
+class UnaryOpNode final : public ASTNode {
 public:
 	UnaryOpNode(Ptr<ASTNode> value, const Token &token):
 		ASTNode(token.range + value->get_source_range()),
@@ -52,7 +52,7 @@ private:
 	TokenKind op;
 };
 
-class BinOpNode : public ASTNode {
+class BinOpNode final : public ASTNode {
 public:
 	BinOpNode(Ptr<ASTNode> lhs, Ptr<ASTNode> rhs, TokenKind op):
 		ASTNode(lhs->get_source_range() + rhs->get_source_range()),
@@ -69,7 +69,7 @@ private:
 	TokenKind op;
 };
 
-class ValueNode : public ASTNode {
+class ValueNode final : public ASTNode {
 public:
 	ValueNode(const Token &token, const Reader &input):
 		ASTNode(token.range), name(input.substr(token.range)) {}
@@ -79,6 +79,29 @@ public:
 	OVERRIDE
 private:
 	std::string_view name;
+};
+
+class CallNode final : public ASTNode {
+public:
+	CallNode(
+		const SourceRange &range,
+		std::string name,
+		Ptr<ASTNode> receiver_node,
+		std::vector<Ptr<ASTNode>> argument_nodes
+	): ASTNode(range),
+	   name(std::move(name)),
+	   receiver_node(std::move(receiver_node)),
+	   argument_nodes(std::move(argument_nodes)) {}
+
+	[[nodiscard]] std::string get_function_name() const { return name; }
+	[[nodiscard]] const ASTNode *get_receiver_node() const { return receiver_node.get(); }
+	[[nodiscard]] const std::vector<Ptr<ASTNode>> &get_argument_nodes() const { return argument_nodes; }
+
+	OVERRIDE
+private:
+	std::string name;
+	Ptr<ASTNode> receiver_node;
+	std::vector<Ptr<ASTNode>> argument_nodes;
 };
 
 #undef OVERRIDE

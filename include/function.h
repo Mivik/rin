@@ -57,6 +57,8 @@ private:
 		function(std::move(func)) {}
 
 	FuncType function;
+
+	friend class Codegen;
 };
 
 class Function::Static final : public Function {

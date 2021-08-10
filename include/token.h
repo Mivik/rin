@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include <limits>
 #include <string>
 
 namespace rin {
@@ -32,23 +33,77 @@ inline bool is_unary_op(TokenKind kind) {
 
 #include "token.def"
 
-		return true;
+			return true;
 		default:
 			return false;
 	}
 }
 
 inline bool is_binary_op(TokenKind kind) {
-	// TODO use helper include file to simplify this
 	switch (kind) {
 #define TOKEN_BINARY_OP(name) case TokenKind::name:
 
 #include "token.def"
 
-		return true;
+			return true;
 		default:
 			return false;
 	}
+}
+
+inline int precedence_of(TokenKind op) {
+#define H(n) case TokenKind::n
+	switch (op) {
+		H(LBracket): // pointer subscript
+		H(UAdd):
+		H(USub):
+		H(Not):
+		H(LNot):
+			return 2;
+		H(Mul):
+		H(Div):
+		H(Mod):
+			return 3;
+		H(Add):
+		H(Sub):
+			return 4;
+		H(Shl):
+		H(Shr):
+			return 5;
+		H(Lt):
+		H(Le):
+		H(Gt):
+		H(Ge):
+			return 7;
+		H(Eq):
+		H(Neq):
+			return 8;
+		H(And):
+			return 9;
+		H(Xor):
+			return 10;
+		H(Or):
+			return 11;
+		H(LAnd):
+			return 12;
+		H(LOr):
+			return 13;
+		H(Assign):
+		H(AddA):
+		H(SubA):
+		H(MulA):
+		H(DivA):
+		H(ModA):
+		H(ShlA):
+		H(ShrA):
+		H(AndA):
+		H(OrA):
+		H(XorA):
+			return 14;
+		default:
+			return std::numeric_limits<int>::max();
+	}
+#undef H
 }
 
 } // namespace token_kind
