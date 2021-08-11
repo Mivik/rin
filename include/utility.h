@@ -7,7 +7,7 @@
     class_name(const class_name&) = delete; \
     class_name& operator=(const class_name&) = delete;
 
-#define rin_unreachable __builtin_unreachable
+#define RIN_UNREACHABLE __builtin_unreachable
 
 namespace rin {
 

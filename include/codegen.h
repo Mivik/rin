@@ -32,8 +32,13 @@ public:
 	void declare_value(const std::string &name, const Value &value) {
 		value_map.set(name, value);
 	}
-	std::optional<Value> lookup_value(const std::string &name) const {
+	[[nodiscard]] std::optional<Value> lookup_value(const std::string &name) const {
 		return value_map.try_get(name);
+	}
+
+	[[nodiscard]] bool has_function(const std::string &name) const { return function_map.has(name); }
+	[[nodiscard]] const std::vector<std::vector<Ptr<Function>>> &lookup_functions(const std::string &name) const {
+		return function_map.get_all(name);
 	}
 
 	void declare_function(const std::string &name, Ptr<Function> func) {

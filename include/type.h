@@ -40,6 +40,8 @@ public:
 	[[nodiscard]] virtual bool operator==(const Type &other) const { return llvm == other.llvm; }
 	[[nodiscard]] virtual std::string to_string() const = 0;
 
+	[[nodiscard]] Type *deref();
+
 	DISABLE_COPY(Type)
 protected:
 	explicit Type(llvm::Type *llvm): llvm(llvm) {}
@@ -181,7 +183,10 @@ public:
 	[[nodiscard]] Type *get_receiver_type() const { return receiver_type; }
 	[[nodiscard]] Type *get_result_type() const { return result_type; }
 	[[nodiscard]] std::vector<Type *> get_parameter_types() const { return param_types; }
-	[[nodiscard]] std::string to_string() const override;
+	[[nodiscard]] std::string to_string(const std::string &name) const;
+	[[nodiscard]] std::string to_string() const override {
+		return to_string("");
+	}
 private:
 	Function(Type *receiver_type, Type *result_type, const std::vector<Type *> &param_types);
 

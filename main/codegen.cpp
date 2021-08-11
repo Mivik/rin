@@ -8,6 +8,7 @@ namespace rin {
 Codegen::Codegen(Context &ctx, const std::string &name):
 	ctx(ctx),
 	module(std::make_unique<llvm::Module>(name, ctx.get_llvm())) {
+	add_layer(std::make_unique<llvm::IRBuilder<>>(ctx.get_llvm()), nullptr);
 #define ARGS Codegen &g, std::optional<Value> recever, const std::vector<Value> &args
 	const auto &self = Type::Self::get_instance();
 	declare_builtin(

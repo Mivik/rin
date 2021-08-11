@@ -13,6 +13,8 @@
 
 namespace rin {
 
+class Codegen;
+
 class Value {
 public:
 	static inline Value undef(Type *type) {
@@ -31,9 +33,33 @@ public:
 	explicit Value(Type *type_value): // NOLINT(cppcoreguidelines-pro-type-member-init)
 		type(Type::Self::get_instance()), type_value(type_value) {}
 
+	[[nodiscard]] Value deref(Codegen &g) const;
+
+	[[nodiscard]] bool is_type_value() const { return type == Type::Self::get_instance(); }
+	[[nodiscard]] bool is_normal_value() const { return type != Type::Self::get_instance(); }
+
 	[[nodiscard]] Type *get_type() const { return type; }
-	[[nodiscard]] llvm::Value *get_llvm_value() const { return llvm_value; }
-	[[nodiscard]] Type *get_type_value() const { return type_value; }
+	[[nodiscard]] llvm::Value *get_llvm_value() const {
+		assert(is_normal_value());
+		return llvm_value;
+	}
+	[[nodiscard]] Type *get_type_value() const {
+		assert(is_type_value());
+		return type_value;
+	}
+
+	[[nodiscard]] Value pointer_subscript(Codegen &g) const;
+	[[nodiscard]] Value pointer_subscript(Codegen &g, Value index) const;
+
+	// TODO remove this in release build
+	void dump(llvm::raw_ostream &out = llvm::outs()) {
+		if (is_type_value())
+			out << "[type] " << type_value->to_string() << '\n';
+		else {
+			out << '[' << type->to_string() << "] ";
+			llvm_value->print(out);
+		}
+	}
 private:
 	Type *type;
 	union {

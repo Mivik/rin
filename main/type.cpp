@@ -4,6 +4,12 @@
 
 namespace rin {
 
+Type *Type::deref() {
+	if (auto ref = dynamic_cast<Type::Ref *>(this))
+		return ref->get_sub_type();
+	return this;
+}
+
 Type::Void::Void(Context *ctx):
 	Type(llvm::Type::getVoidTy(ctx->get_llvm())) {}
 
@@ -79,21 +85,22 @@ Type::Function::Function(
 	Type *result_type,
 	const std::vector<Type *> &param_types
 ):
-	Type(llvm::FunctionType::get(
+	Type(result_type->get_llvm()? llvm::FunctionType::get(
 		result_type->get_llvm(),
 		make_llvm_param(receiver_type, param_types),
 		false
-	)),
+	): nullptr),
 	receiver_type(receiver_type),
 	result_type(result_type),
 	param_types(param_types) {}
 
-std::string Type::Function::to_string() const {
+std::string Type::Function::to_string(const std::string &name) const {
 	std::string ret;
 	if (receiver_type) {
 		ret += receiver_type->to_string();
 		ret += '.';
 	}
+	ret += name;
 	ret += '(';
 	for (size_t i = 0; i < param_types.size(); ++i) {
 		ret += param_types[i]->to_string();

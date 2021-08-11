@@ -37,7 +37,7 @@ public:
 	// Notice that we throw an error instead of constructing a default
 	// value and insert it into current layer when the key is not found
 	// in the map.
-	std::vector<V> &get_all(const K &key) const {
+	const std::vector<V> &get_all(const K &key) const {
 		auto iter = base.find(key);
 		// TODO assertion failure won't throw in release build
 		assert(iter != base.end());

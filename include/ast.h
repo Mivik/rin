@@ -18,22 +18,22 @@ public:
 
 	[[nodiscard]] SourceRange get_source_range() const { return range; }
 
-	virtual Value codegen(Codegen &ctx) const = 0;
+	virtual Value codegen(Codegen &g) const = 0;
 };
 
 #define OVERRIDE \
-    Value codegen(Codegen &ctx) const override;
+    Value codegen(Codegen &g) const override;
 
 class ConstantNode final : public ASTNode {
 public:
 	ConstantNode(const Token &token, const Reader &input):
 		ASTNode(token.range), content(input.substr(token.range)) {}
 
-	[[nodiscard]] std::string_view get_content() const { return content; }
+	[[nodiscard]] const std::string &get_content() const { return content; }
 
 	OVERRIDE
 private:
-	std::string_view content;
+	std::string content;
 };
 
 class UnaryOpNode final : public ASTNode {
@@ -74,11 +74,11 @@ public:
 	ValueNode(const Token &token, const Reader &input):
 		ASTNode(token.range), name(input.substr(token.range)) {}
 
-	[[nodiscard]] std::string_view get_name() const { return name; }
+	[[nodiscard]] const std::string &get_name() const { return name; }
 
 	OVERRIDE
 private:
-	std::string_view name;
+	std::string name;
 };
 
 class CallNode final : public ASTNode {
