@@ -1,5 +1,6 @@
 
 #include "context.h"
+#include "value.h"
 
 namespace rin {
 
@@ -65,6 +66,10 @@ Type::Function *Context::get_function_type(
 	auto &value = function_type_map[{{ receiver_type, result_type }, param_types }];
 	if (!value) value = new Type::Function(receiver_type, result_type, param_types);
 	return value;
+}
+
+Value Context::get_void() {
+	return Value::undef(get_void_type());
 }
 
 Context::~Context() {

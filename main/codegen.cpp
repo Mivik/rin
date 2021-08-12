@@ -55,4 +55,21 @@ void Codegen::pop_layer() {
 	function_map.pop_layer();
 }
 
+Value Codegen::allocate_stack(Type *type, bool is_const) {
+	auto func = get_llvm_function();
+	llvm::IRBuilder<> tmp_builder(ctx.get_llvm());
+	auto &entry = func->getEntryBlock();
+	tmp_builder.SetInsertPoint(&entry, entry.getFirstInsertionPt());
+	return {
+		ctx.get_pointer_type(type, is_const),
+		tmp_builder.CreateAlloca(type->get_llvm(), 0, nullptr)
+	};
+}
+
+Value Codegen::allocate_stack(Type *type, const Value &value, bool is_const) {
+	auto ptr = allocate_stack(type, is_const);
+	get_builder()->CreateStore(value.get_llvm_value(), ptr.get_llvm_value());
+	return ptr;
+}
+
 } // namespace rin

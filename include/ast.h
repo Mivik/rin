@@ -16,9 +16,10 @@ protected:
 public:
 	virtual ~ASTNode() = default;
 
-	[[nodiscard]] SourceRange get_source_range() const { return range; }
-
+	[[nodiscard]] virtual bool has_return() const { return false; }
 	virtual Value codegen(Codegen &g) const = 0;
+
+	[[nodiscard]] SourceRange get_source_range() const { return range; }
 };
 
 #define OVERRIDE \
@@ -102,6 +103,61 @@ private:
 	std::string name;
 	Ptr<ASTNode> receiver_node;
 	std::vector<Ptr<ASTNode>> argument_nodes;
+};
+
+class BlockNode : public ASTNode {
+public:
+	BlockNode(
+		const SourceRange &range,
+		std::vector<Ptr<ASTNode>> stmts
+	);
+
+	[[nodiscard]] const std::vector<Ptr<ASTNode>> &get_statements() const { return stmts; }
+	[[nodiscard]] bool has_return() const override { return has_return_flag; }
+
+	OVERRIDE
+private:
+	std::vector<Ptr<ASTNode>> stmts;
+	bool has_return_flag;
+};
+
+class ReturnNode : public ASTNode {
+public:
+	ReturnNode(
+		const SourceRange &range,
+		Ptr<ASTNode> value_node
+	): ASTNode(range), value_node(std::move(value_node)) {}
+
+	[[nodiscard]] const ASTNode *get_value_node() const { return value_node.get(); }
+	[[nodiscard]] bool has_return() const override { return true; }
+
+	OVERRIDE
+private:
+	Ptr<ASTNode> value_node;
+};
+
+class IfNode : public ASTNode {
+public:
+	IfNode(
+		const SourceRange &range,
+		Ptr<ASTNode> condition_node,
+		Ptr<ASTNode> then_node,
+		Ptr<ASTNode> else_node
+	): ASTNode(range),
+	   condition_node(std::move(condition_node)),
+	   then_node(std::move(then_node)),
+	   else_node(std::move(else_node)),
+	   has_return_flag(this->else_node && this->then_node->has_return() && this->else_node->has_return()) {}
+
+	[[nodiscard]] const ASTNode *get_condition_node() const { return condition_node.get(); }
+	[[nodiscard]] const ASTNode *get_then_node() const { return then_node.get(); }
+	[[nodiscard]] const ASTNode *get_else_node() const { return else_node.get(); }
+	[[nodiscard]] bool has_return() const override { return has_return_flag; }
+
+	OVERRIDE
+private:
+	Ptr<ASTNode> condition_node, then_node, else_node;
+	bool has_return_flag;
 };
 
 #undef OVERRIDE

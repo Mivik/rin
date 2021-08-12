@@ -139,7 +139,6 @@ TEST(lexer, integer) {
 		"19260817 1ll 2ull 3u",
 		{ K::Number, K::Number, K::Number, K::Number }
 	));
-	EXPECT_THROW(tokens("1l"), LexException);
 	EXPECT_THROW(tokens("1ule"), LexException);
 }
 

@@ -38,6 +38,14 @@ public:
 	[[nodiscard]] bool is_type_value() const { return type == Type::Self::get_instance(); }
 	[[nodiscard]] bool is_normal_value() const { return type != Type::Self::get_instance(); }
 
+	[[nodiscard]] bool can_cast_to(Type *to_type) const { return type->deref() == to_type; }
+	[[nodiscard]] std::optional<Value> cast_to(Codegen &g, Type *to_type) {
+		if (type == to_type) return *this;
+		if (auto ref_type = dynamic_cast<Type::Ref *>(type))
+			if (ref_type->get_sub_type() == to_type) return deref(g);
+		return std::nullopt;
+	}
+
 	[[nodiscard]] Type *get_type() const { return type; }
 	[[nodiscard]] llvm::Value *get_llvm_value() const {
 		assert(is_normal_value());

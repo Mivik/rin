@@ -1,6 +1,8 @@
 
 #include "lexer.h"
 
+#include <iostream>
+
 namespace rin {
 
 inline constexpr size_t string_hash(std::string_view str) {
@@ -98,7 +100,7 @@ Token Lexer::lex() {
 					break;
 				}
 				case 'l': {
-					if (tolower(input.take()) != 'l') error(illegal_suffix);
+					if (tolower(input.peek()) == 'l') input.take();
 					break;
 				}
 				default:

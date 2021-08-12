@@ -39,6 +39,24 @@ Ptr<ASTNode> Parser::take_prim() {
 			}
 			return std::make_unique<ValueNode>(token, get_reader());
 		}
+		case K::If: {
+			lexer.take();
+			expect(lexer.take(), K::LPar);
+			auto cond = take_expr();
+			expect(lexer.take(), K::RPar);
+			auto body = take_stmt();
+			Ptr<ASTNode> else_body;
+			if (lexer.peek().kind == K::Else) {
+				lexer.take();
+				else_body = take_stmt();
+			}
+			return std::make_unique<IfNode>(
+				SourceRange(begin, lexer.position()),
+				std::move(cond),
+				std::move(body),
+				std::move(else_body)
+			);
+		}
 		default:
 			throw ParseException("Unsupported token type: " + token_kind::name(token.kind));
 	}
@@ -139,6 +157,63 @@ Ptr<ASTNode> Parser::take_expr() {
 		throw ParseException("Missing operand");
 	assert(ops.empty() && st.size() == 1);
 	return std::move(st.top());
+}
+
+Ptr<BlockNode> Parser::take_block() {
+	const auto begin = lexer.position();
+	expect(lexer.take(), K::LBrace);
+	std::vector<Ptr<ASTNode>> stmts;
+	while (lexer.peek().kind != K::RBrace)
+		stmts.push_back(std::move(take_stmt()));
+	lexer.take();
+	return std::make_unique<BlockNode>(
+		SourceRange(begin, lexer.position()),
+		std::move(stmts)
+	);
+}
+
+Ptr<ASTNode> Parser::take_stmt() {
+	const auto begin = lexer.position();
+	switch (lexer.peek().kind) {
+		case K::LBrace:
+			return take_block();
+		case K::Return: {
+			lexer.take();
+			if (lexer.peek().kind == K::Semicolon) {
+				return std::make_unique<ReturnNode>(
+					SourceRange(begin, lexer.position()),
+					nullptr
+				);
+			} else {
+				auto expr = take_expr();
+				expect_end_of_stmt();
+				return std::make_unique<ReturnNode>(
+					SourceRange(begin, lexer.position()),
+					std::move(expr)
+				);
+			}
+		}
+		case K::If: {
+			lexer.take();
+			expect(lexer.take(), K::LPar);
+			auto cond = take_expr();
+			expect(lexer.take(), K::RPar);
+			auto body = take_stmt();
+			Ptr<ASTNode> else_body;
+			if (lexer.peek().kind == K::Else) {
+				lexer.take();
+				else_body = take_stmt();
+			}
+			return std::make_unique<IfNode>(
+				SourceRange(begin, lexer.position()),
+				std::move(cond),
+				std::move(body),
+				std::move(else_body)
+			);
+		}
+		default:
+			return take_expr();
+	}
 }
 
 } // namespace rin

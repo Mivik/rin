@@ -42,8 +42,9 @@ public:
 		const std::vector<Type *> &param_types
 	);
 
-	DISABLE_COPY(Context)
+	[[nodiscard]] Value get_void();
 
+	DISABLE_COPY(Context)
 private:
 	llvm::LLVMContext llvm;
 	Type::Void void_type;

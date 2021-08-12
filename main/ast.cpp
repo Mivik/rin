@@ -5,6 +5,18 @@ namespace rin {
 
 using K = TokenKind;
 
+BlockNode::BlockNode(const SourceRange &range, std::vector<Ptr<ASTNode>> stmts):
+	ASTNode(range),
+	stmts(std::move(stmts)) {
+	auto iter = this->stmts.begin();
+	while (iter != this->stmts.end() && !dynamic_cast<ReturnNode *>(iter->get()))
+		++iter;
+	// TODO better handling here?
+	if (iter != this->stmts.end())
+		this->stmts.erase(++iter, this->stmts.end());
+	has_return_flag = this->stmts.empty() || this->stmts.back()->has_return();
+}
+
 Value ConstantNode::codegen(Codegen &g) const {
 	auto &ctx = g.get_context();
 	if (content == "true" || content == "false") {
@@ -20,8 +32,8 @@ Value ConstantNode::codegen(Codegen &g) const {
 		auto type = ctx.get_i32_type();
 		if (tolower(tmp.back()) == 'l') {
 			tmp.pop_back();
-			assert(!tmp.empty() && tolower(tmp.back()) == 'l');
-			tmp.pop_back();
+			if (!tmp.empty() && tolower(tmp.back()) == 'l')
+				tmp.pop_back();
 			assert(!tmp.empty());
 			if (tolower(tmp.back()) == 'u') {
 				tmp.pop_back();
@@ -289,9 +301,8 @@ Value BinOpNode::codegen(Codegen &g) const {
 			return assignment_codegen(g, lhs, rhs, op);
 		case K::LBracket: { // pointer subscript
 			lhs = lhs.deref(g);
-			if (auto *ptr_type = dynamic_cast<Type::Pointer *>(lhs.get_type())) {
-				return lhs.pointer_subscript(g, rhs.deref(g));
-			} else throw CodegenException("Attempt to subscript unknown type: " + lhs.get_type()->to_string());
+			if (dynamic_cast<Type::Pointer *>(lhs.get_type())) return lhs.pointer_subscript(g, rhs.deref(g));
+			else throw CodegenException("Attempt to subscript unknown type: " + lhs.get_type()->to_string());
 		}
 		default:
 			return bin_op_arithmetic_codegen(g, lhs, rhs, op);
@@ -341,6 +352,90 @@ Value CallNode::codegen(Codegen &g) const {
 	if (matching_function == nullptr)
 		throw CodegenException("No matching function for calling");
 	return matching_function->invoke(g, receiver, arguments);
+}
+
+
+Value ReturnNode::codegen(Codegen &g) const {
+	auto func_type = g.get_function()->get_type();
+	auto result_type = func_type->get_result_type();
+	// TODO function name in error message
+	if (result_type == g.get_context().get_void_type()) {
+		if (value_node)
+			throw CodegenException(
+				"Returning a value in a void function: "
+				+ func_type->to_string()
+			);
+		g.get_builder()->CreateRetVoid();
+	} else if (auto opt = value_node->codegen(g).cast_to(g, result_type))
+		g.get_builder()->CreateRet(opt->get_llvm_value());
+	return g.get_context().get_void();
+}
+
+Value BlockNode::codegen(Codegen &g) const {
+	Value last = g.get_context().get_void();
+	for (const auto &stmt : stmts)
+		last = stmt->codegen(g);
+	return last;
+}
+
+Value IfNode::codegen(Codegen &g) const {
+	auto &builder = *g.get_builder();
+	const auto
+		then_block = g.create_basic_block("then"),
+		else_block = g.create_basic_block("else");
+	builder.CreateCondBr(
+		condition_node->codegen(g).get_llvm_value(),
+		then_block,
+		else_block
+	);
+	if (!else_node) {
+		builder.SetInsertPoint(then_block);
+		then_node->codegen(g);
+		if (!then_node->has_return())
+			builder.CreateBr(else_block);
+		builder.SetInsertPoint(else_block);
+		return g.get_context().get_void();
+	} else {
+		const auto then_ret = ({
+			builder.SetInsertPoint(then_block);
+			then_node->codegen(g);
+		}), else_ret = ({
+			builder.SetInsertPoint(else_block);
+			else_node->codegen(g);
+		});
+		if (then_ret.get_type() == else_ret.get_type()
+			&& then_ret.get_type() != g.get_context().get_void_type()) {
+			auto var = g.allocate_stack(then_ret.get_type(), false);
+			var = {
+				g.get_context().get_ref_type(dynamic_cast<Type::Pointer *>(var.get_type())->get_sub_type()),
+				var.get_llvm_value()
+			};
+
+			const auto merge_block = g.create_basic_block("merge");
+
+			builder.SetInsertPoint(then_block);
+			builder.CreateStore(then_ret.get_llvm_value(), var.get_llvm_value());
+			if (!then_node->has_return()) builder.CreateBr(merge_block);
+			builder.SetInsertPoint(else_block);
+			builder.CreateStore(else_ret.get_llvm_value(), var.get_llvm_value());
+			if (!else_node->has_return()) builder.CreateBr(merge_block);
+
+			builder.SetInsertPoint(merge_block);
+			return var;
+		} else {
+			if (!then_node->has_return() || !else_node->has_return()) {
+				const auto merge_block = g.create_basic_block("merge");
+
+				builder.SetInsertPoint(then_block);
+				if (!then_node->has_return()) builder.CreateBr(merge_block);
+				builder.SetInsertPoint(else_block);
+				if (!else_node->has_return()) builder.CreateBr(merge_block);
+
+				builder.SetInsertPoint(merge_block);
+			}
+			return g.get_context().get_void();
+		}
+	}
 }
 
 } // namespace rin

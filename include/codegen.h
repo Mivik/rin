@@ -53,6 +53,9 @@ public:
 		return llvm::BasicBlock::Create(ctx.get_llvm(), name, get_llvm_function());
 	}
 
+	Value allocate_stack(Type *type, bool is_const);
+	Value allocate_stack(Type *type, const Value &default_value, bool is_const);
+
 	void add_layer(Ptr<llvm::IRBuilder<>> builder, Function::Static *function);
 	void pop_layer();
 private:

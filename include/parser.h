@@ -25,7 +25,12 @@ public:
 
 	Ptr<ASTNode> take_prim();
 	Ptr<ASTNode> take_expr();
+	Ptr<ASTNode> take_stmt();
+	Ptr<BlockNode> take_block();
 private:
+	void expect_end_of_stmt() {
+		expect(lexer.take(), TokenKind::Semicolon);
+	}
 	Token expect(const Token &&token, TokenKind kind) const {
 		if (token.kind != kind) // TODO unlikely
 			throw ParseException(
