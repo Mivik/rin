@@ -24,8 +24,11 @@ public:
 	virtual Value invoke(
 		Codegen &ctx,
 		std::optional<Value> receiver,
-		const std::vector<Value> &args
+		const std::vector<Value> &args,
+		bool const_eval = false
 	) const = 0;
+
+	[[nodiscard]] virtual bool is_const_evaluated() const = 0;
 
 	[[nodiscard]] Type::Function *get_type() const { return type; }
 
@@ -47,10 +50,14 @@ public:
 	Value invoke(
 		Codegen &g,
 		std::optional<Value> receiver,
-		const std::vector<Value> &args
+		const std::vector<Value> &args,
+		bool
 	) const override {
 		return function(g, receiver, args);
 	}
+
+	// TODO is it?
+	[[nodiscard]] bool is_const_evaluated() const override { return true; }
 private:
 	explicit Builtin(Type::Function *type, FuncType func):
 		Function(type),
@@ -66,14 +73,19 @@ public:
 	Value invoke(
 		Codegen &g,
 		std::optional<Value> receiver,
-		const std::vector<Value> &args
+		const std::vector<Value> &args,
+		bool const_eval
 	) const override;
+
+	[[nodiscard]] bool is_const_evaluated() const override { return const_evaluated; }
 private:
-	explicit Static(Value func):
+	explicit Static(Value func, bool const_evaluated):
 		Function(dynamic_cast<Type::Function *>(func.get_type())),
-		llvm(func.get_llvm_value()) {}
+		llvm(func.get_llvm_value()),
+		const_evaluated(const_evaluated) {}
 
 	llvm::Value *llvm;
+	bool const_evaluated;
 
 	friend class Context;
 };

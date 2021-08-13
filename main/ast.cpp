@@ -5,6 +5,15 @@ namespace rin {
 
 using K = TokenKind;
 
+[[noreturn]] void not_const_evaluated(const ASTNode *node) {
+	// TODO wtf is this
+	throw CodegenException(
+		"Part of the code (" + std::to_string(node->get_source_range().begin)
+		+ " ~ " + std::to_string(node->get_source_range().end)
+		+ ") is not const evaluated"
+	);
+}
+
 BlockNode::BlockNode(const SourceRange &range, std::vector<Ptr<ASTNode>> stmts):
 	ASTNode(range),
 	stmts(std::move(stmts)) {
@@ -17,7 +26,7 @@ BlockNode::BlockNode(const SourceRange &range, std::vector<Ptr<ASTNode>> stmts):
 	has_return_flag = this->stmts.empty() || this->stmts.back()->has_return();
 }
 
-Value ConstantNode::codegen(Codegen &g) const {
+Value ConstantNode::codegen(Codegen &g, bool) const {
 	auto &ctx = g.get_context();
 	if (content == "true" || content == "false") {
 		auto type = ctx.get_boolean_type();
@@ -54,13 +63,14 @@ Value ConstantNode::codegen(Codegen &g) const {
 	throw CodegenException("Unknown constant: " + content);
 }
 
-Value ValueNode::codegen(Codegen &g) const {
+Value ValueNode::codegen(Codegen &g, bool const_eval) const {
 	auto opt = g.lookup_value(name);
 	if (!opt.has_value()) throw CodegenException("Use of undeclared value: " + name);
+	if (const_eval && !opt->is_constant()) not_const_evaluated(this);
 	return *opt;
 }
 
-Value UnaryOpNode::codegen(Codegen &g) const {
+Value UnaryOpNode::codegen(Codegen &g, bool const_eval) const {
 	auto unary_op_fail = [](const Value &value, K kind) {
 		throw CodegenException(
 			"Illegal unary operation on "
@@ -69,7 +79,10 @@ Value UnaryOpNode::codegen(Codegen &g) const {
 	};
 
 	auto &builder = *g.get_builder();
-	auto value = value_node->codegen(g).deref(g);
+	auto value = value_node->codegen(g, const_eval);
+	// TODO remove this
+	assert(!const_eval || value.is_constant());
+	value = value.deref(g);
 	auto type = value.get_type();
 	if (dynamic_cast<Type::Real *>(type)) {
 		switch (op) {
@@ -102,7 +115,8 @@ Value UnaryOpNode::codegen(Codegen &g) const {
 	throw CodegenException(
 		"Illegal binary operation on "
 		+ lhs.get_type()->to_string() + " and " + rhs.get_type()->to_string()
-		+ ": " + token_kind::name(kind));
+		+ ": " + token_kind::name(kind)
+	);
 }
 
 inline Value bin_op_arithmetic_codegen(Codegen &g, Value lhs, Value rhs, TokenKind op) {
@@ -284,8 +298,10 @@ inline Value assignment_codegen(Codegen &g, Value lhs, Value rhs, TokenKind op) 
 	return lhs;
 }
 
-Value BinOpNode::codegen(Codegen &g) const {
-	auto lhs = lhs_node->codegen(g), rhs = rhs_node->codegen(g);
+Value BinOpNode::codegen(Codegen &g, bool const_eval) const {
+	auto lhs = lhs_node->codegen(g, const_eval), rhs = rhs_node->codegen(g, const_eval);
+	// TODO remove this
+	assert(!const_eval || (lhs.is_constant() && rhs.is_constant()));
 	switch (op) {
 		case K::Assign:
 		case K::AddA:
@@ -300,7 +316,21 @@ Value BinOpNode::codegen(Codegen &g) const {
 		case K::XorA:
 			return assignment_codegen(g, lhs, rhs, op);
 		case K::LBracket: { // pointer subscript
-			lhs = lhs.deref(g);
+			// TODO we assume that reference is always not const, but is it?
+			// TODO safe mode (check in-bound)
+			if (auto ref_type = dynamic_cast<Type::Ref *>(lhs.get_type()))
+				if (dynamic_cast<Type::Array *>(ref_type->get_sub_type()))
+					return lhs.pointer_subscript(g, rhs.deref(g));
+			if (const_eval) {
+				if (auto array_type = dynamic_cast<Type::Array *>(lhs.get_type())) {
+					auto array = llvm::dyn_cast<llvm::ConstantArray>(lhs.get_llvm_value());
+					return {
+						array_type->get_element_type(),
+						array->getAggregateElement(llvm::dyn_cast<llvm::Constant>(rhs.get_type()))
+					};
+				}
+				not_const_evaluated(this);
+			}
 			if (dynamic_cast<Type::Pointer *>(lhs.get_type())) return lhs.pointer_subscript(g, rhs.deref(g));
 			else throw CodegenException("Attempt to subscript unknown type: " + lhs.get_type()->to_string());
 		}
@@ -316,7 +346,7 @@ inline bool can_cast_to(const Value &value, Type *type) {
 	return false;
 }
 
-Value CallNode::codegen(Codegen &g) const {
+Value CallNode::codegen(Codegen &g, bool const_eval) const {
 	auto receiver = receiver_node? receiver_node->codegen(g): Value();
 	std::vector<Value> arguments(argument_nodes.size());
 	for (size_t i = 0; i < arguments.size(); ++i)
@@ -351,11 +381,13 @@ Value CallNode::codegen(Codegen &g) const {
 		}
 	if (matching_function == nullptr)
 		throw CodegenException("No matching function for calling");
+	if (const_eval && !matching_function->is_const_evaluated())
+		not_const_evaluated(this);
 	return matching_function->invoke(g, receiver, arguments);
 }
 
 
-Value ReturnNode::codegen(Codegen &g) const {
+Value ReturnNode::codegen(Codegen &g, bool const_eval) const {
 	auto func_type = g.get_function()->get_type();
 	auto result_type = func_type->get_result_type();
 	// TODO function name in error message
@@ -366,23 +398,37 @@ Value ReturnNode::codegen(Codegen &g) const {
 				+ func_type->to_string()
 			);
 		g.get_builder()->CreateRetVoid();
-	} else if (auto opt = value_node->codegen(g).cast_to(g, result_type))
+	} else if (auto opt = value_node->codegen(g, const_eval).cast_to(g, result_type)) {
+		// TODO TBH, are there such cases? a const return statement? wtf does that even mean?
 		g.get_builder()->CreateRet(opt->get_llvm_value());
+	}
 	return g.get_context().get_void();
 }
 
-Value BlockNode::codegen(Codegen &g) const {
+Value BlockNode::codegen(Codegen &g, bool const_eval) const {
 	Value last = g.get_context().get_void();
 	for (const auto &stmt : stmts)
-		last = stmt->codegen(g);
+		last = stmt->codegen(g, const_eval);
 	return last;
 }
 
-Value IfNode::codegen(Codegen &g) const {
+Value IfNode::codegen(Codegen &g, bool const_eval) const {
 	auto &builder = *g.get_builder();
+	if (const_eval) {
+		auto cond_value = condition_node->codegen(g, const_eval);
+		assert(cond_value.is_constant() && cond_value.get_type() == g.get_context().get_boolean_type());
+		// TODO all one or?
+		const bool cond = llvm::dyn_cast<llvm::ConstantInt>(cond_value.get_llvm_value())->isAllOnesValue();
+		if (!else_node) {
+			if (cond) then_node->codegen(g, true);
+			return g.get_context().get_void();
+		}
+		// TODO type inference without generating any code
+	}
 	const auto
 		then_block = g.create_basic_block("then"),
 		else_block = g.create_basic_block("else");
+	// TODO assert here the value must be boolean? lot of similar code should be modified
 	builder.CreateCondBr(
 		condition_node->codegen(g).get_llvm_value(),
 		then_block,
@@ -403,21 +449,25 @@ Value IfNode::codegen(Codegen &g) const {
 			builder.SetInsertPoint(else_block);
 			else_node->codegen(g);
 		});
-		if (then_ret.get_type() == else_ret.get_type()
-			&& then_ret.get_type() != g.get_context().get_void_type()) {
-			auto var = g.allocate_stack(then_ret.get_type(), false);
+		auto then_type = then_ret.get_type(), else_type = else_ret.get_type();
+		if (then_type->deref() == else_type->deref()
+			&& then_type->deref() != g.get_context().get_void_type()) {
+			auto type = then_type == else_type? then_type: then_type->deref();
+			auto var = g.allocate_stack(type, false);
 			var = {
-				g.get_context().get_ref_type(dynamic_cast<Type::Pointer *>(var.get_type())->get_sub_type()),
+				dynamic_cast<Type::Ref *>(type)
+				? type
+				: g.get_context().get_ref_type(type),
 				var.get_llvm_value()
 			};
 
 			const auto merge_block = g.create_basic_block("merge");
 
 			builder.SetInsertPoint(then_block);
-			builder.CreateStore(then_ret.get_llvm_value(), var.get_llvm_value());
+			builder.CreateStore(then_ret.cast_to(g, type).value().get_llvm_value(), var.get_llvm_value());
 			if (!then_node->has_return()) builder.CreateBr(merge_block);
 			builder.SetInsertPoint(else_block);
-			builder.CreateStore(else_ret.get_llvm_value(), var.get_llvm_value());
+			builder.CreateStore(else_ret.cast_to(g, type).value().get_llvm_value(), var.get_llvm_value());
 			if (!else_node->has_return()) builder.CreateBr(merge_block);
 
 			builder.SetInsertPoint(merge_block);

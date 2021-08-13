@@ -33,13 +33,18 @@ public:
 	explicit Value(Type *type_value): // NOLINT(cppcoreguidelines-pro-type-member-init)
 		type(Type::Self::get_instance()), type_value(type_value) {}
 
+	// TODO is it?
+	[[nodiscard]] bool is_constant() const {
+		return is_type_value() || llvm::isa<llvm::Constant>(llvm_value);
+	}
+
 	[[nodiscard]] Value deref(Codegen &g) const;
 
 	[[nodiscard]] bool is_type_value() const { return type == Type::Self::get_instance(); }
 	[[nodiscard]] bool is_normal_value() const { return type != Type::Self::get_instance(); }
 
 	[[nodiscard]] bool can_cast_to(Type *to_type) const { return type->deref() == to_type; }
-	[[nodiscard]] std::optional<Value> cast_to(Codegen &g, Type *to_type) {
+	[[nodiscard]] std::optional<Value> cast_to(Codegen &g, Type *to_type) const {
 		if (type == to_type) return *this;
 		if (auto ref_type = dynamic_cast<Type::Ref *>(type))
 			if (ref_type->get_sub_type() == to_type) return deref(g);

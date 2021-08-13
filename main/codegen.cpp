@@ -25,7 +25,8 @@ Codegen::Codegen(Context &ctx, const std::string &name):
 		[](ARGS) {
 			auto type = args[0].get_type_value();
 			auto is_const = llvm::dyn_cast<llvm::Constant>(args[1].get_llvm_value());
-			return Value(g.ctx.get_pointer_type(type, is_const->isOneValue()));
+			// TODO all one or?
+			return Value(g.ctx.get_pointer_type(type, is_const->isAllOnesValue()));
 		}
 	);
 #undef ARGS

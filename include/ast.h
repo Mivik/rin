@@ -17,13 +17,13 @@ public:
 	virtual ~ASTNode() = default;
 
 	[[nodiscard]] virtual bool has_return() const { return false; }
-	virtual Value codegen(Codegen &g) const = 0;
+	virtual Value codegen(Codegen &g, bool const_eval = false) const = 0;
 
 	[[nodiscard]] SourceRange get_source_range() const { return range; }
 };
 
 #define OVERRIDE \
-    Value codegen(Codegen &g) const override;
+    Value codegen(Codegen &g, bool const_eval) const override;
 
 class ConstantNode final : public ASTNode {
 public:

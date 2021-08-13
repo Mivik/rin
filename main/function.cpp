@@ -7,8 +7,10 @@ namespace rin {
 Value Function::Static::invoke(
 	Codegen &g,
 	std::optional<Value> receiver,
-	const std::vector<Value> &args
+	const std::vector<Value> &args,
+	bool const_eval
 ) const {
+	if (const_eval) throw std::runtime_error("Not Implemented");
 	std::vector<llvm::Value *> llvm_args;
 	const bool has_receiver = receiver.has_value();
 	llvm_args.resize(args.size() + has_receiver);
