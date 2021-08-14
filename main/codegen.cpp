@@ -10,26 +10,24 @@ Codegen::Codegen(Context &ctx, const std::string &name):
 	module(std::make_unique<llvm::Module>(name, ctx.get_llvm())) {
 	add_layer(std::make_unique<llvm::IRBuilder<>>(ctx.get_llvm()), nullptr);
 #define ARGS Codegen &g, std::optional<Value> recever, const std::vector<Value> &args
-	const auto &self = Type::Self::get_instance();
-	declare_builtin(
-		"@pointerTo",
-		ctx.get_function_type(nullptr, self, { self }),
-		[](ARGS) {
-			auto type = args[0].get_type_value();
-			return Value(g.ctx.get_pointer_type(type));
-		}
-	);
-	declare_builtin(
-		"@pointerTo",
-		ctx.get_function_type(nullptr, self, { self, ctx.get_boolean_type() }),
-		[](ARGS) {
-			auto type = args[0].get_type_value();
-			auto is_const = llvm::dyn_cast<llvm::Constant>(args[1].get_llvm_value());
-			// TODO all one or?
-			return Value(g.ctx.get_pointer_type(type, is_const->isAllOnesValue()));
-		}
-	);
+	// TODO builtin functions here
 #undef ARGS
+	// TODO more integer types
+#define TYPE(n) declare_value(#n, Value(ctx.get_##n##_type()));
+	TYPE(i8)
+	TYPE(i16)
+	TYPE(i32)
+	TYPE(i64)
+	TYPE(i128)
+	TYPE(u8)
+	TYPE(u16)
+	TYPE(u32)
+	TYPE(u64)
+	TYPE(u128)
+#undef TYPE
+	declare_value("bool", Value(ctx.get_boolean_type()));
+	declare_value("void", Value(ctx.get_void_type()));
+	add_layer(std::make_unique<llvm::IRBuilder<>>(ctx.get_llvm()), nullptr);
 }
 
 llvm::Function *Codegen::get_llvm_function() const {

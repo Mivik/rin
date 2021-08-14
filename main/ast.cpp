@@ -83,6 +83,18 @@ Value UnaryOpNode::codegen(Codegen &g, bool const_eval) const {
 	// TODO remove this
 	assert(!const_eval || value.is_constant());
 	value = value.deref(g);
+	if (value.is_type_value()) {
+		// TODO const pointer/reference
+		// TODO array type
+		switch (op) {
+			case K::Pointer:
+				return Value(g.get_context().get_pointer_type(value.get_type_value()));
+			case K::Ref:
+				return Value(g.get_context().get_ref_type(value.get_type_value()));
+			default:
+				unary_op_fail(value, op);
+		}
+	}
 	auto type = value.get_type();
 	if (dynamic_cast<Type::Real *>(type)) {
 		switch (op) {
@@ -326,7 +338,7 @@ Value BinOpNode::codegen(Codegen &g, bool const_eval) const {
 					auto array = llvm::dyn_cast<llvm::ConstantArray>(lhs.get_llvm_value());
 					return {
 						array_type->get_element_type(),
-						array->getAggregateElement(llvm::dyn_cast<llvm::Constant>(rhs.get_type()))
+						array->getAggregateElement(llvm::dyn_cast<llvm::Constant>(rhs.get_llvm_value()))
 					};
 				}
 				not_const_evaluated(this);
@@ -386,6 +398,28 @@ Value CallNode::codegen(Codegen &g, bool const_eval) const {
 	return matching_function->invoke(g, receiver, arguments);
 }
 
+Value BlockNode::codegen(Codegen &g, bool const_eval) const {
+	Value last = g.get_context().get_void();
+	for (const auto &stmt : stmts)
+		last = stmt->codegen(g, const_eval);
+	return last;
+}
+
+Value FunctionTypeNode::codegen(Codegen &g, bool const_eval) const {
+	std::vector<Type *> param_types;
+	param_types.reserve(param_type_nodes.size());
+	for (const auto &param : param_type_nodes)
+		param_types.push_back(param->codegen(g).get_type_value());
+	auto receiver_type =
+		receiver_type_node
+		? receiver_type_node->codegen(g).get_type_value()
+		: nullptr;
+	return Value(g.get_context().get_function_type(
+		receiver_type,
+		result_type_node->codegen(g).get_type_value(),
+		param_types
+	));
+}
 
 Value ReturnNode::codegen(Codegen &g, bool const_eval) const {
 	auto func_type = g.get_function()->get_type();
@@ -405,11 +439,32 @@ Value ReturnNode::codegen(Codegen &g, bool const_eval) const {
 	return g.get_context().get_void();
 }
 
-Value BlockNode::codegen(Codegen &g, bool const_eval) const {
-	Value last = g.get_context().get_void();
-	for (const auto &stmt : stmts)
-		last = stmt->codegen(g, const_eval);
-	return last;
+Value FunctionNode::codegen(Codegen &g, bool const_eval) const {
+	auto type = type_node->codegen(g, true).get_type_value();
+	auto llvm = llvm::Function::Create(
+		llvm::dyn_cast<llvm::FunctionType>(
+			type->get_llvm()
+		),
+		llvm::Function::ExternalLinkage,
+		// TODO mangle
+		name,
+		g.get_module()
+	);
+	auto func = g.declare_function(
+		name,
+		std::make_unique<Function::Static>(Value(type, llvm), false)
+	);
+	g.add_layer(
+		std::make_unique<llvm::IRBuilder<>>(
+			llvm::BasicBlock::Create(
+				g.get_llvm_context(),
+				"entry",
+				llvm
+			)
+		),
+		func
+	);
+	return g.get_context().get_void();
 }
 
 Value IfNode::codegen(Codegen &g, bool const_eval) const {
@@ -424,6 +479,27 @@ Value IfNode::codegen(Codegen &g, bool const_eval) const {
 			return g.get_context().get_void();
 		}
 		// TODO type inference without generating any code
+		const auto
+			then_block = g.create_basic_block("then"),
+			else_block = g.create_basic_block("else");
+		const auto then_ret = ({
+			builder.SetInsertPoint(then_block);
+			then_node->codegen(g);
+		}), else_ret = ({
+			builder.SetInsertPoint(else_block);
+			else_node->codegen(g);
+		});
+		auto then_type = then_ret.get_type(), else_type = else_ret.get_type();
+		const auto merge_block = g.create_basic_block("merge");
+		Type *type = nullptr;
+		if (then_type->deref() == else_type->deref()
+			&& then_type->deref() != g.get_context().get_void_type())
+			type = then_type == else_type? then_type: then_type->deref();
+		(cond? else_block: then_block)->deleteValue();
+		builder.SetInsertPoint(cond? then_block: else_block);
+		if (!(cond? then_node: else_node)->has_return()) builder.CreateBr(merge_block);
+		builder.SetInsertPoint(merge_block);
+		return type? then_ret.cast_to(g, type).value(): g.get_context().get_void();
 	}
 	const auto
 		then_block = g.create_basic_block("then"),

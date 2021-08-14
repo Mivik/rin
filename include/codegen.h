@@ -41,8 +41,12 @@ public:
 		return function_map.get_all(name);
 	}
 
-	void declare_function(const std::string &name, Ptr<Function> func) {
+	template<class T>
+	T *declare_function(const std::string &name, Ptr<T> func) {
+		static_assert(std::is_base_of_v<Function, T>);
+		auto result = func.get();
 		function_map[name].push_back(std::move(func));
+		return result;
 	}
 
 	[[nodiscard]] llvm::Function *get_llvm_function() const;

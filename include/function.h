@@ -47,6 +47,10 @@ public:
 		const std::vector<Value> &
 	)>;
 
+	Builtin(Type::Function *type, FuncType func):
+		Function(type),
+		function(std::move(func)) {}
+
 	Value invoke(
 		Codegen &g,
 		std::optional<Value> receiver,
@@ -58,18 +62,18 @@ public:
 
 	// TODO is it?
 	[[nodiscard]] bool is_const_evaluated() const override { return true; }
+
 private:
-	explicit Builtin(Type::Function *type, FuncType func):
-		Function(type),
-		function(std::move(func)) {}
-
 	FuncType function;
-
-	friend class Codegen;
 };
 
 class Function::Static final : public Function {
 public:
+	explicit Static(Value func, bool const_evaluated):
+		Function(dynamic_cast<Type::Function *>(func.get_type())),
+		llvm(func.get_llvm_value()),
+		const_evaluated(const_evaluated) {}
+
 	Value invoke(
 		Codegen &g,
 		std::optional<Value> receiver,
@@ -79,15 +83,8 @@ public:
 
 	[[nodiscard]] bool is_const_evaluated() const override { return const_evaluated; }
 private:
-	explicit Static(Value func, bool const_evaluated):
-		Function(dynamic_cast<Type::Function *>(func.get_type())),
-		llvm(func.get_llvm_value()),
-		const_evaluated(const_evaluated) {}
-
 	llvm::Value *llvm;
 	bool const_evaluated;
-
-	friend class Context;
 };
 
 } // namespace rin

@@ -22,7 +22,11 @@ TEST(parser, basic) {
 	expect_int(eval("2 ^ (15 & 39)"), 5);
 	expect_int(eval("998244353L * 998244353L"), 996491788296388609L);
 	expect_int(eval("2147483647U + 1U"), 2147483648U);
-	expect_int(eval("if (true) 2 else 1"), 2);
+	expect_int(eval("-2 + 5"), 3);
+	EXPECT_THROW(eval("1 + )"), ParseException);
+	Parser(R"(fn main(): i8 {
+
+})").take_function();
 }
 
 } // namespace rin

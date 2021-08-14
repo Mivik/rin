@@ -20,6 +20,16 @@ inline const R *direct_cast(const T *ptr) { return reinterpret_cast<const R *>(p
 template<class T, class D = std::default_delete<T>>
 using Ptr = std::unique_ptr<T, D>;
 
+template<class R, class T, class D>
+Ptr<R, D> ptr_cast(Ptr<T, D> &&p) {
+	if (auto cast = dynamic_cast<R *>(p.get())) {
+		Ptr<R, D> ret(cast, std::move(p.get_deleter()));
+		p.release();
+		return ret;
+	}
+	return nullptr;
+}
+
 constexpr size_t hash_combine(size_t lhs, size_t rhs) {
 	return lhs ^ (rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2));
 }

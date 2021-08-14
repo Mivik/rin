@@ -27,6 +27,7 @@ public:
 	Ptr<ASTNode> take_expr();
 	Ptr<ASTNode> take_stmt();
 	Ptr<BlockNode> take_block();
+	Ptr<FunctionNode> take_function();
 private:
 	void expect_end_of_stmt() {
 		expect(lexer.take(), TokenKind::Semicolon);

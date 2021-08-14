@@ -14,20 +14,26 @@ enum class TokenKind {
 
 namespace token_kind {
 
-std::string name(TokenKind kind);
+using K = TokenKind;
 
-inline TokenKind as_unary_op(TokenKind kind) {
+std::string name(K kind);
+
+inline K as_unary_op(K kind) {
 	switch (kind) {
-		case TokenKind::Add:
-			return TokenKind::UAdd;
-		case TokenKind::Sub:
-			return TokenKind::USub;
+		case K::Add:
+			return K::UAdd;
+		case K::Sub:
+			return K::USub;
+		case K::Mul:
+			return K::Pointer;
+		case K::LAnd:
+			return K::Ref;
 		default:
 			return kind;
 	}
 }
 
-inline bool is_unary_op(TokenKind kind) {
+inline bool is_unary_op(K kind) {
 	switch (kind) {
 #define TOKEN_UNARY_OP(name) case TokenKind::name:
 
@@ -39,7 +45,7 @@ inline bool is_unary_op(TokenKind kind) {
 	}
 }
 
-inline bool is_binary_op(TokenKind kind) {
+inline bool is_binary_op(K kind) {
 	switch (kind) {
 #define TOKEN_BINARY_OP(name) case TokenKind::name:
 
@@ -51,7 +57,7 @@ inline bool is_binary_op(TokenKind kind) {
 	}
 }
 
-inline int precedence_of(TokenKind op) {
+inline int precedence_of(K op) {
 #define H(n) case TokenKind::n
 	switch (op) {
 		H(LBracket): // pointer subscript
@@ -59,6 +65,9 @@ inline int precedence_of(TokenKind op) {
 		H(USub):
 		H(Not):
 		H(LNot):
+		// TODO think over it
+		H(Pointer):
+		H(Ref):
 			return 2;
 		H(Mul):
 		H(Div):
@@ -112,6 +121,7 @@ class SourceRange {
 public:
 	static SourceRange make_empty() { return SourceRange(0, 0); }
 
+	explicit SourceRange(size_t pos): begin(pos), end(pos) {}
 	SourceRange(size_t begin, size_t end):
 		begin(begin), end(end) {}
 	[[nodiscard]] bool empty() const { return begin >= end; }

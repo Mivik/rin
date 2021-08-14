@@ -8,8 +8,8 @@ namespace rin {
 using K = TokenKind;
 
 Ptr<ASTNode> Parser::take_prim() {
-	const auto begin = lexer.position();
 	auto token = lexer.peek();
+	const auto begin = lexer.position();
 	switch (token.kind) {
 		case K::Number:
 		case K::True:
@@ -160,6 +160,7 @@ Ptr<ASTNode> Parser::take_expr() {
 }
 
 Ptr<BlockNode> Parser::take_block() {
+	// TODO trim
 	const auto begin = lexer.position();
 	expect(lexer.take(), K::LBrace);
 	std::vector<Ptr<ASTNode>> stmts;
@@ -169,6 +170,60 @@ Ptr<BlockNode> Parser::take_block() {
 	return std::make_unique<BlockNode>(
 		SourceRange(begin, lexer.position()),
 		std::move(stmts)
+	);
+}
+
+Ptr<FunctionNode> Parser::take_function() {
+	const auto begin = lexer.position();
+	expect(lexer.take(), K::Fn);
+	auto receiver_type = take_prim();
+	std::string name;
+	if (lexer.peek().kind == K::Period) {
+		lexer.take();
+		name = expect(lexer.take(), K::Identifier).content(get_buffer());
+	} else {
+		if (dynamic_cast<ValueNode *>(receiver_type.get()))
+			name = ptr_cast<ValueNode>(std::move(receiver_type))->get_name();
+		else
+			throw ParseException(
+				"Expected function name, got " +
+				std::string(get_reader().substr(receiver_type->get_source_range()))
+			);
+	}
+	std::vector<Ptr<ASTNode>> param_types;
+	std::vector<std::string> param_names;
+	Ptr<ASTNode> result_type;
+	process_list(K::LPar, K::RPar, K::Comma, [&]() {
+		param_names.emplace_back(
+			expect(lexer.take(), K::Identifier)
+				.content(get_buffer())
+		);
+		expect(lexer.take(), K::Colon);
+		param_types.push_back(std::move(take_expr()));
+	});
+	if (lexer.peek().kind == K::Colon) {
+		lexer.take();
+		result_type = take_expr();
+	} else
+		// TODO preserve some type names like this
+		result_type =
+			std::make_unique<ValueNode>(
+				SourceRange(lexer.position()),
+				"void"
+			);
+	auto type_node =
+		std::make_unique<FunctionTypeNode>(
+			SourceRange(begin, lexer.position()),
+			std::move(receiver_type),
+			std::move(result_type),
+			std::move(param_types)
+		);
+	auto block = take_block();
+	return std::make_unique<FunctionNode>(
+		SourceRange(begin, lexer.position()),
+		name,
+		std::move(type_node),
+		std::move(block)
 	);
 }
 

@@ -5,7 +5,6 @@
 namespace rin {
 
 Value Value::deref(Codegen &g) const {
-	assert(is_normal_value());
 	auto ref_type = dynamic_cast<Type::Ref *>(type);
 	if (!ref_type) return *this;
 	auto sub = ref_type->get_sub_type();

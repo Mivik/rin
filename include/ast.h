@@ -17,6 +17,7 @@ public:
 	virtual ~ASTNode() = default;
 
 	[[nodiscard]] virtual bool has_return() const { return false; }
+	// TODO move const_eval to codegen?
 	virtual Value codegen(Codegen &g, bool const_eval = false) const = 0;
 
 	[[nodiscard]] SourceRange get_source_range() const { return range; }
@@ -72,6 +73,7 @@ private:
 
 class ValueNode final : public ASTNode {
 public:
+	ValueNode(const SourceRange &range, std::string name): ASTNode(range), name(std::move(name)) {}
 	ValueNode(const Token &token, const Reader &input):
 		ASTNode(token.range), name(input.substr(token.range)) {}
 
@@ -119,6 +121,53 @@ public:
 private:
 	std::vector<Ptr<ASTNode>> stmts;
 	bool has_return_flag;
+};
+
+class FunctionTypeNode : public ASTNode {
+public:
+	FunctionTypeNode(
+		const SourceRange &range,
+		Ptr<ASTNode> receiver_type_node,
+		Ptr<ASTNode> result_type_node,
+		std::vector<Ptr<ASTNode>> param_type_nodes
+	): ASTNode(range),
+	   receiver_type_node(std::move(receiver_type_node)),
+	   result_type_node(std::move(result_type_node)),
+	   param_type_nodes(std::move(param_type_nodes)) {}
+
+	[[nodiscard]] ASTNode *get_receiver_type_node() const { return receiver_type_node.get(); }
+	[[nodiscard]] ASTNode *get_result_type_node() const { return result_type_node.get(); }
+	[[nodiscard]] const std::vector<Ptr<ASTNode>> &get_parameter_type_nodes() const { return param_type_nodes; }
+
+	OVERRIDE
+private:
+	Ptr<ASTNode> receiver_type_node, result_type_node;
+	std::vector<Ptr<ASTNode>> param_type_nodes;
+};
+
+// TODO generic function
+// TODO const-evaluated
+class FunctionNode : public ASTNode {
+public:
+	FunctionNode(
+		const SourceRange &range,
+		std::string name,
+		Ptr<ASTNode> type_node,
+		Ptr<BlockNode> body_node
+	): ASTNode(range),
+	   name(std::move(name)),
+	   type_node(std::move(type_node)),
+	   body_node(std::move(body_node)) {}
+
+	[[nodiscard]] const std::string &get_name() const { return name; }
+	[[nodiscard]] const ASTNode *get_type_node() const { return type_node.get(); }
+	[[nodiscard]] const BlockNode *get_body_node() const { return body_node.get(); }
+
+	OVERRIDE
+private:
+	std::string name;
+	Ptr<ASTNode> type_node;
+	Ptr<BlockNode> body_node;
 };
 
 class ReturnNode : public ASTNode {
