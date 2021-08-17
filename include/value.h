@@ -67,11 +67,12 @@ public:
 	// TODO remove this in release build
 	void dump(llvm::raw_ostream &out = llvm::outs()) {
 		if (is_type_value())
-			out << "[type] " << type_value->to_string() << '\n';
+			out << "[type] " << type_value->to_string();
 		else {
 			out << '[' << type->to_string() << "] ";
 			llvm_value->print(out);
 		}
+		out << '\n';
 	}
 private:
 	Type *type;

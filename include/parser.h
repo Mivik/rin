@@ -30,6 +30,7 @@ public:
 	Ptr<FunctionNode> take_function();
 private:
 	void expect_end_of_stmt() {
+		// TODO error message
 		expect(lexer.take(), TokenKind::Semicolon);
 	}
 	Token expect(const Token &&token, TokenKind kind) const {

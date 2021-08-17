@@ -176,20 +176,15 @@ Ptr<BlockNode> Parser::take_block() {
 Ptr<FunctionNode> Parser::take_function() {
 	const auto begin = lexer.position();
 	expect(lexer.take(), K::Fn);
-	auto receiver_type = take_prim();
-	std::string name;
-	if (lexer.peek().kind == K::Period) {
+	Ptr<ASTNode> receiver_type;
+	if (lexer.peek().kind == K::LBracket) {
 		lexer.take();
-		name = expect(lexer.take(), K::Identifier).content(get_buffer());
-	} else {
-		if (dynamic_cast<ValueNode *>(receiver_type.get()))
-			name = ptr_cast<ValueNode>(std::move(receiver_type))->get_name();
-		else
-			throw ParseException(
-				"Expected function name, got " +
-				std::string(get_reader().substr(receiver_type->get_source_range()))
-			);
+		receiver_type = take_expr();
+		expect(lexer.take(), K::RBracket);
+		expect(lexer.take(), K::Period);
 	}
+	std::string name(expect(lexer.take(), K::Identifier).content(get_buffer()));
+
 	std::vector<Ptr<ASTNode>> param_types;
 	std::vector<std::string> param_names;
 	Ptr<ASTNode> result_type;
@@ -199,7 +194,7 @@ Ptr<FunctionNode> Parser::take_function() {
 				.content(get_buffer())
 		);
 		expect(lexer.take(), K::Colon);
-		param_types.push_back(std::move(take_expr()));
+		param_types.push_back(take_expr());
 	});
 	if (lexer.peek().kind == K::Colon) {
 		lexer.take();
@@ -216,7 +211,8 @@ Ptr<FunctionNode> Parser::take_function() {
 			SourceRange(begin, lexer.position()),
 			std::move(receiver_type),
 			std::move(result_type),
-			std::move(param_types)
+			std::move(param_types),
+			std::move(param_names)
 		);
 	auto block = take_block();
 	return std::make_unique<FunctionNode>(
@@ -229,9 +225,36 @@ Ptr<FunctionNode> Parser::take_function() {
 
 Ptr<ASTNode> Parser::take_stmt() {
 	const auto begin = lexer.position();
-	switch (lexer.peek().kind) {
+	switch (auto kind = lexer.peek().kind) {
 		case K::LBrace:
 			return take_block();
+		case K::Var:
+		case K::Val:
+		case K::Const: {
+			lexer.take();
+			VarDeclNode::Type var_type =
+				kind == K::Var? VarDeclNode::Type::VAR:
+				kind == K::Val? VarDeclNode::Type::VAL:
+				VarDeclNode::Type::CONST;
+			auto name = expect(lexer.take(), K::Identifier).content(get_buffer());
+			Ptr<ASTNode> type_node, value_node;
+			if (lexer.peek().kind == K::Colon) {
+				lexer.take();
+				type_node = take_prim();
+			}
+			if (lexer.peek().kind == K::Assign) {
+				lexer.take();
+				value_node = take_expr();
+			}
+			expect_end_of_stmt();
+			return std::make_unique<VarDeclNode>(
+				SourceRange(begin, lexer.position()),
+				std::string(name),
+				std::move(type_node),
+				std::move(value_node),
+				var_type
+			);
+		}
 		case K::Return: {
 			lexer.take();
 			if (lexer.peek().kind == K::Semicolon) {
@@ -266,8 +289,11 @@ Ptr<ASTNode> Parser::take_stmt() {
 				std::move(else_body)
 			);
 		}
-		default:
-			return take_expr();
+		default: {
+			auto res = take_expr();
+			expect_end_of_stmt();
+			return res;
+		}
 	}
 }
 

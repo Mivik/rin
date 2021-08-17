@@ -23,7 +23,7 @@ BlockNode::BlockNode(const SourceRange &range, std::vector<Ptr<ASTNode>> stmts):
 	// TODO better handling here?
 	if (iter != this->stmts.end())
 		this->stmts.erase(++iter, this->stmts.end());
-	has_return_flag = this->stmts.empty() || this->stmts.back()->has_return();
+	has_return_flag = !this->stmts.empty() && this->stmts.back()->has_return();
 }
 
 Value ConstantNode::codegen(Codegen &g, bool) const {
@@ -351,6 +351,28 @@ Value BinOpNode::codegen(Codegen &g, bool const_eval) const {
 	}
 }
 
+Value VarDeclNode::codegen(Codegen &g, bool const_eval) const {
+	// TODO const eval here?
+	if (var_type == Type::CONST) {
+		auto value = value_node->codegen(g, true);
+		// TODO error message
+		if (type_node)
+			value = value.cast_to(g, type_node->codegen(g).get_type_value()).value();
+		g.declare_value(name, value);
+		return g.get_context().get_void();
+	}
+	Value ptr;
+	if (value_node) {
+		auto value = value_node->codegen(g, const_eval);
+		if (type_node)
+			value = value.cast_to(g, type_node->codegen(g).get_type_value()).value();
+		ptr = g.allocate_stack(value.get_type(), value, var_type == Type::VAL);
+	} else
+		ptr = g.allocate_stack(type_node->codegen(g).get_type_value(), var_type == Type::VAL);
+	g.declare_value(name, ptr.pointer_subscript(g));
+	return g.get_context().get_void();
+}
+
 inline bool can_cast_to(const Value &value, Type *type) {
 	if (value.get_type() == type) return true;
 	if (auto ref_type = dynamic_cast<Type::Ref *>(value.get_type()))
@@ -440,7 +462,7 @@ Value ReturnNode::codegen(Codegen &g, bool const_eval) const {
 }
 
 Value FunctionNode::codegen(Codegen &g, bool const_eval) const {
-	auto type = type_node->codegen(g, true).get_type_value();
+	auto type = dynamic_cast<Type::Function*>(type_node->codegen(g, true).get_type_value());
 	auto llvm = llvm::Function::Create(
 		llvm::dyn_cast<llvm::FunctionType>(
 			type->get_llvm()
@@ -464,6 +486,28 @@ Value FunctionNode::codegen(Codegen &g, bool const_eval) const {
 		),
 		func
 	);
+	std::vector<llvm::Value *> args;
+	for (auto &arg : llvm->args())
+		args.push_back(&arg);
+	auto receiver_type = type->get_receiver_type();
+	const bool has_receiver = receiver_type;
+	if (receiver_type)
+		g.declare_value(
+			"this",
+			{ g.get_context().get_ref_type(receiver_type), args[0] }
+		);
+	const auto &param_types = type->get_parameter_types();
+	const auto &param_names = type_node->get_parameter_names();
+	for (size_t i = 0; i < param_types.size(); ++i)
+		g.declare_value(param_names[i], { param_types[i], args[i + has_receiver] });
+	body_node->codegen(g, const_eval);
+	if (!body_node->has_return()) {
+		if (type->get_result_type() == g.get_context().get_void_type())
+			g.get_builder()->CreateRetVoid();
+		else
+			throw CodegenException("Non-void function does not return a value");
+	}
+	g.pop_layer();
 	return g.get_context().get_void();
 }
 

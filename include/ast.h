@@ -24,7 +24,7 @@ public:
 };
 
 #define OVERRIDE \
-    Value codegen(Codegen &g, bool const_eval) const override;
+    Value codegen(Codegen &g, bool const_eval = false) const override;
 
 class ConstantNode final : public ASTNode {
 public:
@@ -84,6 +84,39 @@ private:
 	std::string name;
 };
 
+class VarDeclNode : public ASTNode {
+public:
+	enum class Type: uint8_t {
+		VAR, VAL, CONST
+	};
+
+	VarDeclNode(
+		const SourceRange &range,
+		std::string name,
+		Ptr<ASTNode> type_node,
+		Ptr<ASTNode> value_node,
+		Type var_type
+	): ASTNode(range), name(std::move(name)),
+	   type_node(std::move(type_node)),
+	   value_node(std::move(value_node)),
+	   var_type(var_type) {
+		if (!(this->type_node || this->value_node))
+			throw CodegenException("A variable should have either a default value or a type annotation");
+		if ((var_type == Type::CONST || var_type == Type::VAL) && !this->value_node)
+			throw CodegenException("The default value of const variable should be given");
+	}
+
+	[[nodiscard]] const std::string &get_name() const { return name; }
+	[[nodiscard]] const ASTNode *get_value_node() const { return value_node.get(); }
+	[[nodiscard]] Type get_variable_type() const { return var_type; }
+
+	OVERRIDE
+private:
+	std::string name;
+	Ptr<ASTNode> type_node, value_node;
+	Type var_type;
+};
+
 class CallNode final : public ASTNode {
 public:
 	CallNode(
@@ -129,20 +162,25 @@ public:
 		const SourceRange &range,
 		Ptr<ASTNode> receiver_type_node,
 		Ptr<ASTNode> result_type_node,
-		std::vector<Ptr<ASTNode>> param_type_nodes
+		std::vector<Ptr<ASTNode>> param_type_nodes,
+		std::vector<std::string> param_names
 	): ASTNode(range),
 	   receiver_type_node(std::move(receiver_type_node)),
 	   result_type_node(std::move(result_type_node)),
-	   param_type_nodes(std::move(param_type_nodes)) {}
+	   param_type_nodes(std::move(param_type_nodes)),
+	   param_names(std::move(param_names)) {}
 
 	[[nodiscard]] ASTNode *get_receiver_type_node() const { return receiver_type_node.get(); }
 	[[nodiscard]] ASTNode *get_result_type_node() const { return result_type_node.get(); }
 	[[nodiscard]] const std::vector<Ptr<ASTNode>> &get_parameter_type_nodes() const { return param_type_nodes; }
+	[[nodiscard]] const std::vector<std::string> &get_parameter_names() const { return param_names; }
+
 
 	OVERRIDE
 private:
 	Ptr<ASTNode> receiver_type_node, result_type_node;
 	std::vector<Ptr<ASTNode>> param_type_nodes;
+	std::vector<std::string> param_names;
 };
 
 // TODO generic function
@@ -152,7 +190,7 @@ public:
 	FunctionNode(
 		const SourceRange &range,
 		std::string name,
-		Ptr<ASTNode> type_node,
+		Ptr<FunctionTypeNode> type_node,
 		Ptr<BlockNode> body_node
 	): ASTNode(range),
 	   name(std::move(name)),
@@ -166,7 +204,7 @@ public:
 	OVERRIDE
 private:
 	std::string name;
-	Ptr<ASTNode> type_node;
+	Ptr<FunctionTypeNode> type_node;
 	Ptr<BlockNode> body_node;
 };
 

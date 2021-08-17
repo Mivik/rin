@@ -24,9 +24,22 @@ TEST(parser, basic) {
 	expect_int(eval("2147483647U + 1U"), 2147483648U);
 	expect_int(eval("-2 + 5"), 3);
 	EXPECT_THROW(eval("1 + )"), ParseException);
-	Parser(R"(fn main(): i8 {
+	Parser(R"(fn main(): i32 {
+	const int = i32;
+	var x: int = 5;
+	var y: int = 6;
+	x = x + y;
+	x -= 5;
+	if (x == 6) {
+		x = 23;
+	} else {
+		x = 2;
+	}
+	return x;
+})").take_function()->codegen(g, false);
+	auto module = g.finalize();
+	module->print(llvm::errs(), nullptr);
 
-})").take_function();
 }
 
 } // namespace rin

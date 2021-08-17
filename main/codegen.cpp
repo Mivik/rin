@@ -24,9 +24,12 @@ Codegen::Codegen(Context &ctx, const std::string &name):
 	TYPE(u32)
 	TYPE(u64)
 	TYPE(u128)
+	TYPE(float)
+	TYPE(double)
 #undef TYPE
 	declare_value("bool", Value(ctx.get_boolean_type()));
 	declare_value("void", Value(ctx.get_void_type()));
+	declare_value("type", Value(Type::Self::get_instance()));
 	add_layer(std::make_unique<llvm::IRBuilder<>>(ctx.get_llvm()), nullptr);
 }
 
@@ -60,7 +63,7 @@ Value Codegen::allocate_stack(Type *type, bool is_const) {
 	auto &entry = func->getEntryBlock();
 	tmp_builder.SetInsertPoint(&entry, entry.getFirstInsertionPt());
 	return {
-		ctx.get_pointer_type(type, is_const),
+		ctx.get_pointer_type(type->deref(), is_const),
 		tmp_builder.CreateAlloca(type->get_llvm(), 0, nullptr)
 	};
 }
