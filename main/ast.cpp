@@ -108,7 +108,8 @@ Value UnaryOpNode::codegen(Codegen &g) const {
 				};
 			else unary_op_fail(value, op);
 			break;
-		default: break;
+		default:
+			break;
 	}
 	value = value.deref(g);
 	auto type = value.get_type();
@@ -410,7 +411,8 @@ inline bool can_cast_to(const Value &value, Type *type) {
 }
 
 Value CallNode::codegen(Codegen &g) const {
-	auto receiver = receiver_node? receiver_node->codegen(g): Value();
+	std::optional<Value> receiver;
+	if (receiver_node) receiver = receiver_node->codegen(g);
 	std::vector<Value> arguments(argument_nodes.size());
 	for (size_t i = 0; i < arguments.size(); ++i)
 		arguments[i] = argument_nodes[i]->codegen(g);
@@ -426,7 +428,7 @@ Value CallNode::codegen(Codegen &g) const {
 			auto parameter_types = function_type->get_parameter_types();
 			if ((receiver_type == nullptr) != (receiver_node == nullptr)) continue;
 			if (arguments.size() != parameter_types.size()) continue;
-			if (!can_cast_to(receiver, receiver_type)) continue;
+			if (receiver_type && !can_cast_to(*receiver, receiver_type)) continue;
 			bool arguments_match = true;
 			for (size_t i = 0; i < arguments.size(); ++i)
 				if (!can_cast_to(arguments[i], parameter_types[i])) {
@@ -444,7 +446,7 @@ Value CallNode::codegen(Codegen &g) const {
 		}
 	if (matching_function == nullptr)
 		throw CodegenException("No matching function for calling");
-	if (g.is_const_eval() && !matching_function->is_const_evaluated())
+	if (g.is_const_eval() && !matching_function->is_const_eval())
 		not_const_evaluated(this);
 	return matching_function->invoke(g, receiver, arguments);
 }

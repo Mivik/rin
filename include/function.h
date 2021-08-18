@@ -27,7 +27,7 @@ public:
 		const std::vector<Value> &args
 	) const = 0;
 
-	[[nodiscard]] virtual bool is_const_evaluated() const = 0;
+	[[nodiscard]] virtual bool is_const_eval() const = 0;
 
 	[[nodiscard]] Type::Function *get_type() const { return type; }
 
@@ -59,7 +59,7 @@ public:
 	}
 
 	// TODO is it?
-	[[nodiscard]] bool is_const_evaluated() const override { return true; }
+	[[nodiscard]] bool is_const_eval() const override { return true; }
 
 private:
 	FuncType function;
@@ -70,7 +70,7 @@ public:
 	explicit Static(Value func, bool const_evaluated):
 		Function(dynamic_cast<Type::Function *>(func.get_type())),
 		llvm(func.get_llvm_value()),
-		const_evaluated(const_evaluated) {}
+		const_eval(const_evaluated) {}
 
 	Value invoke(
 		Codegen &g,
@@ -78,10 +78,10 @@ public:
 		const std::vector<Value> &args
 	) const override;
 
-	[[nodiscard]] bool is_const_evaluated() const override { return const_evaluated; }
+	[[nodiscard]] bool is_const_eval() const override { return const_eval; }
 private:
 	llvm::Value *llvm;
-	bool const_evaluated;
+	bool const_eval;
 };
 
 } // namespace rin

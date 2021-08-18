@@ -38,13 +38,20 @@ TEST(parser, basic) {
 	return x;
 })").take_function()->codegen(g, false);*/
 	Parser(R"(
+fn add(x: i32, y: i32): i32 {
+	return x + y;
+}
+)").take_function()->codegen(g);
+	Parser(R"(
+fn inc(x: &i32, y: i32): &i32 {
+	x += y;
+	return x;
+}
+)").take_function()->codegen(g);
+	Parser(R"(
 fn main(): i32 {
 	var x: i32 = 5;
-	var y: &i32 = x;
-	var z: *i32 = &y;
-	y = 4;
-	z = &x;
-	*z = 28;
+	inc(inc(x, 2), 1);
 	return x;
 })").take_function()->codegen(g);
 	auto module = g.finalize();
