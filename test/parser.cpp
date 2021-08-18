@@ -41,7 +41,10 @@ TEST(parser, basic) {
 fn main(): i32 {
 	var x: i32 = 5;
 	var y: &i32 = x;
+	var z: *i32 = &y;
 	y = 4;
+	z = &x;
+	*z = 28;
 	return x;
 })").take_function()->codegen(g, false);
 	auto module = g.finalize();

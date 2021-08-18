@@ -82,19 +82,34 @@ Value UnaryOpNode::codegen(Codegen &g, bool const_eval) const {
 	auto value = value_node->codegen(g, const_eval);
 	// TODO remove this
 	assert(!const_eval || value.is_constant());
-	value = value.deref(g);
-	if (value.is_type_value()) {
-		// TODO const pointer/reference
-		// TODO array type
-		switch (op) {
-			case K::Pointer:
+	// TODO const pointer/reference
+	// TODO array type
+	switch (op) {
+		case K::Pointer:
+			if (value.is_type_value())
 				return Value(g.get_context().get_pointer_type(value.get_type_value()));
-			case K::Ref:
+			else {
+				auto v = value.deref(g);
+				if (auto ptr_type = dynamic_cast<Type::Pointer *>(v.get_type()))
+					return {
+						g.get_context().get_ref_type(ptr_type->get_sub_type(), ptr_type->is_const()),
+						v.get_llvm_value()
+					};
+				else unary_op_fail(value, op);
+			}
+			break;
+		case K::Ref:
+			if (value.is_type_value())
 				return Value(g.get_context().get_ref_type(value.get_type_value()));
-			default:
-				unary_op_fail(value, op);
-		}
+			else if (auto ref_type = dynamic_cast<Type::Ref *>(value.get_type()))
+				return {
+					g.get_context().get_pointer_type(ref_type->get_sub_type(), ref_type->is_const()),
+					value.get_llvm_value()
+				};
+			else unary_op_fail(value, op);
+			break;
 	}
+	value = value.deref(g);
 	auto type = value.get_type();
 	if (dynamic_cast<Type::Real *>(type)) {
 		switch (op) {
@@ -353,6 +368,7 @@ Value BinOpNode::codegen(Codegen &g, bool const_eval) const {
 
 Value VarDeclNode::codegen(Codegen &g, bool const_eval) const {
 	// TODO const eval here?
+	// TODO val & var reference
 	auto cast_if_needed = [&](Value value) {
 		if (type_node) {
 			auto type = type_node->codegen(g).get_type_value();
