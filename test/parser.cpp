@@ -46,7 +46,7 @@ fn main(): i32 {
 	z = &x;
 	*z = 28;
 	return x;
-})").take_function()->codegen(g, false);
+})").take_function()->codegen(g);
 	auto module = g.finalize();
 	module->print(llvm::errs(), nullptr);
 }

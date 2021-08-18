@@ -18,13 +18,13 @@ public:
 
 	[[nodiscard]] virtual bool has_return() const { return false; }
 	// TODO move const_eval to codegen?
-	virtual Value codegen(Codegen &g, bool const_eval = false) const = 0;
+	virtual Value codegen(Codegen &g) const = 0;
 
 	[[nodiscard]] SourceRange get_source_range() const { return range; }
 };
 
 #define OVERRIDE \
-    Value codegen(Codegen &g, bool const_eval = false) const override;
+    Value codegen(Codegen &g) const override;
 
 class ConstantNode final : public ASTNode {
 public:
@@ -86,7 +86,7 @@ private:
 
 class VarDeclNode : public ASTNode {
 public:
-	enum class Type: uint8_t {
+	enum class Type : uint8_t {
 		VAR, VAL, CONST
 	};
 

@@ -26,6 +26,9 @@ public:
 	[[nodiscard]] Context &get_context() const { return ctx; }
 	[[nodiscard]] llvm::LLVMContext &get_llvm_context() const { return ctx.get_llvm(); }
 	[[nodiscard]] llvm::Module *get_module() const { return module.get(); }
+	[[nodiscard]] bool is_const_eval() const { return const_eval_depth; }
+	void push_const_eval() { ++const_eval_depth; }
+	void pop_const_eval() { --const_eval_depth; }
 	Function::Static *get_function() const { return layers.back().function; }
 	llvm::IRBuilder<> *get_builder() const { return layers.back().builder.get(); }
 
@@ -77,6 +80,7 @@ private:
 	std::vector<Layer> layers;
 	LayerMap<std::string, Value> value_map;
 	LayerMap<std::string, std::vector<Ptr<Function>>> function_map;
+	uint32_t const_eval_depth;
 };
 
 } // namespace rin

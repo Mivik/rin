@@ -24,8 +24,7 @@ public:
 	virtual Value invoke(
 		Codegen &ctx,
 		std::optional<Value> receiver,
-		const std::vector<Value> &args,
-		bool const_eval = false
+		const std::vector<Value> &args
 	) const = 0;
 
 	[[nodiscard]] virtual bool is_const_evaluated() const = 0;
@@ -54,8 +53,7 @@ public:
 	Value invoke(
 		Codegen &g,
 		std::optional<Value> receiver,
-		const std::vector<Value> &args,
-		bool
+		const std::vector<Value> &args
 	) const override {
 		return function(g, receiver, args);
 	}
@@ -77,8 +75,7 @@ public:
 	Value invoke(
 		Codegen &g,
 		std::optional<Value> receiver,
-		const std::vector<Value> &args,
-		bool const_eval
+		const std::vector<Value> &args
 	) const override;
 
 	[[nodiscard]] bool is_const_evaluated() const override { return const_evaluated; }
