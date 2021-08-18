@@ -353,19 +353,31 @@ Value BinOpNode::codegen(Codegen &g, bool const_eval) const {
 
 Value VarDeclNode::codegen(Codegen &g, bool const_eval) const {
 	// TODO const eval here?
+	auto cast_if_needed = [&](Value value) {
+		if (type_node) {
+			auto type = type_node->codegen(g).get_type_value();
+			if (auto opt = value.cast_to(g, type))
+				return *opt;
+			else
+				throw CodegenException(
+					"Cannot initialize a variable of type " + type->to_string() +
+					"with a value of type " + value.get_type()->to_string()
+				);
+		}
+		return value;
+	};
 	if (var_type == Type::CONST) {
-		auto value = value_node->codegen(g, true);
-		// TODO error message
-		if (type_node)
-			value = value.cast_to(g, type_node->codegen(g).get_type_value()).value();
+		auto value = cast_if_needed(value_node->codegen(g, true));
 		g.declare_value(name, value);
 		return g.get_context().get_void();
 	}
 	Value ptr;
 	if (value_node) {
-		auto value = value_node->codegen(g, const_eval);
-		if (type_node)
-			value = value.cast_to(g, type_node->codegen(g).get_type_value()).value();
+		auto value = cast_if_needed(value_node->codegen(g, const_eval));
+		if (dynamic_cast<rin::Type::Ref *>(value.get_type())) {
+			g.declare_value(name, value);
+			return g.get_context().get_void();
+		}
 		ptr = g.allocate_stack(value.get_type(), value, var_type == Type::VAL);
 	} else
 		ptr = g.allocate_stack(type_node->codegen(g).get_type_value(), var_type == Type::VAL);
@@ -462,7 +474,7 @@ Value ReturnNode::codegen(Codegen &g, bool const_eval) const {
 }
 
 Value FunctionNode::codegen(Codegen &g, bool const_eval) const {
-	auto type = dynamic_cast<Type::Function*>(type_node->codegen(g, true).get_type_value());
+	auto type = dynamic_cast<Type::Function *>(type_node->codegen(g, true).get_type_value());
 	auto llvm = llvm::Function::Create(
 		llvm::dyn_cast<llvm::FunctionType>(
 			type->get_llvm()

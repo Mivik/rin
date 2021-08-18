@@ -24,7 +24,7 @@ TEST(parser, basic) {
 	expect_int(eval("2147483647U + 1U"), 2147483648U);
 	expect_int(eval("-2 + 5"), 3);
 	EXPECT_THROW(eval("1 + )"), ParseException);
-	Parser(R"(fn main(): i32 {
+	/*Parser(R"(fn main(): i32 {
 	const int = i32;
 	var x: int = 5;
 	var y: int = 6;
@@ -36,10 +36,16 @@ TEST(parser, basic) {
 		x = 2;
 	}
 	return x;
+})").take_function()->codegen(g, false);*/
+	Parser(R"(
+fn main(): i32 {
+	var x: i32 = 5;
+	var y: &i32 = x;
+	y = 4;
+	return x;
 })").take_function()->codegen(g, false);
 	auto module = g.finalize();
 	module->print(llvm::errs(), nullptr);
-
 }
 
 } // namespace rin

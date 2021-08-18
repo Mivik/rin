@@ -26,7 +26,7 @@ inline K as_unary_op(K kind) {
 			return K::USub;
 		case K::Mul:
 			return K::Pointer;
-		case K::LAnd:
+		case K::And:
 			return K::Ref;
 		default:
 			return kind;

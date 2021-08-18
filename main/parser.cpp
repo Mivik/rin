@@ -57,8 +57,14 @@ Ptr<ASTNode> Parser::take_prim() {
 				std::move(else_body)
 			);
 		}
-		default:
-			throw ParseException("Unsupported token type: " + token_kind::name(token.kind));
+		default: {
+			token.kind = token_kind::as_unary_op(token.kind);
+			if (token_kind::is_unary_op(token.kind)) {
+				lexer.take();
+				return std::make_unique<UnaryOpNode>(take_prim(), token);
+			}
+			return nullptr;
+		}
 	}
 }
 
