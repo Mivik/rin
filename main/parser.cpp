@@ -303,4 +303,19 @@ Ptr<ASTNode> Parser::take_stmt() {
 	}
 }
 
+Ptr<DeclNode> Parser::take_decl() {
+	return take_function();
+}
+
+Ptr<TopLevelNode> Parser::take_top_level() {
+	const auto begin = lexer.position();
+	std::vector<Ptr<DeclNode>> children;
+	while (lexer.peek().kind != K::Eof)
+		children.push_back(take_decl());
+	return std::make_unique<TopLevelNode>(
+		SourceRange(begin, lexer.position()),
+		std::move(children)
+	);
+}
+
 } // namespace rin

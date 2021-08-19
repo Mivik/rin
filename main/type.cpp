@@ -95,9 +95,11 @@ Type::Function::Function(
 	param_types(param_types) {}
 
 std::string Type::Function::to_string(const std::string &name) const {
-	std::string ret;
+	std::string ret = "fn ";
 	if (receiver_type) {
+		ret += '[';
 		ret += receiver_type->to_string();
+		ret += ']';
 		ret += '.';
 	}
 	ret += name;
@@ -108,7 +110,7 @@ std::string Type::Function::to_string(const std::string &name) const {
 	}
 	ret += ')';
 	if (!dynamic_cast<Type::Void *>(result_type)) {
-		ret += " -> ";
+		ret += ": ";
 		ret += result_type->to_string();
 	}
 	return ret;

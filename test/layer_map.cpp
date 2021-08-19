@@ -7,6 +7,7 @@ namespace rin {
 
 TEST(layer_map, basic) {
 	LayerMap<int, int> mp;
+	mp.add_layer();
 	mp.set(0, 1);
 	mp.set(2, 3);
 	mp.add_layer();

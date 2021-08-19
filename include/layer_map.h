@@ -13,7 +13,7 @@ namespace rin {
 template<class K, class V>
 class LayerMap {
 public:
-	LayerMap() { add_layer(); }
+	LayerMap() = default;
 
 	[[nodiscard]] bool empty() const { return keys.empty(); }
 	[[nodiscard]] int get_depth() const { return keys.size(); }

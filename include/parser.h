@@ -28,6 +28,8 @@ public:
 	Ptr<ASTNode> take_stmt();
 	Ptr<BlockNode> take_block();
 	Ptr<FunctionNode> take_function();
+	Ptr<DeclNode> take_decl();
+	Ptr<TopLevelNode> take_top_level();
 private:
 	void expect_end_of_stmt() {
 		// TODO error message

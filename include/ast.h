@@ -183,29 +183,61 @@ private:
 	std::vector<std::string> param_names;
 };
 
+// Top-level declarations
+class DeclNode : public ASTNode {
+public:
+	// Called only once
+	virtual void declare(Codegen &g) = 0;
+protected:
+	explicit DeclNode(const SourceRange &range): ASTNode(range) {}
+};
+
+class TopLevelNode : public ASTNode {
+public:
+	TopLevelNode(
+		const SourceRange &range,
+		std::vector<Ptr<DeclNode>> children
+	): ASTNode(range),
+	   children(std::move(children)) {}
+
+	[[nodiscard]] const std::vector<Ptr<DeclNode>> &get_children() const { return children; }
+
+	OVERRIDE
+private:
+	std::vector<Ptr<DeclNode>> children;
+};
+
 // TODO generic function
-// TODO const-evaluated
-class FunctionNode : public ASTNode {
+// TODO const-evaluate
+class FunctionNode : public DeclNode {
 public:
 	FunctionNode(
 		const SourceRange &range,
 		std::string name,
 		Ptr<FunctionTypeNode> type_node,
 		Ptr<BlockNode> body_node
-	): ASTNode(range),
+	): DeclNode(range),
 	   name(std::move(name)),
 	   type_node(std::move(type_node)),
-	   body_node(std::move(body_node)) {}
+	   body_node(std::move(body_node)),
+	   function_object(nullptr),
+	   type(nullptr) {}
 
 	[[nodiscard]] const std::string &get_name() const { return name; }
 	[[nodiscard]] const ASTNode *get_type_node() const { return type_node.get(); }
 	[[nodiscard]] const BlockNode *get_body_node() const { return body_node.get(); }
 
 	OVERRIDE
+
+	virtual void declare(Codegen &g);
 private:
 	std::string name;
 	Ptr<FunctionTypeNode> type_node;
 	Ptr<BlockNode> body_node;
+
+	// Initialize at declaration
+	Function::Static *function_object;
+	Type::Function *type;
 };
 
 class ReturnNode : public ASTNode {

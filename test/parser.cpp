@@ -24,36 +24,22 @@ TEST(parser, basic) {
 	expect_int(eval("2147483647U + 1U"), 2147483648U);
 	expect_int(eval("-2 + 5"), 3);
 	EXPECT_THROW(eval("1 + )"), ParseException);
-	/*Parser(R"(fn main(): i32 {
-	const int = i32;
-	var x: int = 5;
-	var y: int = 6;
-	x = x + y;
-	x -= 5;
-	if (x == 6) {
-		x = 23;
-	} else {
-		x = 2;
-	}
-	return x;
-})").take_function()->codegen(g, false);*/
-	Parser(R"(
-fn add(x: i32, y: i32): i32 {
-	return x + y;
-}
-)").take_function()->codegen(g);
-	Parser(R"(
-fn inc(x: &i32, y: i32): &i32 {
-	x += y;
-	return x;
-}
-)").take_function()->codegen(g);
 	Parser(R"(
 fn main(): i32 {
 	var x: i32 = 5;
 	inc(inc(x, 2), 1);
 	return x;
-})").take_function()->codegen(g);
+}
+
+fn add(x: i32, y: i32): i32 {
+	return x + y;
+}
+
+fn inc(x: &i32, y: i32): &i32 {
+	x += y;
+	return x;
+}
+)").take_top_level()->codegen(g);
 	auto module = g.finalize();
 	module->print(llvm::errs(), nullptr);
 }

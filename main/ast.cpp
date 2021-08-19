@@ -397,8 +397,12 @@ Value VarDeclNode::codegen(Codegen &g) const {
 			return g.get_context().get_void();
 		}
 		ptr = g.allocate_stack(value.get_type(), value, var_type == Type::VAL);
-	} else
-		ptr = g.allocate_stack(type_node->codegen(g).get_type_value(), var_type == Type::VAL);
+	} else {
+		auto type = type_node->codegen(g).get_type_value();
+		if (dynamic_cast<rin::Type::Ref *>(type))
+			throw CodegenException("Variable of reference type must be initialized at declaration");
+		ptr = g.allocate_stack(type, var_type == Type::VAL);
+	}
 	g.declare_value(name, ptr.pointer_subscript(g));
 	return g.get_context().get_void();
 }
@@ -480,8 +484,8 @@ Value ReturnNode::codegen(Codegen &g) const {
 	if (result_type == g.get_context().get_void_type()) {
 		if (value_node)
 			throw CodegenException(
-				"Returning a value in a void function: "
-				+ func_type->to_string()
+				"Returning a value in a void function: " +
+				func_type->to_string()
 			);
 		g.get_builder()->CreateRetVoid();
 	} else if (auto opt = value_node->codegen(g).cast_to(g, result_type)) {
@@ -491,8 +495,8 @@ Value ReturnNode::codegen(Codegen &g) const {
 	return g.get_context().get_void();
 }
 
-Value FunctionNode::codegen(Codegen &g) const {
-	auto type = dynamic_cast<Type::Function *>(type_node->codegen(g).get_type_value());
+void FunctionNode::declare(Codegen &g) {
+	type = dynamic_cast<Type::Function *>(type_node->codegen(g).get_type_value());
 	auto llvm = llvm::Function::Create(
 		llvm::dyn_cast<llvm::FunctionType>(
 			type->get_llvm()
@@ -502,10 +506,14 @@ Value FunctionNode::codegen(Codegen &g) const {
 		name,
 		g.get_module()
 	);
-	auto func = g.declare_function(
+	function_object = g.declare_function(
 		name,
 		std::make_unique<Function::Static>(Value(type, llvm), false)
 	);
+}
+
+Value FunctionNode::codegen(Codegen &g) const {
+	auto llvm = function_object->get_llvm_value();
 	g.add_layer(
 		std::make_unique<llvm::IRBuilder<>>(
 			llvm::BasicBlock::Create(
@@ -514,7 +522,7 @@ Value FunctionNode::codegen(Codegen &g) const {
 				llvm
 			)
 		),
-		func
+		function_object
 	);
 	std::vector<llvm::Value *> args;
 	for (auto &arg : llvm->args())
@@ -636,6 +644,12 @@ Value IfNode::codegen(Codegen &g) const {
 			return g.get_context().get_void();
 		}
 	}
+}
+
+Value TopLevelNode::codegen(Codegen &g) const {
+	for (auto &decl : children) decl->declare(g);
+	for (auto &decl : children) decl->codegen(g);
+	return g.get_context().get_void();
 }
 
 } // namespace rin

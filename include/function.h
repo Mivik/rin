@@ -69,7 +69,7 @@ class Function::Static final : public Function {
 public:
 	explicit Static(Value func, bool const_evaluated):
 		Function(dynamic_cast<Type::Function *>(func.get_type())),
-		llvm(func.get_llvm_value()),
+		llvm(llvm::dyn_cast<llvm::Function>(func.get_llvm_value())),
 		const_eval(const_evaluated) {}
 
 	Value invoke(
@@ -78,9 +78,10 @@ public:
 		const std::vector<Value> &args
 	) const override;
 
+	[[nodiscard]] llvm::Function* get_llvm_value() const { return llvm; }
 	[[nodiscard]] bool is_const_eval() const override { return const_eval; }
 private:
-	llvm::Value *llvm;
+	llvm::Function *llvm;
 	bool const_eval;
 };
 
