@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include <cassert>
 #include <cstdio>
 #include <deque>
 #include <string_view>
@@ -27,9 +28,12 @@ public:
 	[[nodiscard]] std::string_view substr(SourceRange range) const {
 		return buffer.substr(range.begin, range.end - range.begin);
 	}
+	[[nodiscard]] bool eof() const { return ptr == buffer.data() + buffer.size(); }
 	[[nodiscard]] size_t position() const { return ptr - buffer.data(); }
 	[[nodiscard]] char peek() const {
-		return (static_cast<size_t>(ptr - buffer.data()) >= buffer.size())? (char) EOF: *ptr;
+		if (eof())
+			throw LexException("Unexpected EOF");
+		return *ptr;
 	}
 	void rewind_to(size_t pos) { ptr = buffer.data() + pos; }
 	char take() {

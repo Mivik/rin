@@ -61,8 +61,8 @@ Token Lexer::take(bool ignore_comment) {
 }
 
 Token Lexer::lex() {
-	while (isspace(input.peek())) input.take();
-	if (input.peek() == EOF) return Token(TokenKind::Eof, SourceRange::make_empty());
+	while (!input.eof() && isspace(input.peek())) input.take();
+	if (input.eof()) return Token(TokenKind::Eof, SourceRange::make_empty());
 	const size_t begin = input.position();
 	auto range = [&]() { return SourceRange(begin, input.position()); };
 	auto token = [&](TokenKind kind) { return Token(kind, range()); };
@@ -76,8 +76,8 @@ Token Lexer::lex() {
 		case 'A' ... 'Z':
 		case '$':
 		case '_': {
-			while (true) {
-				char c = input.peek();
+			while (!input.eof()) {
+				const char c = input.peek();
 				if (isdigit(c) || isalpha(c) || c == '$' || c == '_') input.take();
 				else break;
 			}
@@ -86,47 +86,42 @@ Token Lexer::lex() {
 		case '0':
 			return token(TokenKind::Number); // TODO octal support
 		case '1' ... '9': { // currently integer only
-			while (true) {
-				if (isdigit(input.peek())) input.take();
-				else break;
-			}
+			while (!input.eof() && isdigit(input.peek())) input.take();
 			const char *illegal_suffix = "Integer with illegal suffix";
-			switch (tolower(input.take())) {
-				case 'u': {
-					if (tolower(input.peek()) == 'l') {
-						input.take();
-						if (tolower(input.take()) != 'l') error(illegal_suffix);
+			if (!input.eof())
+				switch (tolower(input.take())) {
+					case 'u': {
+						if (!input.eof() && tolower(input.peek()) == 'l') {
+							input.take();
+							if (tolower(input.take()) != 'l') error(illegal_suffix);
+						}
+						break;
 					}
-					break;
+					case 'l': {
+						if (!input.eof() && tolower(input.peek()) == 'l') input.take();
+						break;
+					}
+					default:
+						input.rewind();
+						break;
 				}
-				case 'l': {
-					if (tolower(input.peek()) == 'l') input.take();
-					break;
-				}
-				default:
-					input.rewind();
-					break;
-			}
 			return token(TokenKind::Number);
 		}
 		case '\'':
 		case '"': {
+			const char *unterminated = "Unterminated string";
 			while (true) {
-				switch (const char c = input.take()) {
-					case -1:
-						error("Unterminated string");
-					case '\\':
-						input.take();
-						break;
-					default:
-						if (st == c) return token(TokenKind::String);
-						break;
-				}
+				if (input.eof()) error(unterminated);
+				const char c = input.take();
+				if (c == '\\') {
+					if (input.eof()) error(unterminated);
+					input.take();
+				} else if (st == c) return token(TokenKind::String);
 			}
 		}
 #define bop(op, kind) \
     case op: { \
-        if (input.peek() == '=') { \
+        if (!input.eof() && input.peek() == '=') { \
             input.take(); \
             return token(TokenKind::kind##A); \
         } \
@@ -139,13 +134,15 @@ Token Lexer::lex() {
 #undef bop
 
 		case '-': {
-			if (input.peek() == '=') {
-				input.take();
-				return token(TokenKind::SubA);
-			}
-			if (input.peek() == '>') {
-				input.take();
-				return token(TokenKind::Arrow);
+			if (!input.eof()) {
+				if (input.peek() == '=') {
+					input.take();
+					return token(TokenKind::SubA);
+				}
+				if (input.peek() == '>') {
+					input.take();
+					return token(TokenKind::Arrow);
+				}
 			}
 			return token(TokenKind::Sub);
 		}
@@ -156,7 +153,7 @@ Token Lexer::lex() {
 			const bool right = st == '>';
 			const char c = input.take();
 			if (c == st) {
-				if (input.peek() == '=') {
+				if (!input.eof() && input.peek() == '=') {
 					input.take();
 					return token(right? TokenKind::ShrA: TokenKind::ShlA);
 				}
@@ -168,7 +165,7 @@ Token Lexer::lex() {
 			}
 		}
 		case '=': {
-			if (input.peek() == '=') {
+			if (!input.eof() && input.peek() == '=') {
 				input.take();
 				return token(TokenKind::Eq);
 			}
@@ -186,42 +183,39 @@ Token Lexer::lex() {
 			}
 		}
 		case '!': {
-			if (input.peek() == '=') {
+			if (!input.eof() && input.peek() == '=') {
 				input.take();
 				return token(TokenKind::Neq);
 			}
 			return token(TokenKind::LNot);
 		}
 		case '/': {
-			switch (input.take()) {
-				case '=':
-					return token(TokenKind::DivA);
-				case '/': {
-					while (true) {
-						const char c = input.take();
-						if (c == -1 || c == '\n') break;
+			if (!input.eof())
+				switch (input.take()) {
+					case '=':
+						return token(TokenKind::DivA);
+					case '/': {
+						while (!input.eof() && input.take() != '\n');
+						input.rewind();
+						return token(TokenKind::Comment);
 					}
-					input.rewind();
-					return token(TokenKind::Comment);
-				}
-				case '*': {
-					const char *unterminated = "Unterminated multiline comment";
-					while (true) {
-						const char c = input.take();
-						if (c == -1) error(unterminated);
-						if (c == '*') {
-							const char nxt = input.take();
-							if (nxt == '/') break;
-							if (nxt == -1) error(unterminated);
-							input.rewind();
+					case '*': {
+						const char *unterminated = "Unterminated multiline comment";
+						while (true) {
+							if (input.eof()) error(unterminated);
+							if (input.take() == '*') {
+								if (input.eof()) error(unterminated);
+								if (input.take() == '/') break;
+								input.rewind();
+							}
 						}
+						return token(TokenKind::MLComment);
 					}
-					return token(TokenKind::MLComment);
+					default:
+						break;
 				}
-				default:
-					input.rewind();
-					return token(TokenKind::Div);
-			}
+			input.rewind();
+			return token(TokenKind::Div);
 		}
 		case '(':
 			return token(TokenKind::LPar);
