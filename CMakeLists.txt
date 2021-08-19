@@ -17,11 +17,48 @@ llvm_map_components_to_libnames(llvm_libs
 	Support
 	Core
 	MCJIT
-	X86Codegen
+
+	AArch64AsmParser
+	AMDGPUAsmParser
+	ARMAsmParser
+	AsmParser
+	AVRAsmParser
+	BPFAsmParser
+	HexagonAsmParser
+	LanaiAsmParser
+	MCParser
+	MipsAsmParser
+	MIRParser
+	MSP430AsmParser
+	PowerPCAsmParser
+	RISCVAsmParser
+	SparcAsmParser
+	SystemZAsmParser
+	WebAssemblyAsmParser
 	X86AsmParser
+
+	AArch64CodeGen
+	AMDGPUCodeGen
+	ARMCodeGen
+	AVRCodeGen
+	BPFCodeGen
+	CodeGen
+	HexagonCodeGen
+	LanaiCodeGen
+	MipsCodeGen
+	MSP430CodeGen
+	NVPTXCodeGen
+	PowerPCCodeGen
+	RISCVCodeGen
+	SparcCodeGen
+	SystemZCodeGen
+	WebAssemblyCodeGen
+	X86CodeGen
+	XCoreCodeGen
 )
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 add_subdirectory(main)
 add_subdirectory(test)
+add_subdirectory(cli)
