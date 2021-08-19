@@ -28,7 +28,7 @@ public:
 	[[nodiscard]] std::string_view substr(SourceRange range) const {
 		return buffer.substr(range.begin, range.end - range.begin);
 	}
-	[[nodiscard]] bool eof() const { return ptr == buffer.data() + buffer.size(); }
+	[[nodiscard]] bool eof() const { return ptr >= buffer.data() + buffer.size(); }
 	[[nodiscard]] size_t position() const { return ptr - buffer.data(); }
 	[[nodiscard]] char peek() const {
 		if (eof())

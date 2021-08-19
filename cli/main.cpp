@@ -64,11 +64,12 @@ int main(int argc, char *argv[]) {
 	llvm::StringMap<bool, llvm::MallocAllocator> cpu_features_map;
 	llvm::sys::getHostCPUFeatures(cpu_features_map);
 	std::string cpu_features;
-	for (auto &entry : cpu_features_map)
-		if (entry.getValue()) {
-			cpu_features += entry.getKey();
-			cpu_features += ' ';
-		}
+	// TODO how does this work?
+//	for (auto &entry : cpu_features_map)
+//		if (entry.getValue()) {
+//			cpu_features += entry.getKey();
+//			cpu_features += ' ';
+//		}
 	if (!cpu_features.empty()) cpu_features.pop_back();
 	// TODO optimization level
 	target_machine = target->createTargetMachine(
