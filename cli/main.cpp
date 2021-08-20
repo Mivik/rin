@@ -1,6 +1,10 @@
 
 #include <fstream>
+#include <iostream>
 
+#include <boost/program_options.hpp>
+
+#include <llvm/Bitcode/BitcodeWriter.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/PassManager.h>
 #include <llvm/LinkAllPasses.h>
@@ -12,6 +16,8 @@
 #include <llvm/Target/TargetOptions.h>
 
 #include "parser.h"
+
+namespace po = boost::program_options;
 
 namespace rin::cli {
 
@@ -49,9 +55,45 @@ std::string read_file(const std::string &path) {
 	return ret;
 }
 
+std::optional<po::variables_map> parse_args(int argc, char *argv[]) {
+	po::options_description desc("Available options");
+	desc.add_options()
+		("help", "produce help message")
+		(
+			"format,f",
+			po::value<std::string>()->default_value("object"),
+			"specify the output format (object, ir, bitcode)"
+		)
+		("input-file", po::value<std::string>(), "set input file")
+		("output-file,o", po::value<std::string>(), "set output file");
+
+	po::positional_options_description pos;
+	pos.add("input-file", 1);
+
+	po::variables_map vm;
+	po::store(
+		po::command_line_parser(argc, argv)
+			.options(desc)
+			.positional(pos).run(),
+		vm
+	);
+	po::notify(vm);
+
+	if (vm.count("help")) {
+		std::cout << desc << '\n';
+		return std::nullopt;
+	}
+
+	if (!vm.count("input-file"))
+		throw std::runtime_error("Input file must be provided");
+
+	return vm;
+}
+
 int main(int argc, char *argv[]) {
-	if (argc < 2)
-		throw std::runtime_error("Too less arguments!");
+	auto opt = parse_args(argc, argv);
+	if (!opt) return 0;
+	auto vm = *opt;
 
 	initialize();
 	std::string error_msg;
@@ -64,12 +106,12 @@ int main(int argc, char *argv[]) {
 	llvm::StringMap<bool, llvm::MallocAllocator> cpu_features_map;
 	llvm::sys::getHostCPUFeatures(cpu_features_map);
 	std::string cpu_features;
-	// TODO how does this work?
-//	for (auto &entry : cpu_features_map)
-//		if (entry.getValue()) {
-//			cpu_features += entry.getKey();
-//			cpu_features += ' ';
-//		}
+	for (auto &entry : cpu_features_map)
+		if (entry.getValue()) {
+			cpu_features += '+';
+			cpu_features += entry.getKey();
+			cpu_features += ',';
+		}
 	if (!cpu_features.empty()) cpu_features.pop_back();
 	// TODO optimization level
 	target_machine = target->createTargetMachine(
@@ -80,23 +122,52 @@ int main(int argc, char *argv[]) {
 		llvm::Optional<llvm::Reloc::Model>()
 	);
 
+	auto input_file = vm["input-file"].as<std::string>();
+
 	Context ctx;
 	Codegen g(ctx);
-	Parser parser(read_file(argv[1]));
+	auto code = read_file(input_file);
+	Parser parser(code);
 	auto top_level = parser.take_top_level();
 	top_level->codegen(g);
 	auto module = g.finalize();
 
-	std::error_code error_code;
-	llvm::raw_fd_ostream dest("output.o", error_code, llvm::sys::fs::OpenFlags::OF_None);
-
 	llvm::legacy::PassManager pass;
 	add_default_passes(pass);
-	if (target_machine->addPassesToEmitFile(pass, dest, nullptr, llvm::CGFT_ObjectFile))
-		throw std::runtime_error("Failed to emit object file");
 
-	pass.run(*module);
+	auto format = vm["format"].as<std::string>();
+
+	std::string output_suffix;
+	if (format == "object") output_suffix = ".o";
+	else if (format == "bitcode") output_suffix = ".bc";
+	else if (format == "ir") output_suffix = ".ir";
+	else throw std::runtime_error("Unrecognized output format: " + format);
+
+	std::string output_file;
+	{
+		auto iter = vm.find("output-file");
+		if (iter == vm.end()) {
+			auto index = input_file.find_last_of('.');
+			if (index == std::string::npos) index = input_file.size();
+			output_file = input_file.substr(0, index) + output_suffix;
+		} else output_file = iter->second.as<std::string>();
+	}
+
+	std::error_code error_code;
+
+	llvm::raw_fd_ostream dest(output_file, error_code, llvm::sys::fs::OpenFlags::OF_None);
+	if (format == "object") {
+		if (target_machine->addPassesToEmitFile(pass, dest, nullptr, llvm::CGFT_ObjectFile))
+			throw std::runtime_error("Failed to emit object file");
+		pass.run(*module);
+	} else if (format == "bitcode") {
+		llvm::WriteBitcodeToFile(*module, dest);
+	} else if (format == "ir") {
+		module->print(dest, nullptr);
+	}
+
 	dest.flush();
+
 	return 0;
 }
 

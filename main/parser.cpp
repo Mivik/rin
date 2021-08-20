@@ -28,7 +28,7 @@ Ptr<ASTNode> Parser::take_prim() {
 			if (lexer.peek().kind == K::LPar) {
 				std::vector<Ptr<ASTNode>> args;
 				process_list(K::LPar, K::RPar, K::Comma, [&]() {
-					args.push_back(std::move(take_expr()));
+					args.push_back(take_expr());
 				});
 				return std::make_unique<CallNode>(
 					SourceRange(begin, lexer.position()),
@@ -171,7 +171,7 @@ Ptr<BlockNode> Parser::take_block() {
 	expect(lexer.take(), K::LBrace);
 	std::vector<Ptr<ASTNode>> stmts;
 	while (lexer.peek().kind != K::RBrace)
-		stmts.push_back(std::move(take_stmt()));
+		stmts.push_back(take_stmt());
 	lexer.take();
 	return std::make_unique<BlockNode>(
 		SourceRange(begin, lexer.position()),
