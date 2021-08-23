@@ -13,6 +13,8 @@ add_definitions(${LLVM_DEFINITIONS})
 include_directories(${LLVM_INCLUDE_DIRS})
 link_directories(${LLVM_LIBRARY_DIRS})
 
+message(ERROR ${LLVM_LIBRARY_DIRS})
+
 llvm_map_components_to_libnames(llvm_libs
 	Support
 	Core

@@ -47,8 +47,8 @@ inline std::vector<Token> tokens(const char *str) {
 
 inline constexpr const char *KEYWORDS[] = {
 	"const", "do", "else", "enum", "false", "true",
-	"fn", "for", "if", "return", "true", "var", "val",
-	"when", "while"
+	"fn", "for", "if", "return", "struct", "true",
+	"var", "val", "when", "while"
 };
 
 #define K TokenKind
@@ -80,6 +80,7 @@ TEST(lexer, operator) {
 #define TOKEN_BINARY_OP(name) K::name,
 
 #include "token.def"
+
 		K::Not, K::LNot
 	};
 	EXPECT_TRUE(tokens_eq(

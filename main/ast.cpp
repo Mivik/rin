@@ -455,6 +455,20 @@ Value CallNode::codegen(Codegen &g) const {
 	return matching_function->invoke(g, receiver, arguments);
 }
 
+Value StructNode::codegen(Codegen &g) const {
+	const size_t count = field_names.size();
+	std::vector<Type::Struct::FieldInfo> fields;
+	fields.reserve(count);
+	for (size_t i = 0; i < count; ++i)
+		fields.push_back(
+			{
+				field_names[i],
+				field_types[i]->codegen(g).get_type_value()
+			}
+		);
+	return Value(g.get_context().get_struct_type(fields));
+}
+
 Value BlockNode::codegen(Codegen &g) const {
 	Value last = g.get_context().get_void();
 	for (const auto &stmt : stmts) last = stmt->codegen(g);

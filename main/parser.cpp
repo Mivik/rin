@@ -57,6 +57,24 @@ Ptr<ASTNode> Parser::take_prim() {
 				std::move(else_body)
 			);
 		}
+		case K::Struct: {
+			lexer.take();
+			std::vector<std::string> field_names;
+			std::vector<Ptr<ASTNode>> field_types;
+			process_list(K::LBrace, K::RBrace, K::Comma, [&]() {
+				field_names.emplace_back(
+					expect(lexer.take(), K::Identifier)
+						.content(get_buffer())
+				);
+				expect(lexer.take(), K::Colon);
+				field_types.push_back(take_expr());
+			});
+			return std::make_unique<StructNode>(
+				SourceRange(begin, lexer.position()),
+				std::move(field_names),
+				std::move(field_types)
+			);
+		}
 		default: {
 			token.kind = token_kind::as_unary_op(token.kind);
 			if (token_kind::is_unary_op(token.kind)) {

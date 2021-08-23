@@ -183,6 +183,27 @@ private:
 	std::vector<std::string> param_names;
 };
 
+class StructNode : public ASTNode {
+public:
+	StructNode(
+		const SourceRange &range,
+		std::vector<std::string> field_names,
+		std::vector<Ptr<ASTNode>> field_types
+	): ASTNode(range),
+	   field_names(std::move(field_names)),
+	   field_types(std::move(field_types)) {
+		assert(this->field_names.size() == this->field_types.size());
+	}
+
+	[[nodiscard]] const std::vector<std::string> &get_field_names() const { return field_names; }
+	[[nodiscard]] const std::vector<Ptr<ASTNode>> &get_field_types() const { return field_types; }
+
+	OVERRIDE
+private:
+	std::vector<std::string> field_names;
+	std::vector<Ptr<ASTNode>> field_types;
+};
+
 // Top-level declarations
 class DeclNode : public ASTNode {
 public:

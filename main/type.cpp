@@ -45,15 +45,18 @@ Type::Ref::Ref(Type *sub_type, bool const_flag):
 		throw std::runtime_error("Cannot create a reference to a reference: " + sub_type->to_string());
 }
 
-inline llvm::ArrayRef<llvm::Type *> make_llvm_types(const std::vector<Type::Struct::FieldInfo> &fields) {
-	llvm::OwningArrayRef<llvm::Type *> ret(fields.size());
-	for (size_t i = 0; i < ret.size(); ++i)
-		ret[i] = fields[i].type->get_llvm();
-	return std::move(ret);
+inline llvm::Type *make_struct_type(
+	Context *ctx,
+	const std::vector<Type::Struct::FieldInfo> &fields
+) {
+	llvm::OwningArrayRef<llvm::Type *> arr(fields.size());
+	for (size_t i = 0; i < arr.size(); ++i)
+		arr[i] = fields[i].type->get_llvm();
+	return llvm::StructType::create(ctx->get_llvm(), arr);
 }
 
 Type::Struct::Struct(Context *ctx, std::vector<FieldInfo> fields):
-	Type(llvm::StructType::get(ctx->get_llvm(), make_llvm_types(fields))),
+	Type(make_struct_type(ctx, fields)),
 	fields(std::move(fields)) {}
 
 std::string Type::Struct::to_string() const {

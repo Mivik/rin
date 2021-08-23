@@ -23,9 +23,10 @@ inline TokenKind word_kind(std::string_view str) {
 		CASE("for", For)
 		CASE("if", If)
 		CASE("return", Return)
+		CASE("struct", Struct)
 		CASE("true", True)
-		CASE("var", Var)
 		CASE("val", Val)
+		CASE("var", Var)
 		CASE("when", When)
 		CASE("while", While)
 	}
