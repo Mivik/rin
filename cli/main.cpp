@@ -10,7 +10,7 @@
 
 namespace rin::cli {
 
-enum class OutputFormat: uint8_t {
+enum class OutputFormat : uint8_t {
 	BITCODE,
 	IR,
 	OBJECT,
@@ -65,7 +65,7 @@ std::optional<int> parse_args(Config &c, int argc, char *argv[]) {
 	args::ArgumentParser parser(
 		"This is the compiler for rin programming language.",
 		"For more information, visit https://github.com/Mivik/rin. Reporting issues is welcome."
-		);
+	);
 	args::HelpFlag help(parser, "help", "Display this help menu", { 'h', "help" });
 	args::MapFlag<std::string, OutputFormat> output_format(
 		parser,
@@ -102,9 +102,15 @@ std::optional<int> parse_args(Config &c, int argc, char *argv[]) {
 	else {
 		std::string output_suffix;
 		switch (c.format) {
-			case OutputFormat::BITCODE: output_suffix = ".bc"; break;
-			case OutputFormat::IR: output_suffix = ".ir"; break;
-			case OutputFormat::OBJECT: output_suffix = ".o"; break;
+			case OutputFormat::BITCODE:
+				output_suffix = ".bc";
+				break;
+			case OutputFormat::IR:
+				output_suffix = ".ir";
+				break;
+			case OutputFormat::OBJECT:
+				output_suffix = ".o";
+				break;
 		}
 
 		auto index = c.input_file.find_last_of('.');
