@@ -2,24 +2,24 @@
 #include <fstream>
 #include <iostream>
 
-#include <boost/program_options.hpp>
+#include "llvm_stuff.h"
 
-#include <llvm/Bitcode/BitcodeWriter.h>
-#include <llvm/IR/LegacyPassManager.h>
-#include <llvm/IR/PassManager.h>
-#include <llvm/LinkAllPasses.h>
-#include <llvm/Support/FileSystem.h>
-#include <llvm/Support/Host.h>
-#include <llvm/Support/TargetRegistry.h>
-#include <llvm/Support/TargetSelect.h>
-#include <llvm/Target/TargetMachine.h>
-#include <llvm/Target/TargetOptions.h>
+#include "args.hxx"
 
 #include "parser.h"
 
-namespace po = boost::program_options;
-
 namespace rin::cli {
+
+enum class OutputFormat: uint8_t {
+	BITCODE,
+	IR,
+	OBJECT,
+};
+
+struct Config {
+	OutputFormat format = OutputFormat::OBJECT;
+	std::string input_file, output_file;
+};
 
 static const llvm::Target *target;
 static llvm::TargetMachine *target_machine;
@@ -55,45 +55,70 @@ std::string read_file(const std::string &path) {
 	return ret;
 }
 
-std::optional<po::variables_map> parse_args(int argc, char *argv[]) {
-	po::options_description desc("Available options");
-	desc.add_options()
-		("help", "produce help message")
-		(
-			"format,f",
-			po::value<std::string>()->default_value("object"),
-			"specify the output format (object, ir, bitcode)"
-		)
-		("input-file", po::value<std::string>(), "set input file")
-		("output-file,o", po::value<std::string>(), "set output file");
+std::optional<int> parse_args(Config &c, int argc, char *argv[]) {
+	std::unordered_map<std::string, OutputFormat> map{
+		{ "bitcode", OutputFormat::BITCODE },
+		{ "ir",      OutputFormat::IR },
+		{ "object",  OutputFormat::OBJECT },
+	};
 
-	po::positional_options_description pos;
-	pos.add("input-file", 1);
-
-	po::variables_map vm;
-	po::store(
-		po::command_line_parser(argc, argv)
-			.options(desc)
-			.positional(pos).run(),
-		vm
+	args::ArgumentParser parser(
+		"This is the compiler for rin programming language.",
+		"For more information, visit https://github.com/Mivik/rin. Reporting issues is welcome."
+		);
+	args::HelpFlag help(parser, "help", "Display this help menu", { 'h', "help" });
+	args::MapFlag<std::string, OutputFormat> output_format(
+		parser,
+		"format",
+		"Specific the output format",
+		{ 'f', "format" },
+		map, OutputFormat::OBJECT
 	);
-	po::notify(vm);
-
-	if (vm.count("help")) {
-		std::cout << desc << '\n';
-		return std::nullopt;
+	args::Positional<std::string> input_file(parser, "input-file", "The input source file");
+	args::Positional<std::string> output_file(parser, "output-file", "The output file");
+	try {
+		parser.ParseCLI(argc, argv);
+	} catch (const args::Help &) {
+		std::cout << parser;
+		return 0;
+	} catch (const args::ParseError &e) {
+		std::cerr << e.what() << std::endl;
+		std::cerr << parser;
+		return -1;
+	}
+	catch (const args::ValidationError &e) {
+		std::cerr << e.what() << std::endl;
+		std::cerr << parser;
+		return -1;
 	}
 
-	if (!vm.count("input-file"))
-		throw std::runtime_error("Input file must be provided");
+	c.format = args::get(output_format);
 
-	return vm;
+	if (!input_file)
+		throw std::runtime_error("Input file must be provided");
+	c.input_file = args::get(input_file);
+
+	if (output_file) c.output_file = args::get(output_file);
+	else {
+		std::string output_suffix;
+		switch (c.format) {
+			case OutputFormat::BITCODE: output_suffix = ".bc"; break;
+			case OutputFormat::IR: output_suffix = ".ir"; break;
+			case OutputFormat::OBJECT: output_suffix = ".o"; break;
+		}
+
+		auto index = c.input_file.find_last_of('.');
+		if (index == std::string::npos) index = c.input_file.size();
+		c.output_file = c.input_file.substr(0, index) + output_suffix;
+	}
+
+	return std::nullopt;
 }
 
 int main(int argc, char *argv[]) {
-	auto opt = parse_args(argc, argv);
-	if (!opt) return 0;
-	auto vm = *opt;
+	Config config;
+	if (auto result = parse_args(config, argc, argv))
+		return *result;
 
 	initialize();
 	std::string error_msg;
@@ -122,11 +147,9 @@ int main(int argc, char *argv[]) {
 		llvm::Optional<llvm::Reloc::Model>()
 	);
 
-	auto input_file = vm["input-file"].as<std::string>();
-
 	Context ctx;
 	Codegen g(ctx);
-	auto code = read_file(input_file);
+	auto code = read_file(config.input_file);
 	Parser parser(code);
 	auto top_level = parser.take_top_level();
 	top_level->codegen(g);
@@ -135,39 +158,26 @@ int main(int argc, char *argv[]) {
 	llvm::legacy::PassManager pass;
 	add_default_passes(pass);
 
-	auto format = vm["format"].as<std::string>();
-
-	std::string output_suffix;
-	if (format == "object") output_suffix = ".o";
-	else if (format == "bitcode") output_suffix = ".bc";
-	else if (format == "ir") output_suffix = ".ir";
-	else throw std::runtime_error("Unrecognized output format: " + format);
-
-	std::string output_file;
-	{
-		auto iter = vm.find("output-file");
-		if (iter == vm.end()) {
-			auto index = input_file.find_last_of('.');
-			if (index == std::string::npos) index = input_file.size();
-			output_file = input_file.substr(0, index) + output_suffix;
-		} else output_file = iter->second.as<std::string>();
-	}
-
 	std::error_code error_code;
 
-	llvm::raw_fd_ostream dest(output_file, error_code, llvm::sys::fs::OpenFlags::OF_None);
-	if (format == "object") {
-		if (target_machine->addPassesToEmitFile(pass, dest, nullptr, llvm::CGFT_ObjectFile))
-			throw std::runtime_error("Failed to emit object file");
-		pass.run(*module);
-	} else if (format == "bitcode") {
-		llvm::WriteBitcodeToFile(*module, dest);
-	} else if (format == "ir") {
-		module->print(dest, nullptr);
+	llvm::raw_fd_ostream dest(config.output_file, error_code, llvm::sys::fs::OpenFlags::OF_None);
+	switch (config.format) {
+		case OutputFormat::BITCODE: {
+			llvm::WriteBitcodeToFile(*module, dest);
+			break;
+		}
+		case OutputFormat::IR: {
+			module->print(dest, nullptr);
+			break;
+		}
+		case OutputFormat::OBJECT: {
+			if (target_machine->addPassesToEmitFile(pass, dest, nullptr, llvm::CGFT_ObjectFile))
+				throw std::runtime_error("Failed to emit object file");
+			pass.run(*module);
+			break;
+		}
 	}
-
 	dest.flush();
-
 	return 0;
 }
 
