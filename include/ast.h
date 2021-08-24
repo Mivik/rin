@@ -8,6 +8,8 @@
 
 namespace rin {
 
+class ParseException;
+
 class ASTNode {
 protected:
 	explicit ASTNode(const SourceRange &range): range(range) {}
@@ -96,15 +98,7 @@ public:
 		Ptr<ASTNode> type_node,
 		Ptr<ASTNode> value_node,
 		Type var_type
-	): ASTNode(range), name(std::move(name)),
-	   type_node(std::move(type_node)),
-	   value_node(std::move(value_node)),
-	   var_type(var_type) {
-		if (!(this->type_node || this->value_node))
-			throw CodegenException("A variable should have either a default value or a type annotation");
-		if ((var_type == Type::CONST || var_type == Type::VAL) && !this->value_node)
-			throw CodegenException("The default value of const variable should be given");
-	}
+	);
 
 	[[nodiscard]] const std::string &get_name() const { return name; }
 	[[nodiscard]] const ASTNode *get_value_node() const { return value_node.get(); }

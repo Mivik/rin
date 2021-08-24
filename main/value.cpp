@@ -17,10 +17,7 @@ Value Value::deref(Codegen &g) const {
 Value Value::pointer_subscript(Codegen &g) const {
 	auto ptr_type = dynamic_cast<Type::Pointer *>(type);
 	if (!ptr_type)
-		throw CodegenException(
-			"Subscripting a non-pointer type: " +
-			type->to_string()
-		);
+		g.error("Subscripting a non-pointer type: {}", type->to_string());
 	return {
 		g.get_context().get_ref_type(
 			ptr_type->get_sub_type(),
@@ -33,13 +30,10 @@ Value Value::pointer_subscript(Codegen &g) const {
 Value Value::pointer_subscript(Codegen &g, Value index) const {
 	auto ptr_type = dynamic_cast<Type::Pointer *>(type);
 	if (!ptr_type)
-		throw CodegenException(
-			"Subscripting a non-pointer type: " +
-			type->to_string()
-		);
+		g.error("Subscripting a non-pointer type: {}", type->to_string());
 	// TODO check signed index
 	if (!dynamic_cast<Type::Int *>(index.type))
-		throw CodegenException("Unknown type for pointer subscript: " + index.type->to_string());
+		g.error("Unknown type for pointer subscript: {}", index.type->to_string());
 	return {
 		g.get_context().get_ref_type(
 			ptr_type->get_sub_type(),

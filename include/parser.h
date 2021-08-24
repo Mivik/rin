@@ -33,15 +33,21 @@ public:
 private:
 	Ptr<ASTNode> take_prim_inner();
 
+	template<class...Args>
+	[[noreturn]] void error(const char *pattern, Args &&...args) const {
+		throw ParseException(fmt::format(pattern, std::forward<Args>(args)...));
+	}
+
 	void expect_end_of_stmt() {
 		// TODO error message
 		expect(lexer.take(), TokenKind::Semicolon);
 	}
 	Token expect(const Token &&token, TokenKind kind) const {
 		if (token.kind != kind) // TODO unlikely
-			throw ParseException(
-				"Expected " + token_kind::name(kind) + ", "
-				+ "got " + token.info(get_buffer())
+			error(
+				"Expected {}, got {}",
+				token_kind::name(kind),
+				token.info(get_buffer())
 			);
 		return token;
 	}
@@ -61,10 +67,11 @@ private:
 			auto token = lexer.take();
 			if (token.kind == delimiter) continue;
 			if (token.kind == end) break;
-			throw ParseException(
-				"Expect " + token_kind::name(delimiter) +
-				" or " + token_kind::name(end) +
-				", got " + token.info(get_buffer())
+			error(
+				"Expected {} or {}, got {}",
+				token_kind::name(delimiter),
+				token_kind::name(end),
+				token.info(get_buffer())
 			);
 		}
 	}

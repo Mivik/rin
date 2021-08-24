@@ -1,16 +1,16 @@
 
 #include "ast.h"
+#include "parser.h"
 
 namespace rin {
 
 using K = TokenKind;
 
-[[noreturn]] void not_const_evaluated(const ASTNode *node) {
+[[noreturn]] void not_const_evaluated(Codegen &g, const ASTNode *node) {
 	// TODO wtf is this
-	throw CodegenException(
-		"Part of the code (" + std::to_string(node->get_source_range().begin)
-		+ " ~ " + std::to_string(node->get_source_range().end)
-		+ ") is not const evaluated"
+	g.error(
+		"Part of the code ({} ~ {}) is not const evaluated",
+		node->get_source_range().begin, node->get_source_range().end
 	);
 }
 
@@ -24,6 +24,23 @@ BlockNode::BlockNode(const SourceRange &range, std::vector<Ptr<ASTNode>> stmts):
 	if (iter != this->stmt_nodes.end())
 		this->stmt_nodes.erase(++iter, this->stmt_nodes.end());
 	has_return_flag = !this->stmt_nodes.empty() && this->stmt_nodes.back()->has_return();
+}
+
+VarDeclNode::VarDeclNode(
+	const SourceRange &range,
+	std::string name,
+	Ptr<ASTNode> type_node,
+	Ptr<ASTNode> value_node,
+	Type var_type
+):
+	ASTNode(range), name(std::move(name)),
+	type_node(std::move(type_node)),
+	value_node(std::move(value_node)),
+	var_type(var_type) {
+	if (!(this->type_node || this->value_node))
+		throw ParseException("A variable should have either a default value or a type annotation");
+	if ((var_type == Type::CONST || var_type == Type::VAL) && !this->value_node)
+		throw ParseException("The default value of const variable should be given");
 }
 
 Value ConstantNode::codegen(Codegen &g) const {
@@ -60,22 +77,23 @@ Value ConstantNode::codegen(Codegen &g) const {
 			)
 		) };
 	}
-	throw CodegenException("Unknown constant: " + content);
+	g.error("Unknown constant: {}", content);
 }
 
 Value ValueNode::codegen(Codegen &g) const {
 	auto opt = g.lookup_value(name);
-	if (!opt.has_value()) throw CodegenException("Use of undeclared value: " + name);
-	if (g.is_const_eval() && !opt->is_constant()) not_const_evaluated(this);
+	if (!opt.has_value()) g.error("Use of undeclared value: {}", name);
+	if (g.is_const_eval() && !opt->is_constant()) not_const_evaluated(g, this);
 	return *opt;
 }
 
 Value UnaryOpNode::codegen(Codegen &g) const {
-	auto unary_op_fail = [](const Value &value, K kind) {
-		throw CodegenException(
-			"Illegal unary operation on "
-			+ value.get_type()->to_string()
-			+ ": " + token_kind::name(kind));
+	auto unary_op_fail = [&g](const Value &value, K kind) {
+		g.error(
+			"Illegal unary operation on {}: {}",
+			value.get_type()->to_string(),
+			token_kind::name(kind)
+		);
 	};
 
 	auto &builder = *g.get_builder();
@@ -140,11 +158,12 @@ Value UnaryOpNode::codegen(Codegen &g) const {
 	RIN_UNREACHABLE();
 }
 
-[[noreturn]] inline void bin_op_fail(const Value &lhs, const Value &rhs, TokenKind kind) {
-	throw CodegenException(
-		"Illegal binary operation on "
-		+ lhs.get_type()->to_string() + " and " + rhs.get_type()->to_string()
-		+ ": " + token_kind::name(kind)
+[[noreturn]] inline void bin_op_fail(Codegen &g, const Value &lhs, const Value &rhs, TokenKind kind) {
+	g.error(
+		"Illegal binary operation on {} and {}: {}",
+		lhs.get_type()->to_string(),
+		rhs.get_type()->to_string(),
+		token_kind::name(kind)
 	);
 }
 
@@ -153,7 +172,7 @@ inline Value bin_op_arithmetic_codegen(Codegen &g, Value lhs, Value rhs, TokenKi
 	rhs = rhs.deref(g);
 
 	auto type = lhs.get_type();
-	if (rhs.get_type() != type) bin_op_fail(lhs, rhs, op);
+	if (rhs.get_type() != type) bin_op_fail(g, lhs, rhs, op);
 
 	using bin_op = llvm::Instruction::BinaryOps;
 	using cmp_op = llvm::CmpInst::Predicate;
@@ -162,7 +181,7 @@ inline Value bin_op_arithmetic_codegen(Codegen &g, Value lhs, Value rhs, TokenKi
 	const bool result_is_real =
 		(dynamic_cast<Type::Real *>(lhs.get_type())
 		 || dynamic_cast<Type::Real *>(rhs.get_type()));
-	if (!accept_real && result_is_real) bin_op_fail(lhs, rhs, op);
+	if (!accept_real && result_is_real) bin_op_fail(g, lhs, rhs, op);
 
 	auto real_result_type = dynamic_cast<Type::Real *>(type);
 	auto int_result_type = dynamic_cast<Type::Int *>(type);
@@ -170,7 +189,7 @@ inline Value bin_op_arithmetic_codegen(Codegen &g, Value lhs, Value rhs, TokenKi
 	auto &builder = *g.get_builder();
 
 	if (!real_result_type && !int_result_type && type != bool_type)
-		bin_op_fail(lhs, rhs, op);
+		bin_op_fail(g, lhs, rhs, op);
 
 	cmp_op cmp = cmp_op::FCMP_FALSE;
 	auto branch = [&](cmp_op for_signed, cmp_op for_unsigned, cmp_op for_real) {
@@ -223,7 +242,7 @@ inline Value bin_op_arithmetic_codegen(Codegen &g, Value lhs, Value rhs, TokenKi
 				llvm_op = bin_op::FDiv;
 				break;
 			default:
-				throw CodegenException("Illegal binary operation on real types: " + token_kind::name(op));
+				g.error("Illegal binary operations on real types: {}", token_kind::name(op));
 		}
 	} else if (int_result_type && int_result_type->get_bit_width() != 1) {
 		switch (op) {
@@ -258,7 +277,7 @@ inline Value bin_op_arithmetic_codegen(Codegen &g, Value lhs, Value rhs, TokenKi
 				llvm_op = int_result_type->is_signed()? bin_op::SRem: bin_op::URem;
 				break;
 			default:
-				bin_op_fail(lhs, rhs, op);
+				bin_op_fail(g, lhs, rhs, op);
 		}
 	} else { // logic operators
 		// TODO maybe more cases here
@@ -271,7 +290,7 @@ inline Value bin_op_arithmetic_codegen(Codegen &g, Value lhs, Value rhs, TokenKi
 				llvm_op = bin_op::And;
 				break;
 			default:
-				bin_op_fail(lhs, rhs, op);
+				bin_op_fail(g, lhs, rhs, op);
 		}
 	}
 	return
@@ -284,12 +303,12 @@ inline Value bin_op_arithmetic_codegen(Codegen &g, Value lhs, Value rhs, TokenKi
 inline Value assignment_codegen(Codegen &g, Value lhs, Value rhs, TokenKind op) {
 	auto ref_type = dynamic_cast<Type::Ref *>(lhs.get_type());
 	if (!ref_type)
-		throw CodegenException(
-			"The left side of assignment statement must be a reference"
-			", got " + lhs.get_type()->to_string()
+		g.error(
+			"The left side of assignment statement must be a reference, got {}",
+			lhs.get_type()->to_string()
 		);
 	if (ref_type->is_const())
-		throw CodegenException("Attempt to assign to a const variable");
+		g.error("Attempt to assign to a const variable");
 	TokenKind bop = K::Assign;
 	switch (op) {
 #define H(s) case K::s##A: bop = K::s; break;
@@ -311,9 +330,10 @@ inline Value assignment_codegen(Codegen &g, Value lhs, Value rhs, TokenKind op) 
 	}
 	rhs = rhs.deref(g);
 	if (ref_type->get_sub_type() != rhs.get_type())
-		throw CodegenException(
-			"Attempt to assign a " + rhs.get_type()->to_string() +
-			" to a variable of type" + ref_type->get_sub_type()->to_string()
+		g.error(
+			"Attempt to assign a {} to a variable of type {}",
+			rhs.get_type()->to_string(),
+			ref_type->get_sub_type()->to_string()
 		);
 	auto value =
 		bop == K::Assign
@@ -330,7 +350,7 @@ inline Value assignment_codegen(Codegen &g, Value lhs, Value rhs, TokenKind op) 
 Value BinOpNode::codegen(Codegen &g) const {
 	if (op == K::Period) {
 		auto value_node = dynamic_cast<ValueNode *>(rhs_node.get());
-		if (!value_node) throw CodegenException("Accessing invalid member of struct"); // TODO error message
+		if (!value_node) g.error("Accessing invalid member of struct"); // TODO error message
 		auto name = value_node->get_name();
 		auto lhs = lhs_node->codegen(g);
 		Type::Struct *struct_type = nullptr;
@@ -338,10 +358,10 @@ Value BinOpNode::codegen(Codegen &g) const {
 		if (ref_type)
 			struct_type = dynamic_cast<Type::Struct *>(ref_type->get_sub_type());
 		if (!struct_type)
-			throw CodegenException("Left operand of accessing operator is not a reference to struct");
+			g.error("Left operand of accessing operator is not a reference to struct");
 		size_t index;
 		if (auto opt = struct_type->find_index_by_name(name)) index = *opt;
-		else throw CodegenException("Unknown member of struct: " + name);
+		else g.error("Unknown member of struct: {}", name);
 		return {
 			g.get_context().get_ref_type(struct_type->get_fields()[index].type, ref_type->is_const()),
 			g.get_builder()->CreateStructGEP(lhs.get_llvm_value(), index)
@@ -391,10 +411,10 @@ Value BinOpNode::codegen(Codegen &g) const {
 						array->getAggregateElement(llvm::dyn_cast<llvm::Constant>(rhs.get_llvm_value()))
 					};
 				}
-				not_const_evaluated(this);
+				not_const_evaluated(g, this);
 			}
 			if (dynamic_cast<Type::Pointer *>(lhs.get_type())) return lhs.pointer_subscript(g, rhs.deref(g));
-			else throw CodegenException("Attempt to subscript unknown type: " + lhs.get_type()->to_string());
+			else g.error("Attempt to subscript unknown type: {}", lhs.get_type()->to_string());
 		}
 		default:
 			return bin_op_arithmetic_codegen(g, lhs, rhs, op);
@@ -410,9 +430,9 @@ Value VarDeclNode::codegen(Codegen &g) const {
 			if (auto opt = value.cast_to(g, type))
 				return *opt;
 			else
-				throw CodegenException(
-					"Cannot initialize a variable of type " + type->to_string() +
-					"with a value of type " + value.get_type()->to_string()
+				g.error(
+					"Cannot initialize a variable of type {} with a value of type {}",
+					type->to_string(), value.get_type()->to_string()
 				);
 		}
 		return value;
@@ -433,7 +453,7 @@ Value VarDeclNode::codegen(Codegen &g) const {
 	} else {
 		auto type = type_node->codegen(g).get_type_value();
 		if (dynamic_cast<rin::Type::Ref *>(type))
-			throw CodegenException("Variable of reference type must be initialized at declaration");
+			g.error("Variable of reference type must be initialized at declaration");
 		ptr = g.allocate_stack(type, var_type == Type::VAL);
 	}
 	g.declare_value(name, ptr.pointer_subscript(g));
@@ -454,7 +474,7 @@ Value CallNode::codegen(Codegen &g) const {
 	for (size_t i = 0; i < arguments.size(); ++i)
 		arguments[i] = argument_nodes[i]->codegen(g);
 	if (!g.has_function(name)) // TODO quote needed for error messages?
-		throw CodegenException("No function named " + name);
+		g.error("No function named {}", name);
 	Function *matching_function = nullptr;
 	// TODO error message (where?)
 	for (auto &_ : g.lookup_functions(name))
@@ -475,16 +495,18 @@ Value CallNode::codegen(Codegen &g) const {
 			if (!arguments_match) continue;
 			if (matching_function == nullptr) matching_function = func.get();
 			else
-				throw CodegenException(
+				g.error(
 					"Multiple candidate functions for calling: \n"
-					"  - " + matching_function->get_type()->to_string(name) +
-					"\n  - " + func->get_type()->to_string(name)
+					"  - {}\n"
+					"  - {}",
+					matching_function->get_type()->to_string(name),
+					func->get_type()->to_string(name)
 				);
 		}
 	if (matching_function == nullptr)
-		throw CodegenException("No matching function for calling");
+		g.error("No matching function for calling");
 	if (g.is_const_eval() && !matching_function->is_const_eval())
-		not_const_evaluated(this);
+		not_const_evaluated(g, this);
 	return matching_function->invoke(g, receiver, arguments);
 }
 
@@ -505,15 +527,15 @@ Value StructNode::codegen(Codegen &g) const {
 Value StructValueNode::codegen(Codegen &g) const {
 	auto old_type = type_node->codegen(g).get_type_value();
 	auto type = dynamic_cast<Type::Struct *>(old_type);
-	if (!type) throw CodegenException("Expected a struct type, got " + old_type->to_string());
+	if (!type) g.error("Expected a struct type, got {}", old_type->to_string());
 	auto fields = type->get_fields();
 	if (field_nodes.size() != fields.size())
-		throw CodegenException(
-			"Expected " + std::to_string(fields.size()) +
-			" fields, got " + std::to_string(field_nodes.size())
+		g.error(
+			"Expected {} fields, got {}",
+			fields.size(), field_nodes.size()
 		);
 	// TODO const
-	if (g.is_const_eval()) not_const_evaluated(this);
+	if (g.is_const_eval()) not_const_evaluated(g, this);
 	auto ptr = g.allocate_stack(type, true);
 	auto &builder = *g.get_builder();
 	for (size_t i = 0; i < fields.size(); ++i) {
@@ -584,10 +606,7 @@ Value ReturnNode::codegen(Codegen &g) const {
 	// TODO function name in error message
 	if (result_type == g.get_context().get_void_type()) {
 		if (value_node)
-			throw CodegenException(
-				"Returning a value in a void function: " +
-				func_type->to_string()
-			);
+			g.error("Returning a value in a void function: {}", func_type->to_string());
 		g.get_builder()->CreateRetVoid();
 	} else if (auto opt = value_node->codegen(g).cast_to(g, result_type)) {
 		// TODO TBH, are there such cases? a const return statement? wtf does that even mean?
@@ -643,8 +662,7 @@ Value FunctionNode::codegen(Codegen &g) const {
 	if (!body_node->has_return()) {
 		if (type->get_result_type() == g.get_context().get_void_type())
 			g.get_builder()->CreateRetVoid();
-		else
-			throw CodegenException("Non-void function does not return a value");
+		else g.error("Non-void function does not return a value");
 	}
 	g.pop_layer();
 	return g.get_context().get_void();

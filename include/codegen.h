@@ -1,6 +1,8 @@
 
 #pragma once
 
+#include "fmt/format.h"
+
 #include <llvm/IR/IRBuilder.h>
 
 #include "context.h"
@@ -14,10 +16,12 @@ class Function;
 class CodegenException : public std::exception {
 public:
 	[[nodiscard]] const char *what() const noexcept override { return msg.data(); }
-
-	explicit CodegenException(std::string msg): msg(std::move(msg)) {}
 private:
+	explicit CodegenException(std::string msg): msg(std::move(msg)) {}
+
 	std::string msg;
+
+	friend class Codegen;
 };
 
 class Codegen {
@@ -31,6 +35,11 @@ public:
 	void pop_const_eval() { --const_eval_depth; }
 	Function::Static *get_function() const { return layers.back().function; }
 	llvm::IRBuilder<> *get_builder() const { return layers.back().builder.get(); }
+
+	template<class...Args>
+	[[noreturn]] void error(const char *pattern, Args&&...args) const {
+		throw CodegenException(fmt::format(pattern, std::forward<Args>(args)...));
+	}
 
 	void declare_value(const std::string &name, const Value &value) {
 		value_map.set(name, value);

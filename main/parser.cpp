@@ -154,11 +154,10 @@ Ptr<ASTNode> Parser::take_expr() {
 	std::stack<Token> ops;
 	auto require = [&](size_t amount) {
 		if (st.size() < amount)
-			throw ParseException(
-				"Not enough operand(s). "
-				"Expected " + std::to_string(amount) +
-				", got " + std::to_string(st.size())
-			);
+			error(
+				"Not enough operand(s). Expected {}, got {}",
+				amount, st.size()
+				);
 	};
 	auto process_op = [&](std::stack<Ptr<ASTNode>> &st, const Token &token) {
 		const TokenKind op = token.kind;
@@ -198,7 +197,7 @@ Ptr<ASTNode> Parser::take_expr() {
 		if (is_unary || is_binary) {
 			if ((is_unary && (last == UnaryOp || last == Prim))
 				|| (is_binary && (last != Prim)))
-				throw ParseException("Illegal operator: " + token_kind::name(kind));
+				error("Illegal operator: {}", token_kind::name(kind));
 			lexer.take();
 			auto cur_pred = precedence_of(kind);
 			while (!ops.empty() &&
@@ -216,8 +215,7 @@ Ptr<ASTNode> Parser::take_expr() {
 		} else break;
 	}
 	while (!ops.empty()) process_op(st, pop_stack(ops));
-	if (st.empty())
-		throw ParseException("Missing operand");
+	if (st.empty()) error("Missing operand");
 	assert(ops.empty() && st.size() == 1);
 	return std::move(st.top());
 }
