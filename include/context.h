@@ -37,6 +37,7 @@ public:
 	Type::Ref *get_ref_type(Type *type, bool const_flag = false);
 	Type::Pointer *get_pointer_type(Type *type, bool const_flag = false);
 	Type::Struct *get_struct_type(const std::vector<Type::Struct::FieldInfo> &fields);
+	Type::Tuple *get_tuple_type(const std::vector<Type *> &types);
 	Type::Function *get_function_type(
 		Type *receiver_type, Type *result_type,
 		const std::vector<Type *> &param_types
@@ -88,6 +89,12 @@ private:
 		Type::Struct *,
 		ArrayHash<Type::Struct::FieldInfo, FieldInfoHash>
 	> struct_type_map;
+
+	std::unordered_map<
+		std::vector<Type *>,
+		Type::Tuple *,
+		ArrayHash<Type *>
+	> tuple_type_map;
 
 	std::unordered_map<
 		std::pair<std::pair<Type *, Type *>, std::vector<Type *>>,

@@ -26,7 +26,7 @@ TEST(parser, basic) {
 	EXPECT_THROW(eval("1 + )"), ParseException);
 
 	Parser(R"(
-	fn main(): i32 {
+	fn test_struct(): i32 {
 		const Point = struct {
 			x: i32,
 			y: i32
@@ -37,10 +37,15 @@ TEST(parser, basic) {
 		};
 		val lt = Point{2, 3};
 		val rb = Point{4, 5};
-		val rect = Rect{
-			lt, rb
-		};
+		val rect = Rect{lt, rb};
 		return rect.lt.x;
+	}
+
+	fn test_tuple(): i32 {
+		val lt = {2, 3};
+		val rb = {4, 5};
+		val rect = {lt, rb};
+		return lt[1];
 	}
 	)").take_function();
 }

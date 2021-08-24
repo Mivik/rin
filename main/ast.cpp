@@ -347,7 +347,21 @@ Value BinOpNode::codegen(Codegen &g) const {
 			g.get_builder()->CreateStructGEP(lhs.get_llvm_value(), index)
 		};
 	}
-	auto lhs = lhs_node->codegen(g), rhs = rhs_node->codegen(g);
+	auto lhs = lhs_node->codegen(g);
+	if (op == K::LBracket)
+		if (auto ref_type = dynamic_cast<Type::Ref *>(lhs.get_type()))
+			if (auto tuple_type = dynamic_cast<Type::Tuple *>(ref_type->get_sub_type())) {
+				g.push_const_eval();
+				auto rhs = rhs_node->codegen(g);
+				g.pop_const_eval();
+				auto constant = llvm::dyn_cast<llvm::ConstantInt>(rhs.get_llvm_value());
+				auto index = constant->getZExtValue();
+				return {
+					g.get_context().get_ref_type(tuple_type->get_element_types()[index], ref_type->is_const()),
+					g.get_builder()->CreateStructGEP(lhs.get_llvm_value(), index)
+				};
+			}
+	auto rhs = rhs_node->codegen(g);
 	// TODO remove this
 	assert(!g.is_const_eval() || (lhs.is_constant() && rhs.is_constant()));
 	switch (op) {
@@ -509,10 +523,37 @@ Value StructValueNode::codegen(Codegen &g) const {
 			member
 		);
 	}
-	return {
-		g.get_context().get_ref_type(type, true),
-		ptr.get_llvm_value()
-	};
+	return { g.get_context().get_ref_type(type, true), ptr.get_llvm_value() };
+}
+
+Value TupleNode::codegen(Codegen &g) const {
+	const size_t count = element_types.size();
+	std::vector<Type *> elements(count);
+	for (size_t i = 0; i < count; ++i)
+		elements[i] = element_types[i]->codegen(g).get_type_value();
+	return Value(g.get_context().get_tuple_type(elements));
+}
+
+Value TupleValueNode::codegen(Codegen &g) const {
+	// TODO const
+	const size_t count = element_nodes.size();
+	std::vector<Value> elements(count);
+	std::vector<Type *> types(count);
+	for (size_t i = 0; i < count; ++i) {
+		elements[i] = element_nodes[i]->codegen(g);
+		types[i] = elements[i].get_type();
+	}
+	auto type = g.get_context().get_tuple_type(types);
+	auto ptr = g.allocate_stack(type, true);
+	auto &builder = *g.get_builder();
+	for (size_t i = 0; i < elements.size(); ++i) {
+		auto member = builder.CreateStructGEP(ptr.get_llvm_value(), i);
+		builder.CreateStore(
+			elements[i].get_llvm_value(),
+			member
+		);
+	}
+	return { g.get_context().get_ref_type(type, true), ptr.get_llvm_value() };
 }
 
 Value BlockNode::codegen(Codegen &g) const {

@@ -59,6 +59,12 @@ Type::Struct *Context::get_struct_type(const std::vector<Type::Struct::FieldInfo
 	return value;
 }
 
+Type::Tuple * Context::get_tuple_type(const std::vector<Type *> &types) {
+	auto &value = tuple_type_map[types];
+	if (!value) value = new Type::Tuple(this, types);
+	return value;
+}
+
 Type::Function *Context::get_function_type(
 	Type *receiver_type, Type *result_type,
 	const std::vector<Type *> &param_types
@@ -82,6 +88,8 @@ Context::~Context() {
 	for (auto &[_, value] : pointer_type_map)
 		delete value;
 	for (auto &[_, value] : struct_type_map)
+		delete value;
+	for (auto &[_, value] : tuple_type_map)
 		delete value;
 	for (auto &[_, value] : function_type_map)
 		delete value;

@@ -34,6 +34,8 @@ public:
 
 	class Struct;
 
+	class Tuple;
+
 	class Void;
 
 	[[nodiscard]] llvm::Type *get_llvm() const { return llvm; }
@@ -181,6 +183,18 @@ private:
 	Struct(Context *ctx, std::vector<FieldInfo> fields);
 
 	std::vector<FieldInfo> fields;
+
+	friend class Context;
+};
+
+class Type::Tuple final : public Type {
+public:
+	[[nodiscard]] const std::vector<Type *> &get_element_types() const { return elements; }
+	[[nodiscard]] std::string to_string() const override;
+private:
+	Tuple(Context *ctx, std::vector<Type *> elements);
+
+	std::vector<Type *> elements;
 
 	friend class Context;
 };

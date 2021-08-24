@@ -57,7 +57,9 @@ inline llvm::Type *make_struct_type(
 
 Type::Struct::Struct(Context *ctx, std::vector<FieldInfo> fields):
 	Type(make_struct_type(ctx, fields)),
-	fields(std::move(fields)) {}
+	fields(std::move(fields)) {
+	assert(this->fields.size() >= 1);
+}
 
 std::string Type::Struct::to_string() const {
 	std::string res = "{";
@@ -69,6 +71,31 @@ std::string Type::Struct::to_string() const {
 		if (i != fields.size() - 1) res += ',';
 	}
 	res += " }";
+	return res;
+}
+
+inline llvm::Type *make_tuple_type(
+	Context *ctx,
+	const std::vector<Type *> &elements
+) {
+	llvm::OwningArrayRef<llvm::Type *> arr(elements.size());
+	for (size_t i = 0; i < arr.size(); ++i) arr[i] = elements[i]->get_llvm();
+	return llvm::StructType::create(ctx->get_llvm(), arr);
+}
+
+Type::Tuple::Tuple(Context *ctx, std::vector<Type *> elements):
+	Type(make_tuple_type(ctx, elements)),
+	elements(std::move(elements)) {
+	assert(this->elements.size() > 1);
+}
+
+std::string Type::Tuple::to_string() const {
+	std::string res = "(";
+	for (size_t i = 0; i < elements.size(); ++i) {
+		res += elements[i]->to_string();
+		if (i != elements.size() - 1) res += ", ";
+	}
+	res += ')';
 	return res;
 }
 

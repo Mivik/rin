@@ -17,9 +17,30 @@ Ptr<ASTNode> Parser::take_prim_inner() {
 			lexer.take();
 			return std::make_unique<ConstantNode>(token, get_reader());
 		}
+		case K::LBrace: {
+			std::vector<Ptr<ASTNode>> elements;
+			process_list(K::LBrace, K::RBrace, K::Comma, [&]() {
+				elements.push_back(take_expr());
+			});
+			return std::make_unique<TupleValueNode>(
+				SourceRange(begin, lexer.position()),
+				std::move(elements)
+			);
+		}
 		case K::LPar: {
 			lexer.take();
 			auto ret = take_expr();
+			if (lexer.peek().kind == K::Comma) {
+				std::vector<Ptr<ASTNode>> elements;
+				elements.push_back(std::move(ret));
+				process_list(K::Comma, K::RPar, K::Comma, [&]() {
+					elements.push_back(take_expr());
+				});
+				return std::make_unique<TupleNode>(
+					SourceRange(begin, lexer.position()),
+					std::move(elements)
+				);
+			}
 			expect(lexer.take(), K::RPar);
 			return ret;
 		}

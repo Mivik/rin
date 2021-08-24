@@ -34,6 +34,13 @@ constexpr size_t hash_combine(size_t lhs, size_t rhs) {
 	return lhs ^ (rhs + 0x9e3779b9 + (lhs << 6) + (lhs >> 2));
 }
 
+inline void assert_unique(const std::vector<std::string> &arr) {
+	std::vector<const std::string*> ptr(arr.size());
+	for (size_t i = 0; i < arr.size(); ++i) ptr[i] = arr.data() + i;
+	std::sort(ptr.begin(), ptr.end(), [](auto x, auto y) { return x < y; });
+	assert(std::unique(ptr.begin(), ptr.end()) == ptr.end());
+}
+
 template<
 	class A, class B,
 	class AH = std::hash<A>, class BH = std::hash<B>

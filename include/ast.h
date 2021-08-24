@@ -168,7 +168,9 @@ public:
 	   receiver_type_node(std::move(receiver_type_node)),
 	   result_type_node(std::move(result_type_node)),
 	   param_type_nodes(std::move(param_type_nodes)),
-	   param_names(std::move(param_names)) {}
+	   param_names(std::move(param_names)) {
+		assert_unique(param_names);
+	}
 
 	[[nodiscard]] ASTNode *get_receiver_type_node() const { return receiver_type_node.get(); }
 	[[nodiscard]] ASTNode *get_result_type_node() const { return result_type_node.get(); }
@@ -193,6 +195,7 @@ public:
 	   field_names(std::move(field_names)),
 	   field_types(std::move(field_types)) {
 		assert(this->field_names.size() == this->field_types.size());
+		assert_unique(field_names);
 	}
 
 	[[nodiscard]] const std::vector<std::string> &get_field_names() const { return field_names; }
@@ -221,6 +224,37 @@ public:
 private:
 	Ptr<ASTNode> type_node;
 	std::vector<Ptr<ASTNode>> field_nodes;
+};
+
+class TupleNode : public ASTNode {
+public:
+	TupleNode(
+		const SourceRange &range,
+		std::vector<Ptr<ASTNode>> element_types
+	): ASTNode(range),
+	   element_types(std::move(element_types)) {}
+
+	[[nodiscard]] const std::vector<Ptr<ASTNode>> &get_element_types() const { return element_types; }
+
+	OVERRIDE
+private:
+	std::vector<Ptr<ASTNode>> element_types;
+};
+
+// TODO reference type?
+class TupleValueNode : public ASTNode {
+public:
+	TupleValueNode(
+		const SourceRange &range,
+		std::vector<Ptr<ASTNode>> element_nodes
+	): ASTNode(range),
+	   element_nodes(std::move(element_nodes)) {}
+
+	[[nodiscard]] const std::vector<Ptr<ASTNode>> &get_element_nodes() const { return element_nodes; }
+
+	OVERRIDE
+private:
+	std::vector<Ptr<ASTNode>> element_nodes;
 };
 
 // Top-level declarations
