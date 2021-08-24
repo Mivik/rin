@@ -169,6 +169,13 @@ public:
 		}
 	};
 
+	[[nodiscard]] std::optional<size_t> find_index_by_name(const std::string &name) const {
+		for (size_t i = 0; i < fields.size(); ++i)
+			if (fields[i].name == name) return i;
+		return std::nullopt;
+	}
+
+	[[nodiscard]] const std::vector<FieldInfo> &get_fields() const { return fields; }
 	[[nodiscard]] std::string to_string() const override;
 private:
 	Struct(Context *ctx, std::vector<FieldInfo> fields);

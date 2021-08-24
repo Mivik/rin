@@ -147,12 +147,12 @@ public:
 		std::vector<Ptr<ASTNode>> stmts
 	);
 
-	[[nodiscard]] const std::vector<Ptr<ASTNode>> &get_statements() const { return stmts; }
+	[[nodiscard]] const std::vector<Ptr<ASTNode>> &get_statements() const { return stmt_nodes; }
 	[[nodiscard]] bool has_return() const override { return has_return_flag; }
 
 	OVERRIDE
 private:
-	std::vector<Ptr<ASTNode>> stmts;
+	std::vector<Ptr<ASTNode>> stmt_nodes;
 	bool has_return_flag;
 };
 
@@ -204,6 +204,25 @@ private:
 	std::vector<Ptr<ASTNode>> field_types;
 };
 
+class StructValueNode : public ASTNode {
+public:
+	StructValueNode(
+		const SourceRange &range,
+		Ptr<ASTNode> type_node,
+		std::vector<Ptr<ASTNode>> field_nodes
+	): ASTNode(range),
+	   type_node(std::move(type_node)),
+	   field_nodes(std::move(field_nodes)) {}
+
+	[[nodiscard]] const ASTNode *get_type_node() const { return type_node.get(); }
+	[[nodiscard]] const std::vector<Ptr<ASTNode>> &get_field_nodes() const { return field_nodes; }
+
+	OVERRIDE
+private:
+	Ptr<ASTNode> type_node;
+	std::vector<Ptr<ASTNode>> field_nodes;
+};
+
 // Top-level declarations
 class DeclNode : public ASTNode {
 public:
@@ -219,13 +238,13 @@ public:
 		const SourceRange &range,
 		std::vector<Ptr<DeclNode>> children
 	): ASTNode(range),
-	   children(std::move(children)) {}
+	   child_nodes(std::move(children)) {}
 
-	[[nodiscard]] const std::vector<Ptr<DeclNode>> &get_children() const { return children; }
+	[[nodiscard]] const std::vector<Ptr<DeclNode>> &get_child_nodes() const { return child_nodes; }
 
 	OVERRIDE
 private:
-	std::vector<Ptr<DeclNode>> children;
+	std::vector<Ptr<DeclNode>> child_nodes;
 };
 
 // TODO generic function
@@ -250,7 +269,7 @@ public:
 
 	OVERRIDE
 
-	virtual void declare(Codegen &g);
+	virtual void declare(Codegen &g) override;
 private:
 	std::string name;
 	Ptr<FunctionTypeNode> type_node;

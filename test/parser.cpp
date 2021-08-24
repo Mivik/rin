@@ -24,24 +24,25 @@ TEST(parser, basic) {
 	expect_int(eval("2147483647U + 1U"), 2147483648U);
 	expect_int(eval("-2 + 5"), 3);
 	EXPECT_THROW(eval("1 + )"), ParseException);
+
 	Parser(R"(
-fn main(): i32 {
-	var x: i32 = 5;
-	inc(inc(x, 2), 1);
-	return x;
-}
-
-fn add(x: i32, y: i32): i32 {
-	return x + y;
-}
-
-fn inc(x: &i32, y: i32): &i32 {
-	x += y;
-	return x;
-}
-)").take_top_level()->codegen(g);
-	auto module = g.finalize();
-	module->print(llvm::errs(), nullptr);
+	fn main(): i32 {
+		const Point = struct {
+			x: i32,
+			y: i32
+		};
+		const Rect = struct {
+			lt: Point,
+			rb: Point
+		};
+		val lt = Point{2, 3};
+		val rb = Point{4, 5};
+		val rect = Rect{
+			lt, rb
+		};
+		return rect.lt.x;
+	}
+	)").take_function();
 }
 
 } // namespace rin

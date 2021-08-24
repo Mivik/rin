@@ -31,6 +31,8 @@ public:
 	Ptr<DeclNode> take_decl();
 	Ptr<TopLevelNode> take_top_level();
 private:
+	Ptr<ASTNode> take_prim_inner();
+
 	void expect_end_of_stmt() {
 		// TODO error message
 		expect(lexer.take(), TokenKind::Semicolon);

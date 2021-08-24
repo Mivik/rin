@@ -61,11 +61,13 @@ inline int precedence_of(K op) {
 #define H(n) case TokenKind::n
 	switch (op) {
 		H(LBracket): // pointer subscript
+		H(Period):
+			return 1;
+		H(LNot):
+		H(Not):
 		H(UAdd):
 		H(USub):
-		H(Not):
-		H(LNot):
-		// TODO think over it
+			// TODO think over it
 		H(Pointer):
 		H(Ref):
 			return 2;

@@ -7,7 +7,7 @@ namespace rin {
 
 using K = TokenKind;
 
-Ptr<ASTNode> Parser::take_prim() {
+Ptr<ASTNode> Parser::take_prim_inner() {
 	auto token = lexer.peek();
 	const auto begin = lexer.position();
 	switch (token.kind) {
@@ -25,6 +25,7 @@ Ptr<ASTNode> Parser::take_prim() {
 		}
 		case K::Identifier: {
 			lexer.take();
+			// TODO function object
 			if (lexer.peek().kind == K::LPar) {
 				std::vector<Ptr<ASTNode>> args;
 				process_list(K::LPar, K::RPar, K::Comma, [&]() {
@@ -84,6 +85,23 @@ Ptr<ASTNode> Parser::take_prim() {
 			return nullptr;
 		}
 	}
+}
+
+Ptr<ASTNode> Parser::take_prim() {
+	const auto start = lexer.position();
+	auto node = take_prim_inner();
+	if (lexer.peek().kind == K::LBrace) {
+		std::vector<Ptr<ASTNode>> fields;
+		process_list(K::LBrace, K::RBrace, K::Comma, [&]() {
+			fields.push_back(take_expr());
+		});
+		return std::make_unique<StructValueNode>(
+			SourceRange(start, lexer.position()),
+			std::move(node),
+			std::move(fields)
+		);
+	}
+	return node;
 }
 
 template<class T>
@@ -222,7 +240,7 @@ Ptr<FunctionNode> Parser::take_function() {
 	});
 	if (lexer.peek().kind == K::Colon) {
 		lexer.take();
-		result_type = take_expr();
+		result_type = take_prim_inner();
 	} else
 		// TODO preserve some type names like this
 		result_type =
@@ -327,7 +345,8 @@ Ptr<DeclNode> Parser::take_decl() {
 
 Ptr<TopLevelNode> Parser::take_top_level() {
 	const auto begin = lexer.position();
-	std::vector<Ptr<DeclNode>> children;
+	std::vector<Ptr<DeclNode>>
+		children;
 	while (lexer.peek().kind != K::Eof)
 		children.push_back(take_decl());
 	return std::make_unique<TopLevelNode>(

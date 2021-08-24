@@ -16,14 +16,14 @@ using K = TokenKind;
 
 BlockNode::BlockNode(const SourceRange &range, std::vector<Ptr<ASTNode>> stmts):
 	ASTNode(range),
-	stmts(std::move(stmts)) {
-	auto iter = this->stmts.begin();
-	while (iter != this->stmts.end() && !dynamic_cast<ReturnNode *>(iter->get()))
+	stmt_nodes(std::move(stmts)) {
+	auto iter = this->stmt_nodes.begin();
+	while (iter != this->stmt_nodes.end() && !dynamic_cast<ReturnNode *>(iter->get()))
 		++iter;
 	// TODO better handling here?
-	if (iter != this->stmts.end())
-		this->stmts.erase(++iter, this->stmts.end());
-	has_return_flag = !this->stmts.empty() && this->stmts.back()->has_return();
+	if (iter != this->stmt_nodes.end())
+		this->stmt_nodes.erase(++iter, this->stmt_nodes.end());
+	has_return_flag = !this->stmt_nodes.empty() && this->stmt_nodes.back()->has_return();
 }
 
 Value ConstantNode::codegen(Codegen &g) const {
@@ -328,6 +328,25 @@ inline Value assignment_codegen(Codegen &g, Value lhs, Value rhs, TokenKind op) 
 }
 
 Value BinOpNode::codegen(Codegen &g) const {
+	if (op == K::Period) {
+		auto value_node = dynamic_cast<ValueNode *>(rhs_node.get());
+		if (!value_node) throw CodegenException("Accessing invalid member of struct"); // TODO error message
+		auto name = value_node->get_name();
+		auto lhs = lhs_node->codegen(g);
+		Type::Struct *struct_type = nullptr;
+		auto ref_type = dynamic_cast<Type::Ref *>(lhs.get_type());
+		if (ref_type)
+			struct_type = dynamic_cast<Type::Struct *>(ref_type->get_sub_type());
+		if (!struct_type)
+			throw CodegenException("Left operand of accessing operator is not a reference to struct");
+		size_t index;
+		if (auto opt = struct_type->find_index_by_name(name)) index = *opt;
+		else throw CodegenException("Unknown member of struct: " + name);
+		return {
+			g.get_context().get_ref_type(struct_type->get_fields()[index].type, ref_type->is_const()),
+			g.get_builder()->CreateStructGEP(lhs.get_llvm_value(), index)
+		};
+	}
 	auto lhs = lhs_node->codegen(g), rhs = rhs_node->codegen(g);
 	// TODO remove this
 	assert(!g.is_const_eval() || (lhs.is_constant() && rhs.is_constant()));
@@ -469,9 +488,36 @@ Value StructNode::codegen(Codegen &g) const {
 	return Value(g.get_context().get_struct_type(fields));
 }
 
+Value StructValueNode::codegen(Codegen &g) const {
+	auto old_type = type_node->codegen(g).get_type_value();
+	auto type = dynamic_cast<Type::Struct *>(old_type);
+	if (!type) throw CodegenException("Expected a struct type, got " + old_type->to_string());
+	auto fields = type->get_fields();
+	if (field_nodes.size() != fields.size())
+		throw CodegenException(
+			"Expected " + std::to_string(fields.size()) +
+			" fields, got " + std::to_string(field_nodes.size())
+		);
+	// TODO const
+	if (g.is_const_eval()) not_const_evaluated(this);
+	auto ptr = g.allocate_stack(type, true);
+	auto &builder = *g.get_builder();
+	for (size_t i = 0; i < fields.size(); ++i) {
+		auto member = builder.CreateStructGEP(ptr.get_llvm_value(), i);
+		builder.CreateStore(
+			field_nodes[i]->codegen(g).cast_to(g, fields[i].type)->get_llvm_value(),
+			member
+		);
+	}
+	return {
+		g.get_context().get_ref_type(type, true),
+		ptr.get_llvm_value()
+	};
+}
+
 Value BlockNode::codegen(Codegen &g) const {
 	Value last = g.get_context().get_void();
-	for (const auto &stmt : stmts) last = stmt->codegen(g);
+	for (const auto &stmt : stmt_nodes) last = stmt->codegen(g);
 	return last;
 }
 
@@ -661,8 +707,8 @@ Value IfNode::codegen(Codegen &g) const {
 }
 
 Value TopLevelNode::codegen(Codegen &g) const {
-	for (auto &decl : children) decl->declare(g);
-	for (auto &decl : children) decl->codegen(g);
+	for (auto &decl : child_nodes) decl->declare(g);
+	for (auto &decl : child_nodes) decl->codegen(g);
 	return g.get_context().get_void();
 }
 
