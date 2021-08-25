@@ -57,7 +57,7 @@ public:
 	T *declare_function(const std::string &name, Ptr<T> func) {
 		static_assert(std::is_base_of_v<Function, T>);
 		auto result = func.get();
-		function_map[name].push_back(std::move(func));
+		function_map.get_or_create(name).push_back(std::move(func));
 		return result;
 	}
 
@@ -81,7 +81,7 @@ private:
 	};
 
 	void declare_builtin(const std::string &name, Type::Function *type, Function::Builtin::FuncType func) {
-		function_map[name].emplace_back(new Function::Builtin(type, std::move(func)));
+		function_map.get_or_create(name).emplace_back(new Function::Builtin(type, std::move(func)));
 	}
 
 	Context &ctx;

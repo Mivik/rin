@@ -9,6 +9,7 @@
 #include <llvm/IR/Constants.h>
 
 #include "context.h"
+#include "layer_map.h"
 #include "type.h"
 
 namespace rin {

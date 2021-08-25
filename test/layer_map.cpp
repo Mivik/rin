@@ -24,4 +24,17 @@ TEST(layer_map, basic) {
 	EXPECT_EQ(mp.try_get(2), 3);
 }
 
+TEST(layer_map, handle) {
+	LayerMap<int, int> mp;
+	mp.add_layer();
+	mp.set(0, 5);
+	auto handle = mp.handle_of(0);
+	mp.add_layer();
+	mp.set(0, 12);
+	*handle = 11;
+	EXPECT_EQ(mp[0], 12);
+	mp.pop_layer();
+	EXPECT_EQ(mp[0], 11);
+}
+
 } // namespace rin

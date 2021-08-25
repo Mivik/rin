@@ -13,6 +13,23 @@ namespace rin {
 template<class K, class V>
 class LayerMap {
 public:
+	class Handle {
+	public:
+		std::unordered_map<K, std::vector<V>> *base;
+		K key;
+		size_t index;
+
+		V &operator*() const { return (*base)[key][index]; }
+	private:
+		Handle(
+			std::unordered_map<K, std::vector<V>> *base,
+			K key,
+			size_t index
+		): base(base), key(std::move(key)), index(index) {}
+
+		friend class LayerMap;
+	};
+
 	LayerMap() = default;
 
 	[[nodiscard]] bool empty() const { return keys.empty(); }
@@ -43,21 +60,27 @@ public:
 		assert(iter != base.end());
 		return iter->second;
 	}
-	V &get(const K &key) const { return get_all(key).back(); }
-	V &operator[](const K &key) {
+	std::vector<V> &get_all(const K &key) {
 		auto iter = base.find(key);
-		if (iter == base.end()) {
-			auto &vec = base.try_emplace(key).first->second;
-			vec.emplace_back();
-			return vec.back();
-		}
-		return iter->second.back();
+		assert(iter != base.end());
+		return iter->second;
+	}
+	const V &operator[](const K &key) const { return get_all(key).back(); }
+	V &operator[](const K &key) { return get_all(key).back(); }
+	V &get_or_create(const K &key) {
+		auto &vec = base[key];
+		if (keys.back().insert(key).second) vec.emplace_back();
+		return vec.back();
 	}
 	void set(const K &key, V value) {
 		auto &vec = base[key];
 		if (keys.back().insert(key).second)
 			vec.push_back(std::move(value));
 		else vec.back() = std::move(value);
+	}
+	Handle handle_of(const K &key) {
+		assert(keys.back().count(key));
+		return Handle(&base, key, base[key].size() - 1);
 	}
 private:
 	std::unordered_map<K, std::vector<V>> base;
