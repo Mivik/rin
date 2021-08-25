@@ -11,13 +11,13 @@ Type *Type::deref() {
 }
 
 Type::Void::Void(Context *ctx):
-	Type(llvm::Type::getVoidTy(ctx->get_llvm())) {}
+	Type(llvm::Type::getVoidTy(ctx->get_llvm()), false) {}
 
 Type::Boolean::Boolean(Context *ctx):
-	Type(llvm::Type::getInt1Ty(ctx->get_llvm())) {}
+	Type(llvm::Type::getInt1Ty(ctx->get_llvm()), false) {}
 
 Type::Int::Int(Context *ctx, unsigned int bit_width, bool is_signed):
-	Type(llvm::Type::getIntNTy(ctx->get_llvm(), bit_width)),
+	Type(llvm::Type::getIntNTy(ctx->get_llvm(), bit_width), false),
 	signed_flag(is_signed) {}
 
 bool Type::Int::operator==(const Type &other) const {
@@ -28,18 +28,18 @@ bool Type::Int::operator==(const Type &other) const {
 }
 
 Type::Array::Array(Type *element_type, uint32_t size):
-	Type(llvm::ArrayType::get(element_type->llvm, size)),
+	Type(llvm::ArrayType::get(element_type->llvm, size), element_type->is_abstract()),
 	element_type(element_type), size(size) {}
 
 Type::Pointer::Pointer(Type *sub_type, bool const_flag):
-	Type(llvm::PointerType::get(sub_type->get_llvm(), 0)),
+	Type(llvm::PointerType::get(sub_type->get_llvm(), 0), sub_type->is_abstract()),
 	sub_type(sub_type), const_flag(const_flag) {
 	if (dynamic_cast<Type::Ref *>(sub_type))
 		throw std::runtime_error("Cannot create a pointer to a reference: " + sub_type->to_string());
 }
 
 Type::Ref::Ref(Type *sub_type, bool const_flag):
-	Type(llvm::PointerType::get(sub_type->get_llvm(), 0)),
+	Type(llvm::PointerType::get(sub_type->get_llvm(), 0), sub_type->is_abstract()),
 	sub_type(sub_type), const_flag(const_flag) {
 	if (dynamic_cast<Type::Ref *>(sub_type))
 		throw std::runtime_error("Cannot create a reference to a reference: " + sub_type->to_string());
@@ -56,9 +56,14 @@ inline llvm::Type *make_struct_type(
 }
 
 Type::Struct::Struct(Context *ctx, std::vector<FieldInfo> fields):
-	Type(make_struct_type(ctx, fields)),
+	Type(
+		make_struct_type(ctx, fields),
+		std::any_of(fields.begin(), fields.end(), [](const FieldInfo &f) {
+			return f.type->is_abstract();
+		})
+	),
 	fields(std::move(fields)) {
-	assert(this->fields.size() >= 1);
+	assert(!this->fields.empty());
 }
 
 std::string Type::Struct::to_string() const {
@@ -84,7 +89,12 @@ inline llvm::Type *make_tuple_type(
 }
 
 Type::Tuple::Tuple(Context *ctx, std::vector<Type *> elements):
-	Type(make_tuple_type(ctx, elements)),
+	Type(
+		make_tuple_type(ctx, elements),
+		std::any_of(elements.begin(), elements.end(), [](const Type *type) {
+			return type->is_abstract();
+		})
+	),
 	elements(std::move(elements)) {
 	assert(this->elements.size() > 1);
 }
@@ -115,11 +125,17 @@ Type::Function::Function(
 	Type *result_type,
 	const std::vector<Type *> &param_types
 ):
-	Type(result_type->get_llvm()? llvm::FunctionType::get(
-		result_type->get_llvm(),
-		make_llvm_param(receiver_type, param_types),
-		false
-	): nullptr),
+	Type(
+		result_type->get_llvm()? llvm::FunctionType::get(
+			result_type->get_llvm(),
+			make_llvm_param(receiver_type, param_types),
+			false
+		): nullptr,
+		receiver_type->is_abstract() || result_type->is_abstract() ||
+		std::any_of(param_types.begin(), param_types.end(), [](const Type *type) {
+			return type->is_abstract();
+		})
+	),
 	receiver_type(receiver_type),
 	result_type(result_type),
 	param_types(param_types) {}

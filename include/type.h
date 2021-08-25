@@ -39,6 +39,7 @@ public:
 	class Void;
 
 	[[nodiscard]] llvm::Type *get_llvm() const { return llvm; }
+	[[nodiscard]] bool is_abstract() const { return abstract_flag; }
 	[[nodiscard]] virtual bool operator==(const Type &other) const { return llvm == other.llvm; }
 	[[nodiscard]] virtual std::string to_string() const = 0;
 
@@ -46,9 +47,10 @@ public:
 
 	DISABLE_COPY(Type)
 protected:
-	explicit Type(llvm::Type *llvm): llvm(llvm) {}
+	explicit Type(llvm::Type *llvm, bool is_abstract): llvm(llvm), abstract_flag(is_abstract) {}
 private:
 	llvm::Type *llvm;
+	bool abstract_flag;
 };
 
 class Type::Void final : public Type {
@@ -92,7 +94,7 @@ public:
 	[[nodiscard]] std::string to_string() const override { return name; }
 private:
 	explicit Real(llvm::Type *llvm, std::string name = "[unknown real type]"):
-		Type(llvm), name(std::move(name)) {}
+		Type(llvm, true), name(std::move(name)) {}
 
 	std::string name;
 
@@ -157,7 +159,7 @@ public:
 		return "type";
 	}
 private:
-	Self(): Type(nullptr) {}
+	Self(): Type(nullptr, true) {}
 };
 
 class Type::Struct final : public Type {
