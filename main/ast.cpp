@@ -509,13 +509,6 @@ Value GlobalVarDeclNode::codegen(Codegen &g) const {
 	return g.get_context().get_void();
 }
 
-inline bool can_cast_to(const Value &value, Type *type) {
-	if (value.get_type() == type) return true;
-	if (auto ref_type = dynamic_cast<Type::Ref *>(value.get_type()))
-		return ref_type->get_sub_type() == type;
-	return false;
-}
-
 Value CallNode::codegen(Codegen &g) const {
 	std::optional<Value> receiver;
 	if (receiver_node) receiver = receiver_node->codegen(g);
@@ -534,10 +527,10 @@ Value CallNode::codegen(Codegen &g) const {
 			auto parameter_types = function_type->get_parameter_types();
 			if ((receiver_type == nullptr) != (receiver_node == nullptr)) continue;
 			if (arguments.size() != parameter_types.size()) continue;
-			if (receiver_type && !can_cast_to(*receiver, receiver_type)) continue;
+			if (receiver_type && !receiver->can_cast_to(receiver_type)) continue;
 			bool arguments_match = true;
 			for (size_t i = 0; i < arguments.size(); ++i)
-				if (!can_cast_to(arguments[i], parameter_types[i])) {
+				if (!arguments[i].can_cast_to(parameter_types[i])) {
 					arguments_match = false;
 					break;
 				}
@@ -556,7 +549,14 @@ Value CallNode::codegen(Codegen &g) const {
 		g.error("No matching function for calling");
 	if (g.is_const_eval() && !matching_function->is_const_eval())
 		not_const_evaluated(g, this);
-	return matching_function->invoke(g, receiver, arguments);
+	auto type = matching_function->get_type();
+	for (size_t i = 0;i  < arguments.size(); ++i)
+		arguments[i] = *arguments[i].cast_to(g, type->get_parameter_types()[i]);
+	return matching_function->invoke(
+		g,
+		receiver? receiver->cast_to(g, type->get_receiver_type()): std::nullopt,
+		arguments
+	);
 }
 
 Value StructNode::codegen(Codegen &g) const {
@@ -741,10 +741,7 @@ Value IfNode::codegen(Codegen &g) const {
 		});
 		auto then_type = then_ret.get_type(), else_type = else_ret.get_type();
 		const auto merge_block = g.create_basic_block("merge");
-		Type *type = nullptr;
-		if (then_type->deref() == else_type->deref()
-			&& then_type->deref() != g.get_context().get_void_type())
-			type = then_type == else_type? then_type: then_type->deref();
+		auto type = Type::common_type(then_type, else_type);
 		(cond? else_block: then_block)->deleteValue();
 		builder.SetInsertPoint(cond? then_block: else_block);
 		if (!(cond? then_node: else_node)->has_return()) builder.CreateBr(merge_block);
@@ -776,9 +773,7 @@ Value IfNode::codegen(Codegen &g) const {
 			else_node->codegen(g);
 		});
 		auto then_type = then_ret.get_type(), else_type = else_ret.get_type();
-		if (then_type->deref() == else_type->deref()
-			&& then_type->deref() != g.get_context().get_void_type()) {
-			auto type = then_type == else_type? then_type: then_type->deref();
+		if (auto type = Type::common_type(then_type, else_type)) {
 			auto var = g.allocate_stack(type, false);
 			var = {
 				dynamic_cast<Type::Ref *>(type)

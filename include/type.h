@@ -38,6 +38,8 @@ public:
 
 	class Void;
 
+	static Type *common_type(Type *A, Type *B);
+
 	[[nodiscard]] llvm::Type *get_llvm() const { return llvm; }
 	[[nodiscard]] bool is_abstract() const { return abstract_flag; }
 	[[nodiscard]] virtual bool operator==(const Type &other) const { return llvm == other.llvm; }
