@@ -31,15 +31,17 @@ VarDeclNode::VarDeclNode(
 	std::string name,
 	Ptr<ASTNode> type_node,
 	Ptr<ASTNode> value_node,
-	Type var_type
+	bool is_mutable,
+	bool is_const
 ):
 	ASTNode(range), name(std::move(name)),
 	type_node(std::move(type_node)),
 	value_node(std::move(value_node)),
-	var_type(var_type) {
+	mutable_flag(is_mutable),
+	const_flag(is_const) {
 	if (!(this->type_node || this->value_node))
 		throw ParseException("A variable should have either a default value or a type annotation");
-	if ((var_type == Type::CONST || var_type == Type::VAL) && !this->value_node)
+	if (!is_mutable && !this->value_node)
 		throw ParseException("The default value of const variable should be given");
 }
 
@@ -437,7 +439,8 @@ Value VarDeclNode::codegen(Codegen &g) const {
 		}
 		return value;
 	};
-	if (var_type == Type::CONST) {
+	// TODO not complete
+	if (const_flag) {
 		auto value = cast_if_needed(value_node->codegen(g));
 		g.declare_value(name, value);
 		return g.get_context().get_void();
@@ -449,14 +452,55 @@ Value VarDeclNode::codegen(Codegen &g) const {
 			g.declare_value(name, value);
 			return g.get_context().get_void();
 		}
-		ptr = g.allocate_stack(value.get_type(), value, var_type == Type::VAL);
+		ptr = g.allocate_stack(value.get_type(), value, !mutable_flag);
 	} else {
 		auto type = type_node->codegen(g).get_type_value();
 		if (dynamic_cast<rin::Type::Ref *>(type))
 			g.error("Variable of reference type must be initialized at declaration");
-		ptr = g.allocate_stack(type, var_type == Type::VAL);
+		ptr = g.allocate_stack(type, !mutable_flag);
 	}
 	g.declare_value(name, ptr.pointer_subscript(g));
+	return g.get_context().get_void();
+}
+
+void GlobalVarDeclNode::declare(Codegen &g) {
+	// TODO const
+	// TODO cycle
+	if (g.is_const_eval()) not_const_evaluated(g, this);
+	Type *type;
+	if (value_node) {
+		g.push_const_eval();
+		initial_value = value_node->codegen(g);
+		g.pop_const_eval();
+		if (type_node) {
+			auto target_type = type_node->codegen(g).get_type_value();
+			if (auto opt = initial_value.cast_to(g, target_type))
+				initial_value = *opt;
+			else
+				g.error(
+					"Cannot initialize a variable of type {} with a value of type {}",
+					target_type->to_string(), initial_value.get_type()->to_string()
+				);
+		}
+		type = initial_value.get_type();
+	} else {
+		type = type_node->codegen(g).get_type_value();
+		initial_value = Value::undef(type);
+	}
+	global_ref = {
+		g.get_context().get_ref_type(type),
+		new llvm::GlobalVariable(
+			*g.get_module(),
+			type->get_llvm(),
+			false /* TODO */,
+			llvm::GlobalVariable::LinkageTypes::ExternalLinkage /* TODO */,
+			llvm::dyn_cast<llvm::Constant>(initial_value.get_llvm_value())
+		)
+	};
+	g.declare_value(name, global_ref);
+}
+
+Value GlobalVarDeclNode::codegen(Codegen &g) const {
 	return g.get_context().get_void();
 }
 

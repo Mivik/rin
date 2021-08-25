@@ -88,27 +88,25 @@ private:
 
 class VarDeclNode : public ASTNode {
 public:
-	enum class Type : uint8_t {
-		VAR, VAL, CONST
-	};
-
 	VarDeclNode(
 		const SourceRange &range,
 		std::string name,
 		Ptr<ASTNode> type_node,
 		Ptr<ASTNode> value_node,
-		Type var_type
+		bool is_mutable,
+		bool is_const
 	);
 
 	[[nodiscard]] const std::string &get_name() const { return name; }
 	[[nodiscard]] const ASTNode *get_value_node() const { return value_node.get(); }
-	[[nodiscard]] Type get_variable_type() const { return var_type; }
+	[[nodiscard]] bool is_mutable() const { return mutable_flag; }
+	[[nodiscard]] bool is_const() const { return const_flag; }
 
 	OVERRIDE
 private:
 	std::string name;
 	Ptr<ASTNode> type_node, value_node;
-	Type var_type;
+	bool mutable_flag, const_flag;
 };
 
 class CallNode final : public ASTNode {
@@ -297,7 +295,7 @@ public:
 
 	OVERRIDE
 
-	virtual void declare(Codegen &g) override;
+	void declare(Codegen &g) override;
 private:
 	std::string name;
 	Ptr<FunctionTypeNode> type_node;
@@ -306,6 +304,36 @@ private:
 	// Initialize at declaration
 	Function::Static *function_object;
 	Type::Function *type;
+};
+
+class GlobalVarDeclNode : public DeclNode {
+public:
+	GlobalVarDeclNode(
+		const SourceRange &range,
+		std::string name,
+		Ptr<ASTNode> type_node,
+		Ptr<ASTNode> value_node,
+		bool is_mutable,
+		bool is_const
+	): DeclNode(range),
+	   name(std::move(name)),
+	   type_node(std::move(type_node)),
+	   value_node(std::move(value_node)),
+	   mutable_flag(is_mutable), const_flag(is_const) {}
+
+	[[nodiscard]] const std::string &get_name() const { return name; }
+	[[nodiscard]] const ASTNode *get_value_node() const { return value_node.get(); }
+	[[nodiscard]] bool is_mutable() const { return mutable_flag; }
+	[[nodiscard]] bool is_const() const { return const_flag; }
+
+	OVERRIDE
+
+	void declare(Codegen &g) override;
+private:
+	std::string name;
+	Ptr<ASTNode> type_node, value_node;
+	bool mutable_flag, const_flag;
+	Value initial_value, global_ref;
 };
 
 class ReturnNode : public ASTNode {

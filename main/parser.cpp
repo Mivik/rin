@@ -157,7 +157,7 @@ Ptr<ASTNode> Parser::take_expr() {
 			error(
 				"Not enough operand(s). Expected {}, got {}",
 				amount, st.size()
-				);
+			);
 	};
 	auto process_op = [&](std::stack<Ptr<ASTNode>> &st, const Token &token) {
 		const TokenKind op = token.kind;
@@ -293,10 +293,14 @@ Ptr<ASTNode> Parser::take_stmt() {
 		case K::Val:
 		case K::Const: {
 			lexer.take();
-			VarDeclNode::Type var_type =
-				kind == K::Var? VarDeclNode::Type::VAR:
-				kind == K::Val? VarDeclNode::Type::VAL:
-				VarDeclNode::Type::CONST;
+			bool is_const = kind == TokenKind::Const;
+			if (is_const) {
+				auto token = lexer.peek();
+				if (token.kind == TokenKind::Var) {
+					lexer.take();
+					kind = token.kind;
+				} else kind = TokenKind::Val;
+			}
 			auto name = expect(lexer.take(), K::Identifier).content(get_buffer());
 			Ptr<ASTNode> type_node, value_node;
 			if (lexer.peek().kind == K::Colon) {
@@ -313,7 +317,8 @@ Ptr<ASTNode> Parser::take_stmt() {
 				std::string(name),
 				std::move(type_node),
 				std::move(value_node),
-				var_type
+				is_const,
+				kind == TokenKind::Val
 			);
 		}
 		case K::Return: {
@@ -359,7 +364,45 @@ Ptr<ASTNode> Parser::take_stmt() {
 }
 
 Ptr<DeclNode> Parser::take_decl() {
-	return take_function();
+	const auto begin = lexer.position();
+	switch (auto kind = lexer.peek().kind) {
+		case K::Var:
+		case K::Val:
+		case K::Const: {
+			lexer.take();
+			bool is_const = kind == TokenKind::Const;
+			if (is_const) {
+				auto token = lexer.peek();
+				if (token.kind == TokenKind::Var) {
+					lexer.take();
+					kind = token.kind;
+				} else kind = TokenKind::Val;
+			}
+			auto name = expect(lexer.take(), K::Identifier).content(get_buffer());
+			Ptr<ASTNode> type_node, value_node;
+			if (lexer.peek().kind == K::Colon) {
+				lexer.take();
+				type_node = take_prim();
+			}
+			if (lexer.peek().kind == K::Assign) {
+				lexer.take();
+				value_node = take_expr();
+			}
+			expect_end_of_stmt();
+			return std::make_unique<GlobalVarDeclNode>(
+				SourceRange(begin, lexer.position()),
+				std::string(name),
+				std::move(type_node),
+				std::move(value_node),
+				is_const,
+				kind == TokenKind::Val
+			);
+		}
+		case K::Fn:
+			return take_function();
+		default:
+			error("Unexpected token: {}", lexer.peek().info(get_buffer()));
+	}
 }
 
 Ptr<TopLevelNode> Parser::take_top_level() {
