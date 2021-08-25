@@ -351,6 +351,11 @@ inline Value assignment_codegen(Codegen &g, Value lhs, Value rhs, TokenKind op) 
 
 Value BinOpNode::codegen(Codegen &g) const {
 	if (op == K::Period) {
+		if (auto call_node = dynamic_cast<CallNode *>(rhs_node.get())) {
+			assert(!call_node->receiver_node);
+			call_node->receiver_node = std::make_unique<PhonyASTNode>(lhs_node->codegen(g));
+			return call_node->codegen(g);
+		}
 		auto value_node = dynamic_cast<ValueNode *>(rhs_node.get());
 		if (!value_node) g.error("Accessing invalid member of struct"); // TODO error message
 		auto name = value_node->get_name();
@@ -696,7 +701,7 @@ Value FunctionNode::codegen(Codegen &g) const {
 	if (receiver_type)
 		g.declare_value(
 			"this",
-			{ g.get_context().get_ref_type(receiver_type), args[0] }
+			{ receiver_type, args[0] }
 		);
 	const auto &param_types = type->get_parameter_types();
 	const auto &param_names = type_node->get_parameter_names();

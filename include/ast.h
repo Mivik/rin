@@ -28,6 +28,17 @@ public:
 #define OVERRIDE \
     Value codegen(Codegen &g) const override;
 
+class PhonyASTNode final : public ASTNode {
+public:
+	PhonyASTNode(Value value): ASTNode(SourceRange(-1)), value(value) {}
+
+	[[nodiscard]] Value get_value() const { return value; }
+
+	Value codegen(Codegen &) const override { return value; }
+private:
+	Value value;
+};
+
 class ConstantNode final : public ASTNode {
 public:
 	ConstantNode(const Token &token, const Reader &input):
@@ -130,6 +141,8 @@ private:
 	std::string name;
 	Ptr<ASTNode> receiver_node;
 	std::vector<Ptr<ASTNode>> argument_nodes;
+
+	friend class BinOpNode; // call with receiver
 };
 
 class BlockNode : public ASTNode {

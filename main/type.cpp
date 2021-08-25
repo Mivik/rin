@@ -131,7 +131,8 @@ Type::Function::Function(
 			make_llvm_param(receiver_type, param_types),
 			false
 		): nullptr,
-		receiver_type->is_abstract() || result_type->is_abstract() ||
+		(receiver_type && receiver_type->is_abstract()) ||
+		(result_type && result_type->is_abstract()) ||
 		std::any_of(param_types.begin(), param_types.end(), [](const Type *type) {
 			return type->is_abstract();
 		})
