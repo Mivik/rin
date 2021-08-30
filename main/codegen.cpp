@@ -53,6 +53,8 @@ void Codegen::add_layer(
 }
 
 void Codegen::pop_layer() {
+	for (auto ref : layers.back().refs)
+		delete ref;
 	layers.pop_back();
 	value_map.pop_layer();
 	function_map.pop_layer();

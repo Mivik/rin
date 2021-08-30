@@ -16,8 +16,16 @@ namespace rin {
 
 class Codegen;
 
+class Ref;
+
 class Value {
 public:
+	enum class Kind {
+		Normal,
+		Ref,
+		Type,
+	};
+
 	static inline Value undef(Type *type) {
 		return {
 			type,
@@ -28,11 +36,16 @@ public:
 	Value(): type(nullptr), llvm_value(nullptr) {} // NOLINT(cppcoreguidelines-pro-type-member-init)
 
 	Value(Type *type, llvm::Value *llvm): // NOLINT(cppcoreguidelines-pro-type-member-init)
-		type(type), llvm_value(llvm) {}
+		type(type), llvm_value(llvm) {
+		if (dynamic_cast<Type::Ref*>(type))
+			throw std::runtime_error("Ref value cannot be created directly");
+	}
 
 	// Type is also a value
 	explicit Value(Type *type_value): // NOLINT(cppcoreguidelines-pro-type-member-init)
 		type(Type::Self::get_instance()), type_value(type_value) {}
+
+		explicit Value(Ref *ref);
 
 	// TODO is it?
 	[[nodiscard]] bool is_constant() const {
@@ -41,8 +54,15 @@ public:
 
 	[[nodiscard]] Value deref(Codegen &g) const;
 
+	[[nodiscard]] Kind get_kind() const {
+		if (is_type_value()) return Kind::Type;
+		if (is_ref_value()) return Kind::Ref;
+		return Kind::Normal;
+	}
+
+	[[nodiscard]] bool is_normal_value() const { return get_kind() == Kind::Normal; }
 	[[nodiscard]] bool is_type_value() const { return type == Type::Self::get_instance(); }
-	[[nodiscard]] bool is_normal_value() const { return type != Type::Self::get_instance(); }
+	[[nodiscard]] bool is_ref_value() const { return dynamic_cast<Type::Ref*>(type); }
 
 	[[nodiscard]] bool can_cast_to(Type *to_type) const {
 		if (auto self = dynamic_cast<Type::Ref *>(type)) {
@@ -71,17 +91,30 @@ public:
 		assert(is_type_value());
 		return type_value;
 	}
+	[[nodiscard]] Ref *get_ref_value() const {
+		assert(is_ref_value());
+		return ref_value;
+	}
 
 	[[nodiscard]] Value pointer_subscript(Codegen &g) const;
 	[[nodiscard]] Value pointer_subscript(Codegen &g, Value index) const;
 
 	// TODO remove this in release build
 	void dump(llvm::raw_ostream &out = llvm::outs()) {
-		if (is_type_value())
-			out << "[type] " << type_value->to_string();
-		else {
-			out << '[' << type->to_string() << "] ";
-			llvm_value->print(out);
+		switch (get_kind()) {
+			case Kind::Normal: {
+				out << '[' << type->to_string() << "] ";
+				llvm_value->print(out);
+				break;
+			}
+			case Kind::Ref: {
+				out << "[ref] " << type->to_string();
+				break;
+			}
+			case Kind::Type: {
+				out << "[type] " << type_value->to_string();
+				break;
+			}
 		}
 		out << '\n';
 	}
@@ -90,6 +123,7 @@ private:
 	union {
 		llvm::Value *llvm_value;
 		Type *type_value;
+		Ref *ref_value;
 	};
 };
 

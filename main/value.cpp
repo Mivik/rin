@@ -1,17 +1,17 @@
 
 #include "codegen.h"
+#include "ref.h"
 #include "value.h"
 
 namespace rin {
 
+Value::Value(Ref *ref): // NOLINT(cppcoreguidelines-pro-type-member-init)
+	type(ref->get_type()),
+	ref_value(ref) {}
+
 Value Value::deref(Codegen &g) const {
-	auto ref_type = dynamic_cast<Type::Ref *>(type);
-	if (!ref_type) return *this;
-	auto sub = ref_type->get_sub_type();
-	return {
-		sub,
-		g.get_builder()->CreateLoad(sub->get_llvm(), llvm_value)
-	};
+	if (get_kind() != Kind::Ref) return *this;
+	return ref_value->load(g);
 }
 
 Value Value::pointer_subscript(Codegen &g) const {

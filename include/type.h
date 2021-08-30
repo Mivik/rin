@@ -42,7 +42,9 @@ public:
 
 	[[nodiscard]] llvm::Type *get_llvm() const { return llvm; }
 	[[nodiscard]] bool is_abstract() const { return abstract_flag; }
-	[[nodiscard]] virtual bool operator==(const Type &other) const { return llvm == other.llvm; }
+	[[nodiscard]] virtual Type *get_element(unsigned index) const {
+		throw std::runtime_error("No element contained in this type");
+	}
 	[[nodiscard]] virtual std::string to_string() const = 0;
 
 	[[nodiscard]] Type *deref();
@@ -79,7 +81,6 @@ public:
 		return direct_cast<llvm::IntegerType>(llvm)->getIntegerBitWidth();
 	}
 	[[nodiscard]] bool is_signed() const { return signed_flag; }
-	bool operator==(const Type &other) const override;
 
 	[[nodiscard]] std::string to_string() const override {
 		return "ui"[signed_flag] + std::to_string(get_bit_width());
@@ -107,6 +108,8 @@ class Type::Array final : public Type {
 public:
 	[[nodiscard]] Type *get_element_type() const { return element_type; }
 	[[nodiscard]] uint32_t get_size() const { return size; }
+
+	[[nodiscard]] Type *get_element(unsigned index) const override { return element_type; }
 	[[nodiscard]] std::string to_string() const override {
 		return '[' + element_type->to_string() + "; " + std::to_string(size) + ']';
 	}
@@ -121,6 +124,7 @@ private:
 
 class Type::Pointer final : public Type {
 public:
+	[[nodiscard]] Type *get_element(unsigned index) const override { return sub_type; }
 	[[nodiscard]] Type *get_sub_type() const { return sub_type; }
 	[[nodiscard]] bool is_const() const { return const_flag; }
 	[[nodiscard]] std::string to_string() const override {
@@ -182,6 +186,12 @@ public:
 	}
 
 	[[nodiscard]] const std::vector<FieldInfo> &get_fields() const { return fields; }
+
+	[[nodiscard]] Type *get_element(unsigned index) const override {
+		if (index >= fields.size())
+			throw std::runtime_error("Type element index out of bound"); // TODO error message
+		return fields[index].type;
+	}
 	[[nodiscard]] std::string to_string() const override;
 private:
 	Struct(Context *ctx, std::vector<FieldInfo> fields);
@@ -194,6 +204,12 @@ private:
 class Type::Tuple final : public Type {
 public:
 	[[nodiscard]] const std::vector<Type *> &get_element_types() const { return elements; }
+
+	[[nodiscard]] Type *get_element(unsigned index) const override {
+		if (index >= elements.size())
+			throw std::runtime_error("Type element index out of bound"); // TODO error message
+		return elements[index];
+	}
 	[[nodiscard]] std::string to_string() const override;
 private:
 	Tuple(Context *ctx, std::vector<Type *> elements);

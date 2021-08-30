@@ -8,6 +8,7 @@
 #include "context.h"
 #include "function.h"
 #include "layer_map.h"
+#include "ref.h"
 
 namespace rin {
 
@@ -37,7 +38,7 @@ public:
 	llvm::IRBuilder<> *get_builder() const { return layers.back().builder.get(); }
 
 	template<class...Args>
-	[[noreturn]] void error(const char *pattern, Args&&...args) const {
+	[[noreturn]] void error(const char *pattern, Args &&...args) const {
 		throw CodegenException(fmt::format(pattern, std::forward<Args>(args)...));
 	}
 
@@ -61,6 +62,14 @@ public:
 		return result;
 	}
 
+	template<class T, class...Args>
+	T *create_ref(Args &&...args) {
+		static_assert(std::is_base_of_v<Ref, T>);
+		auto ptr = new T(std::forward<Args>(args)...);
+		layers.back().refs.push_back(ptr);
+		return ptr;
+	}
+
 	[[nodiscard]] llvm::Function *get_llvm_function() const;
 
 	[[nodiscard]] Ptr<llvm::Module> finalize() { return std::move(module); }
@@ -78,6 +87,7 @@ private:
 	struct Layer {
 		Ptr<llvm::IRBuilder<>> builder;
 		Function::Static *function;
+		std::vector<Ref *> refs;
 	};
 
 	void declare_builtin(const std::string &name, Type::Function *type, Function::Builtin::FuncType func) {

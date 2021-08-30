@@ -1,6 +1,7 @@
 
 #include "ast.h"
 #include "parser.h"
+#include "ref.h"
 
 namespace rin {
 
@@ -121,12 +122,19 @@ Value UnaryOpNode::codegen(Codegen &g) const {
 		case K::Ref:
 			if (value.is_type_value())
 				return Value(g.get_context().get_ref_type(value.get_type_value()));
-			else if (auto ref_type = dynamic_cast<Type::Ref *>(value.get_type()))
-				return {
-					g.get_context().get_pointer_type(ref_type->get_sub_type(), ref_type->is_const()),
-					value.get_llvm_value()
-				};
-			else unary_op_fail(value, op);
+			else if (value.is_ref_value()) {
+				if (auto ref = dynamic_cast<Ref::Address *>(value.get_ref_value())) {
+					auto ref_type = ref->get_type();
+					return {
+						g.get_context().get_pointer_type(ref_type->get_sub_type(), ref_type->is_const()),
+						ref->get_address()
+					};
+				} else
+					g.error(
+						"Cannot get the address of an abstract reference: {}",
+						value.get_type()->to_string()
+					);
+			} else unary_op_fail(value, op);
 			break;
 		default:
 			break;
@@ -369,10 +377,7 @@ Value BinOpNode::codegen(Codegen &g) const {
 		size_t index;
 		if (auto opt = struct_type->find_index_by_name(name)) index = *opt;
 		else g.error("Unknown member of struct: {}", name);
-		return {
-			g.get_context().get_ref_type(struct_type->get_fields()[index].type, ref_type->is_const()),
-			g.get_builder()->CreateStructGEP(lhs.get_llvm_value(), index)
-		};
+		return Value(lhs.get_ref_value()->get_element(g, index));
 	}
 	auto lhs = lhs_node->codegen(g);
 	if (op == K::LBracket)
@@ -383,10 +388,7 @@ Value BinOpNode::codegen(Codegen &g) const {
 				g.pop_const_eval();
 				auto constant = llvm::dyn_cast<llvm::ConstantInt>(rhs.get_llvm_value());
 				auto index = constant->getZExtValue();
-				return {
-					g.get_context().get_ref_type(tuple_type->get_element_types()[index], ref_type->is_const()),
-					g.get_builder()->CreateStructGEP(lhs.get_llvm_value(), index)
-				};
+				return Value(lhs.get_ref_value()->get_element(g, index));
 			}
 	auto rhs = rhs_node->codegen(g);
 	// TODO remove this
@@ -492,7 +494,7 @@ void GlobalVarDeclNode::declare(Codegen &g) {
 		type = type_node->codegen(g).get_type_value();
 		initial_value = Value::undef(type);
 	}
-	global_ref = {
+	global_ref = Value(g.create_ref<Ref::Address>(
 		g.get_context().get_ref_type(type),
 		new llvm::GlobalVariable(
 			*g.get_module(),
@@ -501,7 +503,7 @@ void GlobalVarDeclNode::declare(Codegen &g) {
 			llvm::GlobalVariable::LinkageTypes::ExternalLinkage /* TODO */,
 			llvm::dyn_cast<llvm::Constant>(initial_value.get_llvm_value())
 		)
-	};
+	));
 	g.declare_value(name, global_ref);
 }
 
@@ -550,7 +552,7 @@ Value CallNode::codegen(Codegen &g) const {
 	if (g.is_const_eval() && !matching_function->is_const_eval())
 		not_const_evaluated(g, this);
 	auto type = matching_function->get_type();
-	for (size_t i = 0;i  < arguments.size(); ++i)
+	for (size_t i = 0; i < arguments.size(); ++i)
 		arguments[i] = *arguments[i].cast_to(g, type->get_parameter_types()[i]);
 	return matching_function->invoke(
 		g,
@@ -594,7 +596,10 @@ Value StructValueNode::codegen(Codegen &g) const {
 			member
 		);
 	}
-	return { g.get_context().get_ref_type(type, true), ptr.get_llvm_value() };
+	return Value(g.create_ref<Ref::Address>(
+		g.get_context().get_ref_type(type, true),
+		ptr.get_llvm_value()
+	));
 }
 
 Value TupleNode::codegen(Codegen &g) const {
@@ -620,11 +625,14 @@ Value TupleValueNode::codegen(Codegen &g) const {
 	for (size_t i = 0; i < elements.size(); ++i) {
 		auto member = builder.CreateStructGEP(ptr.get_llvm_value(), i);
 		builder.CreateStore(
-			elements[i].get_llvm_value(),
+			elements[i].deref(g).get_llvm_value(),
 			member
 		);
 	}
-	return { g.get_context().get_ref_type(type, true), ptr.get_llvm_value() };
+	return Value(g.create_ref<Ref::Address>(
+		g.get_context().get_ref_type(type, true),
+		ptr.get_llvm_value()
+	));
 }
 
 Value BlockNode::codegen(Codegen &g) const {
