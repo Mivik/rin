@@ -37,7 +37,7 @@ public:
 
 	Value(Type *type, llvm::Value *llvm): // NOLINT(cppcoreguidelines-pro-type-member-init)
 		type(type), llvm_value(llvm) {
-		if (dynamic_cast<Type::Ref*>(type))
+		if (dynamic_cast<Type::Ref *>(type))
 			throw std::runtime_error("Ref value cannot be created directly");
 	}
 
@@ -45,7 +45,7 @@ public:
 	explicit Value(Type *type_value): // NOLINT(cppcoreguidelines-pro-type-member-init)
 		type(Type::Self::get_instance()), type_value(type_value) {}
 
-		explicit Value(Ref *ref);
+	explicit Value(Ref *ref);
 
 	// TODO is it?
 	[[nodiscard]] bool is_constant() const {
@@ -62,7 +62,7 @@ public:
 
 	[[nodiscard]] bool is_normal_value() const { return get_kind() == Kind::Normal; }
 	[[nodiscard]] bool is_type_value() const { return type == Type::Self::get_instance(); }
-	[[nodiscard]] bool is_ref_value() const { return dynamic_cast<Type::Ref*>(type); }
+	[[nodiscard]] bool is_ref_value() const { return dynamic_cast<Type::Ref *>(type); }
 
 	[[nodiscard]] bool can_cast_to(Type *to_type) const {
 		if (auto self = dynamic_cast<Type::Ref *>(type)) {

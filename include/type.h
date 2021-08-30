@@ -14,6 +14,8 @@ namespace rin {
 
 class Context;
 
+class Value;
+
 class Type {
 public:
 	class Array;
@@ -42,7 +44,7 @@ public:
 
 	[[nodiscard]] llvm::Type *get_llvm() const { return llvm; }
 	[[nodiscard]] bool is_abstract() const { return abstract_flag; }
-	[[nodiscard]] virtual Type *get_element(unsigned) const {
+	[[nodiscard]] virtual Type *get_element(Value index) const {
 		throw std::runtime_error("No element contained in this type");
 	}
 	[[nodiscard]] virtual std::string to_string() const = 0;

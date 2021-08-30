@@ -97,6 +97,24 @@ private:
 	std::string name;
 };
 
+class ArrayTypeNode final : public ASTNode {
+public:
+	ArrayTypeNode(
+		const SourceRange &range,
+		Ptr<ASTNode> sub_type_node,
+		Ptr<ASTNode> length_node
+	): ASTNode(range),
+	   sub_type_node(std::move(sub_type_node)),
+	   length_node(std::move(length_node)) {}
+
+	[[nodiscard]] const ASTNode *get_sub_type_node() const { return sub_type_node.get(); }
+	[[nodiscard]] const ASTNode *get_length_node() const { return length_node.get(); }
+
+	OVERRIDE
+private:
+	Ptr<ASTNode> sub_type_node, length_node;
+};
+
 class VarDeclNode : public ASTNode {
 public:
 	VarDeclNode(
@@ -145,7 +163,7 @@ private:
 	friend class BinOpNode; // call with receiver
 };
 
-class BlockNode : public ASTNode {
+class BlockNode final : public ASTNode {
 public:
 	BlockNode(
 		const SourceRange &range,
@@ -161,7 +179,7 @@ private:
 	bool has_return_flag;
 };
 
-class FunctionTypeNode : public ASTNode {
+class FunctionTypeNode final : public ASTNode {
 public:
 	FunctionTypeNode(
 		const SourceRange &range,
@@ -190,7 +208,7 @@ private:
 	std::vector<std::string> param_names;
 };
 
-class StructNode : public ASTNode {
+class StructNode final : public ASTNode {
 public:
 	StructNode(
 		const SourceRange &range,
@@ -212,7 +230,7 @@ private:
 	std::vector<Ptr<ASTNode>> field_types;
 };
 
-class StructValueNode : public ASTNode {
+class StructValueNode final : public ASTNode {
 public:
 	StructValueNode(
 		const SourceRange &range,
@@ -231,7 +249,7 @@ private:
 	std::vector<Ptr<ASTNode>> field_nodes;
 };
 
-class TupleNode : public ASTNode {
+class TupleNode final : public ASTNode {
 public:
 	TupleNode(
 		const SourceRange &range,
@@ -247,7 +265,7 @@ private:
 };
 
 // TODO reference type?
-class TupleValueNode : public ASTNode {
+class TupleValueNode final : public ASTNode {
 public:
 	TupleValueNode(
 		const SourceRange &range,
@@ -271,7 +289,7 @@ protected:
 	explicit DeclNode(const SourceRange &range): ASTNode(range) {}
 };
 
-class TopLevelNode : public ASTNode {
+class TopLevelNode final : public ASTNode {
 public:
 	TopLevelNode(
 		const SourceRange &range,
@@ -288,7 +306,7 @@ private:
 
 // TODO generic function
 // TODO const-evaluate
-class FunctionNode : public DeclNode {
+class FunctionNode final : public DeclNode {
 public:
 	FunctionNode(
 		const SourceRange &range,
@@ -319,7 +337,7 @@ private:
 	Type::Function *type;
 };
 
-class GlobalVarDeclNode : public DeclNode {
+class GlobalVarDeclNode final : public DeclNode {
 public:
 	GlobalVarDeclNode(
 		const SourceRange &range,
@@ -349,7 +367,7 @@ private:
 	Value initial_value, global_ref;
 };
 
-class ReturnNode : public ASTNode {
+class ReturnNode final : public ASTNode {
 public:
 	ReturnNode(
 		const SourceRange &range,
@@ -364,7 +382,7 @@ private:
 	Ptr<ASTNode> value_node;
 };
 
-class IfNode : public ASTNode {
+class IfNode final : public ASTNode {
 public:
 	IfNode(
 		const SourceRange &range,

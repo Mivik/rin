@@ -15,6 +15,15 @@ using K = TokenKind;
 	);
 }
 
+Value ArrayTypeNode::codegen(Codegen &g) const {
+	auto length_value = length_node->codegen(g);
+	auto constant = llvm::dyn_cast<llvm::ConstantInt>(length_value.get_llvm_value());
+	return Value(g.get_context().get_array_type(
+		sub_type_node->codegen(g).get_type_value(),
+		static_cast<uint32_t>(constant->getZExtValue())
+	));
+}
+
 BlockNode::BlockNode(const SourceRange &range, std::vector<Ptr<ASTNode>> stmts):
 	ASTNode(range),
 	stmt_nodes(std::move(stmts)) {
@@ -375,7 +384,7 @@ Value BinOpNode::codegen(Codegen &g) const {
 		size_t index;
 		if (auto opt = struct_type->find_index_by_name(name)) index = *opt;
 		else g.error("Unknown member of struct: {}", name);
-		return Value(lhs.get_ref_value()->get_element(g, index));
+		return Value(lhs.get_ref_value()->get_element(g, 0, index));
 	}
 	auto lhs = lhs_node->codegen(g);
 	if (op == K::LBracket)
@@ -386,7 +395,7 @@ Value BinOpNode::codegen(Codegen &g) const {
 				g.pop_const_eval();
 				auto constant = llvm::dyn_cast<llvm::ConstantInt>(rhs.get_llvm_value());
 				auto index = constant->getZExtValue();
-				return Value(lhs.get_ref_value()->get_element(g, index));
+				return Value(lhs.get_ref_value()->get_element(g, 0, index));
 			}
 	auto rhs = rhs_node->codegen(g);
 	// TODO remove this
@@ -407,6 +416,8 @@ Value BinOpNode::codegen(Codegen &g) const {
 		case K::LBracket: { // pointer subscript
 			// TODO we assume that reference is always not const, but is it?
 			// TODO safe mode (check in-bound)
+			if (lhs.is_ref_value())
+				return lhs.get_ref_value()->get_element(g, rhs.deref(g));
 			if (auto ref_type = dynamic_cast<Type::Ref *>(lhs.get_type()))
 				if (dynamic_cast<Type::Array *>(ref_type->get_sub_type()))
 					return lhs.pointer_subscript(g, rhs.deref(g));

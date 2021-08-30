@@ -39,6 +39,10 @@ public:
 	Function::Static *get_function() const { return layers.back().function; }
 	llvm::IRBuilder<> *get_builder() const { return layers.back().builder.get(); }
 
+	[[nodiscard]] llvm::ConstantInt *get_constant_int(unsigned value) const {
+		return llvm::ConstantInt::get(llvm::Type::getInt32Ty(get_llvm_context()), value);
+	}
+
 	[[nodiscard]] Value create_ref_value(Type::Ref *type, llvm::Value *llvm) {
 		return Value(create_ref<Ref::Address>(type, llvm));
 	}

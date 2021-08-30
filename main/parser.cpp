@@ -17,6 +17,18 @@ Ptr<ASTNode> Parser::take_prim_inner() {
 			lexer.take();
 			return std::make_unique<ConstantNode>(token, get_reader());
 		}
+		case K::LBracket: {
+			lexer.take();
+			auto type = take_prim();
+			expect(lexer.take(), K::Semicolon);
+			auto length = take_prim();
+			expect(lexer.take(), K::RBracket);
+			return std::make_unique<ArrayTypeNode>(
+				SourceRange(begin, lexer.position()),
+				std::move(type),
+				std::move(length)
+			);
+		}
 		case K::LBrace: {
 			std::vector<Ptr<ASTNode>> elements;
 			process_list(K::LBrace, K::RBrace, K::Comma, [&]() {

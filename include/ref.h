@@ -14,10 +14,17 @@ public:
 
 	[[nodiscard]] virtual Value load(Codegen &g) = 0;
 	virtual void store(Codegen &g, Value value) = 0;
-	[[nodiscard]] virtual Ref *get_element(Codegen &g, const std::vector<unsigned> &indices) = 0;
+	[[nodiscard]] virtual Ref *get_element(Codegen &g, const std::vector<llvm::Value *> &indices) = 0;
 
 	[[nodiscard]] Ref *get_element(Codegen &g, unsigned index) {
-		return get_element(g, std::vector<unsigned>{ index });
+		return get_element(g, std::vector<llvm::Value*>{ g.get_constant_int(index) });
+	}
+
+	[[nodiscard]] Ref *get_element(Codegen &g, unsigned index0, unsigned index1) {
+		return get_element(g, std::vector<llvm::Value*>{
+			g.get_constant_int(index0),
+			g.get_constant_int(index1)
+		});
 	}
 
 	[[nodiscard]] Type::Ref *get_type() const { return type; }
@@ -34,7 +41,7 @@ public:
 
 	[[nodiscard]] Value load(Codegen &g) override;
 	void store(Codegen &g, Value value) override;
-	[[nodiscard]] Ref *get_element(Codegen &g, const std::vector<unsigned> &indices) override;
+	[[nodiscard]] Ref *get_element(Codegen &g, const std::vector<llvm::Value*> &indices) override;
 private:
 	Address(Type::Ref *type, llvm::Value *address):
 		Ref(type),
