@@ -72,21 +72,10 @@ public:
 		}
 		return false;
 	}
-	[[nodiscard]] std::optional<Value> cast_to(Codegen &g, Type *to_type) const {
-		if (type == to_type) return *this;
-		if (auto ref_type = dynamic_cast<Type::Ref *>(type)) {
-			if (ref_type->get_sub_type() == to_type) return deref(g);
-			if (dynamic_cast<Type::Ref *>(to_type))
-				return Value(to_type, llvm_value);
-		}
-		return std::nullopt;
-	}
+	[[nodiscard]] std::optional<Value> cast_to(Codegen &g, Type *to_type) const;
 
 	[[nodiscard]] Type *get_type() const { return type; }
-	[[nodiscard]] llvm::Value *get_llvm_value() const {
-		assert(is_normal_value());
-		return llvm_value;
-	}
+	[[nodiscard]] llvm::Value *get_llvm_value() const;
 	[[nodiscard]] Type *get_type_value() const {
 		assert(is_type_value());
 		return type_value;
@@ -100,7 +89,7 @@ public:
 	[[nodiscard]] Value pointer_subscript(Codegen &g, Value index) const;
 
 	// TODO remove this in release build
-	void dump(llvm::raw_ostream &out = llvm::outs()) {
+	void dump(llvm::raw_ostream &out = llvm::errs()) {
 		switch (get_kind()) {
 			case Kind::Normal: {
 				out << '[' << type->to_string() << "] ";

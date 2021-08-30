@@ -42,7 +42,7 @@ public:
 
 	[[nodiscard]] llvm::Type *get_llvm() const { return llvm; }
 	[[nodiscard]] bool is_abstract() const { return abstract_flag; }
-	[[nodiscard]] virtual Type *get_element(unsigned index) const {
+	[[nodiscard]] virtual Type *get_element(unsigned) const {
 		throw std::runtime_error("No element contained in this type");
 	}
 	[[nodiscard]] virtual std::string to_string() const = 0;
@@ -109,7 +109,7 @@ public:
 	[[nodiscard]] Type *get_element_type() const { return element_type; }
 	[[nodiscard]] uint32_t get_size() const { return size; }
 
-	[[nodiscard]] Type *get_element(unsigned index) const override { return element_type; }
+	[[nodiscard]] Type *get_element(unsigned) const override { return element_type; }
 	[[nodiscard]] std::string to_string() const override {
 		return '[' + element_type->to_string() + "; " + std::to_string(size) + ']';
 	}
@@ -124,7 +124,7 @@ private:
 
 class Type::Pointer final : public Type {
 public:
-	[[nodiscard]] Type *get_element(unsigned index) const override { return sub_type; }
+	[[nodiscard]] Type *get_element(unsigned) const override { return sub_type; }
 	[[nodiscard]] Type *get_sub_type() const { return sub_type; }
 	[[nodiscard]] bool is_const() const { return const_flag; }
 	[[nodiscard]] std::string to_string() const override {

@@ -34,6 +34,10 @@ Codegen::Codegen(Context &ctx, const std::string &name):
 	add_layer(std::make_unique<llvm::IRBuilder<>>(ctx.get_llvm()), nullptr);
 }
 
+Codegen::~Codegen() {
+	while (!layers.empty()) pop_layer();
+}
+
 llvm::Function *Codegen::get_llvm_function() const {
 	if (auto block = get_builder()->GetInsertBlock())
 		return block->getParent();

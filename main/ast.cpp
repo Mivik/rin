@@ -311,12 +311,13 @@ inline Value bin_op_arithmetic_codegen(Codegen &g, Value lhs, Value rhs, TokenKi
 }
 
 inline Value assignment_codegen(Codegen &g, Value lhs, Value rhs, TokenKind op) {
-	auto ref_type = dynamic_cast<Type::Ref *>(lhs.get_type());
-	if (!ref_type)
+	if (!lhs.is_ref_value())
 		g.error(
 			"The left side of assignment statement must be a reference, got {}",
 			lhs.get_type()->to_string()
 		);
+	auto ref = lhs.get_ref_value();
+	auto ref_type = ref->get_type();
 	if (ref_type->is_const())
 		g.error("Attempt to assign to a const variable");
 	TokenKind bop = K::Assign;
@@ -348,12 +349,9 @@ inline Value assignment_codegen(Codegen &g, Value lhs, Value rhs, TokenKind op) 
 	auto value =
 		bop == K::Assign
 		? rhs
-		: bin_op_arithmetic_codegen(g, lhs.deref(g), rhs, bop);
+		: bin_op_arithmetic_codegen(g, ref->load(g), rhs, bop);
 	assert(value.get_type() == ref_type->get_sub_type());
-	g.get_builder()->CreateStore(
-		value.get_llvm_value(),
-		lhs.get_llvm_value()
-	);
+	ref->store(g, value);
 	return lhs;
 }
 
@@ -494,7 +492,7 @@ void GlobalVarDeclNode::declare(Codegen &g) {
 		type = type_node->codegen(g).get_type_value();
 		initial_value = Value::undef(type);
 	}
-	global_ref = Value(g.create_ref<Ref::Address>(
+	global_ref = g.create_ref_value(
 		g.get_context().get_ref_type(type),
 		new llvm::GlobalVariable(
 			*g.get_module(),
@@ -503,7 +501,7 @@ void GlobalVarDeclNode::declare(Codegen &g) {
 			llvm::GlobalVariable::LinkageTypes::ExternalLinkage /* TODO */,
 			llvm::dyn_cast<llvm::Constant>(initial_value.get_llvm_value())
 		)
-	));
+	);
 	g.declare_value(name, global_ref);
 }
 
@@ -596,10 +594,10 @@ Value StructValueNode::codegen(Codegen &g) const {
 			member
 		);
 	}
-	return Value(g.create_ref<Ref::Address>(
+	return g.create_ref_value(
 		g.get_context().get_ref_type(type, true),
 		ptr.get_llvm_value()
-	));
+	);
 }
 
 Value TupleNode::codegen(Codegen &g) const {
@@ -629,10 +627,10 @@ Value TupleValueNode::codegen(Codegen &g) const {
 			member
 		);
 	}
-	return Value(g.create_ref<Ref::Address>(
+	return g.create_ref_value(
 		g.get_context().get_ref_type(type, true),
 		ptr.get_llvm_value()
-	));
+	);
 }
 
 Value BlockNode::codegen(Codegen &g) const {
@@ -709,12 +707,12 @@ Value FunctionNode::codegen(Codegen &g) const {
 	if (receiver_type)
 		g.declare_value(
 			"this",
-			{ receiver_type, args[0] }
+			g.create_value(receiver_type, args[0])
 		);
 	const auto &param_types = type->get_parameter_types();
 	const auto &param_names = type_node->get_parameter_names();
 	for (size_t i = 0; i < param_types.size(); ++i)
-		g.declare_value(param_names[i], { param_types[i], args[i + has_receiver] });
+		g.declare_value(param_names[i], g.create_value(param_types[i], args[i + has_receiver]));
 	body_node->codegen(g);
 	if (!body_node->has_return()) {
 		if (type->get_result_type() == g.get_context().get_void_type())

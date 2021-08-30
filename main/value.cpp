@@ -14,17 +14,37 @@ Value Value::deref(Codegen &g) const {
 	return ref_value->load(g);
 }
 
+llvm::Value *Value::get_llvm_value() const {
+	assert(!is_type_value());
+	if (dynamic_cast<Type::Ref *>(type)) {
+		if (auto ref = dynamic_cast<Ref::Address *>(ref_value))
+			return ref->get_address();
+		else throw std::runtime_error("Attempt to use an abstract value");
+	}
+	return llvm_value;
+}
+
+std::optional<Value> Value::cast_to(Codegen &g, Type *to_type) const {
+	if (type == to_type) return *this;
+	if (auto ref_type = dynamic_cast<Type::Ref *>(type)) {
+		if (ref_type->get_sub_type() == to_type) return deref(g);
+		if (auto ref_to_type = dynamic_cast<Type::Ref *>(to_type))
+			return g.create_ref_value(ref_to_type, llvm_value);
+	}
+	return std::nullopt;
+}
+
 Value Value::pointer_subscript(Codegen &g) const {
 	auto ptr_type = dynamic_cast<Type::Pointer *>(type);
 	if (!ptr_type)
 		g.error("Subscripting a non-pointer type: {}", type->to_string());
-	return {
+	return g.create_ref_value(
 		g.get_context().get_ref_type(
 			ptr_type->get_sub_type(),
 			ptr_type->is_const()
 		),
 		llvm_value
-	};
+	);
 }
 
 Value Value::pointer_subscript(Codegen &g, Value index) const {

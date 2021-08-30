@@ -28,6 +28,8 @@ private:
 class Codegen {
 public:
 	explicit Codegen(Context &ctx, const std::string &name = "program");
+	~Codegen();
+
 	[[nodiscard]] Context &get_context() const { return ctx; }
 	[[nodiscard]] llvm::LLVMContext &get_llvm_context() const { return ctx.get_llvm(); }
 	[[nodiscard]] llvm::Module *get_module() const { return module.get(); }
@@ -36,6 +38,15 @@ public:
 	void pop_const_eval() { --const_eval_depth; }
 	Function::Static *get_function() const { return layers.back().function; }
 	llvm::IRBuilder<> *get_builder() const { return layers.back().builder.get(); }
+
+	[[nodiscard]] Value create_ref_value(Type::Ref *type, llvm::Value *llvm) {
+		return Value(create_ref<Ref::Address>(type, llvm));
+	}
+	[[nodiscard]] Value create_value(Type *type, llvm::Value *llvm) {
+		if (auto ref_type = dynamic_cast<Type::Ref *>(type))
+			return create_ref_value(ref_type, llvm);
+		return { type, llvm };
+	}
 
 	template<class...Args>
 	[[noreturn]] void error(const char *pattern, Args &&...args) const {

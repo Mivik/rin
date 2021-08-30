@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include "layer_map.h"
 #include "value.h"
 
 namespace rin {
@@ -11,9 +12,13 @@ public:
 
 	virtual ~Ref() = default;
 
-	virtual Value load(Codegen &g) = 0;
+	[[nodiscard]] virtual Value load(Codegen &g) = 0;
 	virtual void store(Codegen &g, Value value) = 0;
-	virtual Ref *get_element(Codegen &g, llvm::ArrayRef<unsigned> indices) = 0;
+	[[nodiscard]] virtual Ref *get_element(Codegen &g, const std::vector<unsigned> &indices) = 0;
+
+	[[nodiscard]] Ref *get_element(Codegen &g, unsigned index) {
+		return get_element(g, std::vector<unsigned>{ index });
+	}
 
 	[[nodiscard]] Type::Ref *get_type() const { return type; }
 	[[nodiscard]] bool is_const() const { return type->is_const(); }
@@ -23,16 +28,13 @@ protected:
 	Type::Ref *type;
 };
 
-#define OVERRIDE \
-    Value load(Codegen &g) override; \
-    void store(Codegen &g, Value value) override; \
-	Ref *get_element(Codegen &g, llvm::ArrayRef<unsigned> indices) override;
-
 class Ref::Address final : public Ref {
 public:
 	[[nodiscard]] llvm::Value *get_address() const { return address; }
 
-	OVERRIDE
+	[[nodiscard]] Value load(Codegen &g) override;
+	void store(Codegen &g, Value value) override;
+	[[nodiscard]] Ref *get_element(Codegen &g, const std::vector<unsigned> &indices) override;
 private:
 	Address(Type::Ref *type, llvm::Value *address):
 		Ref(type),
