@@ -2,6 +2,7 @@
 #include <memory>
 
 #include "codegen.h"
+#include "ref.h"
 
 namespace rin {
 
@@ -38,6 +39,10 @@ Codegen::~Codegen() {
 	while (!layers.empty()) pop_layer();
 }
 
+Value Codegen::create_ref_value(Type::Ref *type, llvm::Value *llvm) {
+	return Value(create_ref<Ref::Address>(type, llvm));
+}
+
 llvm::Function *Codegen::get_llvm_function() const {
 	if (auto block = get_builder()->GetInsertBlock())
 		return block->getParent();
@@ -48,10 +53,13 @@ void Codegen::add_layer(
 	Ptr<llvm::IRBuilder<>> builder,
 	Function::Static *function
 ) {
-	layers.push_back({
-						 std::move(builder),
-						 function
-					 });
+	layers.push_back(
+		{
+			std::move(builder),
+			function,
+			{}
+		}
+	);
 	value_map.add_layer();
 	function_map.add_layer();
 }

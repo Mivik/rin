@@ -8,11 +8,8 @@
 #include "context.h"
 #include "function.h"
 #include "layer_map.h"
-#include "ref.h"
 
 namespace rin {
-
-class Function;
 
 class CodegenException : public std::exception {
 public:
@@ -43,9 +40,7 @@ public:
 		return llvm::ConstantInt::get(llvm::Type::getInt32Ty(get_llvm_context()), value);
 	}
 
-	[[nodiscard]] Value create_ref_value(Type::Ref *type, llvm::Value *llvm) {
-		return Value(create_ref<Ref::Address>(type, llvm));
-	}
+	[[nodiscard]] Value create_ref_value(Type::Ref *type, llvm::Value *llvm);
 	[[nodiscard]] Value create_value(Type *type, llvm::Value *llvm) {
 		if (auto ref_type = dynamic_cast<Type::Ref *>(type))
 			return create_ref_value(ref_type, llvm);

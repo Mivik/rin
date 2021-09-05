@@ -24,6 +24,12 @@ llvm::Value *Value::get_llvm_value() const {
 	return llvm_value;
 }
 
+bool Value::is_constant() const {
+	if (dynamic_cast<Type::Ref *>(type))
+		if (!dynamic_cast<Ref::Address *>(ref_value)) return true;
+	return get_type()->is_abstract() || llvm::isa<llvm::Constant>(llvm_value);
+}
+
 std::optional<Value> Value::cast_to(Codegen &g, Type *to_type) const {
 	if (type == to_type) return *this;
 	if (auto ref_type = dynamic_cast<Type::Ref *>(type)) {

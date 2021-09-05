@@ -43,8 +43,8 @@ public:
 	static Type *common_type(Type *A, Type *B);
 
 	[[nodiscard]] llvm::Type *get_llvm() const { return llvm; }
-	[[nodiscard]] bool is_abstract() const { return abstract_flag; }
-	[[nodiscard]] virtual Type *get_element(Value index) const {
+	[[nodiscard]] bool is_abstract() const { return llvm == nullptr; }
+	[[nodiscard]] virtual Type *get_element(unsigned) const { // pass -1 if the index is dynamic
 		throw std::runtime_error("No element contained in this type");
 	}
 	[[nodiscard]] virtual std::string to_string() const = 0;
@@ -53,10 +53,9 @@ public:
 
 	DISABLE_COPY(Type)
 protected:
-	explicit Type(llvm::Type *llvm, bool is_abstract): llvm(llvm), abstract_flag(is_abstract) {}
+	explicit Type(llvm::Type *llvm): llvm(llvm) {}
 private:
 	llvm::Type *llvm;
-	bool abstract_flag;
 };
 
 class Type::Void final : public Type {
@@ -99,7 +98,7 @@ public:
 	[[nodiscard]] std::string to_string() const override { return name; }
 private:
 	explicit Real(llvm::Type *llvm, std::string name = "[unknown real type]"):
-		Type(llvm, true), name(std::move(name)) {}
+		Type(llvm), name(std::move(name)) {}
 
 	std::string name;
 
@@ -167,7 +166,7 @@ public:
 		return "type";
 	}
 private:
-	Self(): Type(nullptr, true) {}
+	Self(): Type(nullptr) {}
 };
 
 class Type::Struct final : public Type {

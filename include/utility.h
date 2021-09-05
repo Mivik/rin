@@ -20,6 +20,9 @@ inline const R *direct_cast(const T *ptr) { return reinterpret_cast<const R *>(p
 template<class T, class D = std::default_delete<T>>
 using Ptr = std::unique_ptr<T, D>;
 
+template<class T>
+using SPtr = std::shared_ptr<T>;
+
 template<class R, class T, class D>
 Ptr<R, D> ptr_cast(Ptr<T, D> &&p) {
 	if (auto cast = dynamic_cast<R *>(p.get())) {
@@ -35,7 +38,7 @@ constexpr size_t hash_combine(size_t lhs, size_t rhs) {
 }
 
 inline void assert_unique(const std::vector<std::string> &arr) {
-	std::vector<const std::string*> ptr(arr.size());
+	std::vector<const std::string *> ptr(arr.size());
 	for (size_t i = 0; i < arr.size(); ++i) ptr[i] = arr.data() + i;
 	std::sort(ptr.begin(), ptr.end(), [](auto x, auto y) { return x < y; });
 	assert(std::unique(ptr.begin(), ptr.end()) == ptr.end());

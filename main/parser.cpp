@@ -305,8 +305,8 @@ Ptr<ASTNode> Parser::take_stmt() {
 		case K::Val:
 		case K::Const: {
 			lexer.take();
-			bool is_mutable = kind != TokenKind::Const;
-			if (!is_mutable) {
+			bool is_const = kind == TokenKind::Const;
+			if (is_const) {
 				auto token = lexer.peek();
 				if (token.kind == TokenKind::Var) {
 					lexer.take();
@@ -329,8 +329,8 @@ Ptr<ASTNode> Parser::take_stmt() {
 				std::string(name),
 				std::move(type_node),
 				std::move(value_node),
-				is_mutable,
-				kind == TokenKind::Val
+				kind == TokenKind::Var,
+				is_const
 			);
 		}
 		case K::Return: {
@@ -382,8 +382,8 @@ Ptr<DeclNode> Parser::take_decl() {
 		case K::Val:
 		case K::Const: {
 			lexer.take();
-			bool is_mutable = kind != TokenKind::Const;
-			if (!is_mutable) {
+			bool is_const = kind == TokenKind::Const;
+			if (is_const) {
 				auto token = lexer.peek();
 				if (token.kind == TokenKind::Var) {
 					lexer.take();
@@ -406,8 +406,8 @@ Ptr<DeclNode> Parser::take_decl() {
 				std::string(name),
 				std::move(type_node),
 				std::move(value_node),
-				is_mutable,
-				kind == TokenKind::Val
+				kind == TokenKind::Var,
+				is_const
 			);
 		}
 		case K::Fn:

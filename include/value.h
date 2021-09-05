@@ -48,9 +48,7 @@ public:
 	explicit Value(Ref *ref);
 
 	// TODO is it?
-	[[nodiscard]] bool is_constant() const {
-		return is_type_value() || llvm::isa<llvm::Constant>(llvm_value);
-	}
+	[[nodiscard]] bool is_constant() const;
 
 	[[nodiscard]] Value deref(Codegen &g) const;
 

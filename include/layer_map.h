@@ -13,23 +13,6 @@ namespace rin {
 template<class K, class V>
 class LayerMap {
 public:
-	class Handle {
-	public:
-		std::unordered_map<K, std::vector<V>> *base;
-		K key;
-		size_t index;
-
-		V &operator*() const { return (*base)[key][index]; }
-	private:
-		Handle(
-			std::unordered_map<K, std::vector<V>> *base,
-			K key,
-			size_t index
-		): base(base), key(std::move(key)), index(index) {}
-
-		friend class LayerMap;
-	};
-
 	LayerMap() = default;
 
 	[[nodiscard]] bool empty() const { return keys.empty(); }
@@ -77,10 +60,6 @@ public:
 		if (keys.back().insert(key).second)
 			vec.push_back(std::move(value));
 		else vec.back() = std::move(value);
-	}
-	Handle handle_of(const K &key) {
-		assert(keys.back().count(key));
-		return Handle(&base, key, base[key].size() - 1);
 	}
 private:
 	std::unordered_map<K, std::vector<V>> base;

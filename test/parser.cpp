@@ -48,6 +48,23 @@ TEST(parser, basic) {
 		return lt[1];
 	}
 	)").take_function();
+
+	Parser(R"(
+	fn test_const_var_1() {
+		const var x = 3;
+		const var y = x * x;
+	}
+	)").take_top_level()->codegen(g);
+
+	EXPECT_THROW(
+		Parser(R"(
+		fn test_const_var_2(y: i32) {
+			const var x = 3;
+			x = y;
+		}
+		)").take_top_level()->codegen(g),
+		CodegenException
+	);
 }
 
 } // namespace rin
