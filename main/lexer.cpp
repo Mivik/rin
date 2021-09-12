@@ -22,6 +22,7 @@ inline TokenKind word_kind(std::string_view str) {
 		CASE("fn", Fn)
 		CASE("for", For)
 		CASE("if", If)
+		CASE("inline", Inline)
 		CASE("return", Return)
 		CASE("struct", Struct)
 		CASE("true", True)

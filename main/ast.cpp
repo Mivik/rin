@@ -42,13 +42,13 @@ VarDeclNode::VarDeclNode(
 	Ptr<ASTNode> type_node,
 	Ptr<ASTNode> value_node,
 	bool is_mutable,
-	bool is_const
+	bool is_inline
 ):
 	ASTNode(range), name(std::move(name)),
 	type_node(std::move(type_node)),
 	value_node(std::move(value_node)),
 	mutable_flag(is_mutable),
-	const_flag(is_const) {
+	inline_flag(is_inline) {
 	if (!(this->type_node || this->value_node))
 		throw ParseException("A variable should have either a default value or a type annotation");
 	if (!is_mutable && !this->value_node)
@@ -456,7 +456,7 @@ Value VarDeclNode::codegen(Codegen &g) const {
 		return value;
 	};
 	// TODO check this
-	if (const_flag) {
+	if (inline_flag) {
 		Ref::Memory *ref;
 		if (value_node) {
 			g.push_const_eval();
@@ -499,7 +499,7 @@ void GlobalVarDeclNode::declare(Codegen &g) {
 	// TODO const
 	// TODO cycle
 	if (g.is_const_eval()) not_const_evaluated(g, this);
-	if (const_flag) g.error("Const variable at global scope is not supported yet");
+	if (inline_flag) g.error("Inline variable at global scope is not supported yet");
 	Type *type;
 	if (value_node) {
 		g.push_const_eval();

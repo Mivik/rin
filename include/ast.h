@@ -123,19 +123,19 @@ public:
 		Ptr<ASTNode> type_node,
 		Ptr<ASTNode> value_node,
 		bool is_mutable,
-		bool is_const
+		bool is_inline
 	);
 
 	[[nodiscard]] const std::string &get_name() const { return name; }
 	[[nodiscard]] const ASTNode *get_value_node() const { return value_node.get(); }
 	[[nodiscard]] bool is_mutable() const { return mutable_flag; }
-	[[nodiscard]] bool is_const() const { return const_flag; }
+	[[nodiscard]] bool is_inline() const { return inline_flag; }
 
 	OVERRIDE
 private:
 	std::string name;
 	Ptr<ASTNode> type_node, value_node;
-	bool mutable_flag, const_flag;
+	bool mutable_flag, inline_flag;
 };
 
 class CallNode final : public ASTNode {
@@ -345,17 +345,17 @@ public:
 		Ptr<ASTNode> type_node,
 		Ptr<ASTNode> value_node,
 		bool is_mutable,
-		bool is_const
+		bool is_inline
 	): DeclNode(range),
 	   name(std::move(name)),
 	   type_node(std::move(type_node)),
 	   value_node(std::move(value_node)),
-	   mutable_flag(is_mutable), const_flag(is_const) {}
+	   mutable_flag(is_mutable), inline_flag(is_inline) {}
 
 	[[nodiscard]] const std::string &get_name() const { return name; }
 	[[nodiscard]] const ASTNode *get_value_node() const { return value_node.get(); }
 	[[nodiscard]] bool is_mutable() const { return mutable_flag; }
-	[[nodiscard]] bool is_const() const { return const_flag; }
+	[[nodiscard]] bool is_inline() const { return inline_flag; }
 
 	OVERRIDE
 
@@ -363,7 +363,7 @@ public:
 private:
 	std::string name;
 	Ptr<ASTNode> type_node, value_node;
-	bool mutable_flag, const_flag;
+	bool mutable_flag, inline_flag;
 	Value initial_value, global_ref;
 };
 

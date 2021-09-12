@@ -303,16 +303,18 @@ Ptr<ASTNode> Parser::take_stmt() {
 			return take_block();
 		case K::Var:
 		case K::Val:
-		case K::Const: {
+		case K::Const:
+		case K::Inline: {
 			lexer.take();
-			bool is_const = kind == TokenKind::Const;
-			if (is_const) {
-				auto token = lexer.peek();
-				if (token.kind == TokenKind::Var) {
-					lexer.take();
-					kind = token.kind;
-				} else kind = TokenKind::Val;
-			}
+			bool is_inline;
+			if (kind == TokenKind::Inline) {
+				is_inline = true;
+				expect(lexer.take(), TokenKind::Var);
+				kind = TokenKind::Var;
+			} else if (kind == TokenKind::Const) {
+				is_inline = true;
+				kind = TokenKind::Val;
+			} else is_inline = false;
 			auto name = expect(lexer.take(), K::Identifier).content(get_buffer());
 			Ptr<ASTNode> type_node, value_node;
 			if (lexer.peek().kind == K::Colon) {
@@ -330,7 +332,7 @@ Ptr<ASTNode> Parser::take_stmt() {
 				std::move(type_node),
 				std::move(value_node),
 				kind == TokenKind::Var,
-				is_const
+				is_inline
 			);
 		}
 		case K::Return: {
@@ -380,16 +382,18 @@ Ptr<DeclNode> Parser::take_decl() {
 	switch (auto kind = lexer.peek().kind) {
 		case K::Var:
 		case K::Val:
-		case K::Const: {
+		case K::Const:
+		case K::Inline: {
 			lexer.take();
-			bool is_const = kind == TokenKind::Const;
-			if (is_const) {
-				auto token = lexer.peek();
-				if (token.kind == TokenKind::Var) {
-					lexer.take();
-					kind = token.kind;
-				} else kind = TokenKind::Val;
-			}
+			bool is_inline;
+			if (kind == TokenKind::Inline) {
+				is_inline = true;
+				expect(lexer.peek(), TokenKind::Var);
+				kind = TokenKind::Var;
+			} else if (kind == TokenKind::Const) {
+				is_inline = true;
+				kind = TokenKind::Val;
+			} else is_inline = false;
 			auto name = expect(lexer.take(), K::Identifier).content(get_buffer());
 			Ptr<ASTNode> type_node, value_node;
 			if (lexer.peek().kind == K::Colon) {
@@ -407,7 +411,7 @@ Ptr<DeclNode> Parser::take_decl() {
 				std::move(type_node),
 				std::move(value_node),
 				kind == TokenKind::Var,
-				is_const
+				is_inline
 			);
 		}
 		case K::Fn:
