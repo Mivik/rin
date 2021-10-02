@@ -22,6 +22,8 @@ public:
 
 	class Boolean;
 
+	class Concept;
+
 	class Function;
 
 	class Int;
@@ -236,6 +238,19 @@ private:
 	std::vector<Type *> param_types;
 
 	friend class Context;
+};
+
+class Type::Concept final : public Type {
+public:
+	static Type::Concept *get_instance() {
+		static Type::Concept instance;
+		return &instance;
+	}
+	[[nodiscard]] std::string to_string() const override {
+		return "concept";
+	}
+private:
+	Concept(): Type(nullptr) {}
 };
 
 } // namespace rin

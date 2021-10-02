@@ -200,6 +200,9 @@ public:
 	[[nodiscard]] const std::vector<Ptr<ASTNode>> &get_parameter_type_nodes() const { return param_type_nodes; }
 	[[nodiscard]] const std::vector<std::string> &get_parameter_names() const { return param_names; }
 
+	[[nodiscard]] Type *get_receiver_type(Codegen &g) const;
+	[[nodiscard]] Type *get_result_type(Codegen &g) const;
+	[[nodiscard]] std::vector<Value> get_parameter_types(Codegen &g) const;
 
 	OVERRIDE
 private:

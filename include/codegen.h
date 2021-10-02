@@ -11,6 +11,8 @@
 
 namespace rin {
 
+class BlockNode;
+
 class CodegenException : public std::exception {
 public:
 	[[nodiscard]] const char *what() const noexcept override { return msg.data(); }
@@ -68,7 +70,11 @@ public:
 	T *declare_function(const std::string &name, Ptr<T> func) {
 		static_assert(std::is_base_of_v<Function, T>);
 		auto result = func.get();
-		function_map.get_or_create(name).push_back(std::move(func));
+		auto type = func->get_type();
+		auto &vec = function_map.get_or_create(name);
+		for (const auto &element : vec) // TODO optimize this!!!
+			if (element->get_type() == type) return nullptr;
+		vec.push_back(std::move(func));
 		return result;
 	}
 
@@ -90,6 +96,16 @@ public:
 
 	Value allocate_stack(Type *type, bool is_const);
 	Value allocate_stack(Type *type, const Value &default_value, bool is_const);
+
+	Function::Static *declare_function(
+		Type::Function *type,
+		const std::string &name
+	);
+	void implement_function(
+		Function::Static *function,
+		const std::vector<std::string> &parameter_names,
+		BlockNode *body_node
+	);
 
 	void add_layer(Ptr<llvm::IRBuilder<>> builder, Function::Static *function);
 	void pop_layer();

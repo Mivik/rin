@@ -42,7 +42,7 @@ Ref *Ref::Address::get_element(Codegen &g, const std::vector<llvm::Value *> &ind
 	);
 }
 
-Value Ref::Memory::load(Codegen &g) { return *ptr; }
+Value Ref::Memory::load(Codegen &) { return *ptr; }
 
 void Ref::Memory::store(Codegen &g, Value value) {
 	assert(value.get_type() == type->get_sub_type());

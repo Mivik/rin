@@ -8,6 +8,7 @@
 #include <llvm/IR/Value.h>
 #include <llvm/IR/Constants.h>
 
+#include "concept.h"
 #include "context.h"
 #include "layer_map.h"
 #include "type.h"
@@ -21,6 +22,7 @@ class Ref;
 class Value {
 public:
 	enum class Kind {
+		Concept,
 		Normal,
 		Ref,
 		Type,
@@ -41,6 +43,9 @@ public:
 			throw std::runtime_error("Ref value cannot be created directly");
 	}
 
+	explicit Value(Concept *concept_value): // NOLINT(cppcoreguidelines-pro-type-member-init)
+		type(Type::Concept::get_instance()), concept_value(concept_value) {}
+
 	// Type is also a value
 	explicit Value(Type *type_value): // NOLINT(cppcoreguidelines-pro-type-member-init)
 		type(Type::Self::get_instance()), type_value(type_value) {}
@@ -54,11 +59,13 @@ public:
 
 	[[nodiscard]] Kind get_kind() const {
 		if (is_type_value()) return Kind::Type;
+		if (is_concept_value()) return Kind::Concept;
 		if (is_ref_value()) return Kind::Ref;
 		return Kind::Normal;
 	}
 
 	[[nodiscard]] bool is_normal_value() const { return get_kind() == Kind::Normal; }
+	[[nodiscard]] bool is_concept_value() const { return type == Type::Concept::get_instance(); }
 	[[nodiscard]] bool is_type_value() const { return type == Type::Self::get_instance(); }
 	[[nodiscard]] bool is_ref_value() const { return dynamic_cast<Type::Ref *>(type); }
 
@@ -74,6 +81,10 @@ public:
 
 	[[nodiscard]] Type *get_type() const { return type; }
 	[[nodiscard]] llvm::Value *get_llvm_value() const;
+	[[nodiscard]] Concept *get_concept_value() const {
+		assert(is_concept_value());
+		return concept_value;
+	}
 	[[nodiscard]] Type *get_type_value() const {
 		assert(is_type_value());
 		return type_value;
@@ -102,6 +113,10 @@ public:
 				out << "[type] " << type_value->to_string();
 				break;
 			}
+			case Kind::Concept: {
+				out << "[concept] " << concept_value->to_string();
+				break;
+			}
 		}
 		out << '\n';
 	}
@@ -109,6 +124,7 @@ private:
 	Type *type;
 	union {
 		llvm::Value *llvm_value;
+		Concept *concept_value;
 		Type *type_value;
 		Ref *ref_value;
 	};

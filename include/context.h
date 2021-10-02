@@ -5,6 +5,7 @@
 
 #include <llvm/IR/LLVMContext.h>
 
+#include "concept.h"
 #include "type.h"
 #include "utility.h"
 
@@ -18,6 +19,7 @@ public:
 	~Context();
 
 	llvm::LLVMContext &get_llvm() { return llvm; }
+	Concept *get_any_concept() { return &any_concept; }
 	Type::Void *get_void_type() { return &void_type; }
 	Type::Boolean *get_boolean_type() { return &boolean_type; }
 	Type::Int *get_i8_type() { return &i8; }
@@ -53,6 +55,7 @@ private:
 	Type::Int i8, i16, i32, i64, i128;
 	Type::Int u8, u16, u32, u64, u128;
 	Type::Real float_type, double_type;
+	Concept any_concept;
 
 	std::unordered_map<
 		std::pair<unsigned int, bool>,

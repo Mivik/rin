@@ -1,6 +1,7 @@
 
 #include <memory>
 
+#include "ast.h"
 #include "codegen.h"
 #include "ref.h"
 
@@ -32,6 +33,7 @@ Codegen::Codegen(Context &ctx, const std::string &name):
 	declare_value("bool", Value(ctx.get_boolean_type()));
 	declare_value("void", Value(ctx.get_void_type()));
 	declare_value("type", Value(Type::Self::get_instance()));
+	declare_value("any", Value(ctx.get_any_concept())); // TODO remove this
 	add_layer(std::make_unique<llvm::IRBuilder<>>(ctx.get_llvm()), nullptr);
 }
 
@@ -50,7 +52,7 @@ llvm::Function *Codegen::get_llvm_function() const {
 }
 
 void Codegen::add_layer(
-	Ptr<llvm::IRBuilder<>> builder,
+	Ptr <llvm::IRBuilder<>> builder,
 	Function::Static *function
 ) {
 	layers.push_back(
@@ -88,6 +90,64 @@ Value Codegen::allocate_stack(Type *type, const Value &value, bool is_const) {
 	auto ptr = allocate_stack(type, is_const);
 	get_builder()->CreateStore(value.get_llvm_value(), ptr.get_llvm_value());
 	return ptr;
+}
+
+Function::Static *Codegen::declare_function(
+	Type::Function *type,
+	const std::string &name
+) {
+	auto llvm = llvm::Function::Create(
+		llvm::dyn_cast<llvm::FunctionType>(
+			type->get_llvm()
+		),
+		llvm::Function::ExternalLinkage,
+		// TODO mangle
+		name,
+		module.get()
+	);
+	return declare_function(
+		name,
+		std::make_unique<Function::Static>(Value(type, llvm), false) // TODO const eval
+	);
+}
+
+void Codegen::implement_function(
+	Function::Static *function,
+	const std::vector<std::string> &param_names,
+	BlockNode *body_node
+) {
+	auto llvm = function->get_llvm_value();
+	auto type = function->get_type();
+	add_layer(
+		std::make_unique<llvm::IRBuilder<>>(
+			llvm::BasicBlock::Create(
+				get_llvm_context(),
+				"entry",
+				llvm
+			)
+		),
+		function
+	);
+	std::vector<llvm::Value *> args;
+	for (auto &arg : llvm->args())
+		args.push_back(&arg);
+	auto receiver_type = type->get_receiver_type();
+	const bool has_receiver = receiver_type;
+	if (receiver_type)
+		declare_value(
+			"this",
+			create_value(receiver_type, args[0])
+		);
+	const auto &param_types = type->get_parameter_types();
+	for (size_t i = 0; i < param_types.size(); ++i)
+		declare_value(param_names[i], create_value(param_types[i], args[i + has_receiver]));
+	body_node->codegen(*this);
+	if (!body_node->has_return()) {
+		if (type->get_result_type() == ctx.get_void_type())
+			get_builder()->CreateRetVoid();
+		else error("Non-void function does not return a value");
+	}
+	pop_layer();
 }
 
 } // namespace rin

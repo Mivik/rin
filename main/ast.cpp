@@ -2,6 +2,7 @@
 #include "ast.h"
 #include "parser.h"
 #include "ref.h"
+#include "tfunc.h"
 
 namespace rin {
 
@@ -477,20 +478,21 @@ Value VarDeclNode::codegen(Codegen &g) const {
 		g.declare_value(name, Value(ref));
 		return g.get_context().get_void();
 	}
-	Value ptr;
-	if (value_node) {
-		auto value = cast_if_needed(value_node->codegen(g));
-		if (value.is_ref_value()) {
-			g.declare_value(name, value);
-			return g.get_context().get_void();
-		}
-		ptr = g.allocate_stack(value.get_type(), value, !mutable_flag);
-	} else {
-		auto type = type_node->codegen(g).deref(g).get_type_value();
-		if (dynamic_cast<rin::Type::Ref *>(type))
-			g.error("Variable of reference type must be initialized at declaration");
-		ptr = g.allocate_stack(type, !mutable_flag);
-	}
+	Value ptr =
+		value_node?
+		({
+			auto value = cast_if_needed(value_node->codegen(g));
+			if (value.is_ref_value()) {
+				g.declare_value(name, value);
+				return g.get_context().get_void();
+			}
+			g.allocate_stack(value.get_type(), value, !mutable_flag);
+		}): ({
+			auto type = type_node->codegen(g).deref(g).get_type_value();
+			if (dynamic_cast<rin::Type::Ref *>(type))
+				g.error("Variable of reference type must be initialized at declaration");
+			g.allocate_stack(type, !mutable_flag);
+		});
 	g.declare_value(name, ptr.pointer_subscript(g));
 	return g.get_context().get_void();
 }
@@ -548,22 +550,10 @@ Value CallNode::codegen(Codegen &g) const {
 	Function *matching_function = nullptr;
 	// TODO error message (where?)
 	for (auto &_ : g.lookup_functions(name))
-		for (auto &func : _) {
-			auto function_type = func->get_type();
-			// TODO think over it
-			auto receiver_type = function_type->get_receiver_type();
-			auto parameter_types = function_type->get_parameter_types();
-			if ((receiver_type == nullptr) != (receiver_node == nullptr)) continue;
-			if (arguments.size() != parameter_types.size()) continue;
-			if (receiver_type && !receiver->can_cast_to(receiver_type)) continue;
-			bool arguments_match = true;
-			for (size_t i = 0; i < arguments.size(); ++i)
-				if (!arguments[i].can_cast_to(parameter_types[i])) {
-					arguments_match = false;
-					break;
-				}
-			if (!arguments_match) continue;
-			if (matching_function == nullptr) matching_function = func.get();
+		for (auto &func_ptr : _) {
+			auto func = func_ptr->instantiate(g, receiver, arguments);
+			if (!func) continue;
+			if (!matching_function) matching_function = func;
 			else
 				g.error(
 					"Multiple candidate functions for calling: \n"
@@ -667,18 +657,34 @@ Value BlockNode::codegen(Codegen &g) const {
 	return last;
 }
 
+Type *FunctionTypeNode::get_receiver_type(Codegen &g) const {
+	return receiver_type_node
+		   ? receiver_type_node->codegen(g).deref(g).get_type_value()
+		   : nullptr;
+}
+
+Type *FunctionTypeNode::get_result_type(Codegen &g) const {
+	return result_type_node->codegen(g).deref(g).get_type_value();
+}
+
+std::vector<Value> FunctionTypeNode::get_parameter_types(Codegen &g) const {
+	std::vector<Value> result(param_type_nodes.size());
+	for (size_t i = 0; i < result.size(); ++i)
+		result[i] = param_type_nodes[i]->codegen(g);
+	return result;
+}
+
 Value FunctionTypeNode::codegen(Codegen &g) const {
 	std::vector<Type *> param_types;
 	param_types.reserve(param_type_nodes.size());
-	for (const auto &param : param_type_nodes)
-		param_types.push_back(param->codegen(g).deref(g).get_type_value());
-	auto receiver_type =
-		receiver_type_node
-		? receiver_type_node->codegen(g).deref(g).get_type_value()
-		: nullptr;
+	for (const auto &param : param_type_nodes) {
+		auto type = param->codegen(g).deref(g);
+		if (type.is_concept_value()) return g.get_context().get_void(); // TODO or abstract?
+		param_types.push_back(type.get_type_value());
+	}
 	return Value(g.get_context().get_function_type(
-		receiver_type,
-		result_type_node->codegen(g).deref(g).get_type_value(),
+		get_receiver_type(g),
+		get_result_type(g),
 		param_types
 	));
 }
@@ -699,55 +705,36 @@ Value ReturnNode::codegen(Codegen &g) const {
 }
 
 void FunctionNode::declare(Codegen &g) {
-	type = dynamic_cast<Type::Function *>(type_node->codegen(g).deref(g).get_type_value());
-	auto llvm = llvm::Function::Create(
-		llvm::dyn_cast<llvm::FunctionType>(
-			type->get_llvm()
-		),
-		llvm::Function::ExternalLinkage,
-		// TODO mangle
-		name,
-		g.get_module()
-	);
+	auto result = type_node->codegen(g).deref(g);
+	if (result.get_type() == g.get_context().get_void_type()) {
+		g.declare_function(
+			name,
+			std::make_unique<Function::Template>(
+				name,
+				type_node->get_receiver_type(g),
+				type_node->get_result_type(g),
+				type_node->get_parameter_types(g),
+				type_node->get_parameter_names(),
+				std::move(body_node)
+			)
+		);
+		return;
+	}
 	function_object = g.declare_function(
-		name,
-		std::make_unique<Function::Static>(Value(type, llvm), false)
+		dynamic_cast<Type::Function *>(type_node->codegen(g).deref(g).get_type_value()),
+		name
 	);
+	if (!function_object)
+		g.error("Redefinition of {} with same parameter types", name); // TODO detailed message
 }
 
 Value FunctionNode::codegen(Codegen &g) const {
-	auto llvm = function_object->get_llvm_value();
-	g.add_layer(
-		std::make_unique<llvm::IRBuilder<>>(
-			llvm::BasicBlock::Create(
-				g.get_llvm_context(),
-				"entry",
-				llvm
-			)
-		),
-		function_object
-	);
-	std::vector<llvm::Value *> args;
-	for (auto &arg : llvm->args())
-		args.push_back(&arg);
-	auto receiver_type = type->get_receiver_type();
-	const bool has_receiver = receiver_type;
-	if (receiver_type)
-		g.declare_value(
-			"this",
-			g.create_value(receiver_type, args[0])
+	if (function_object)
+		g.implement_function(
+			function_object,
+			type_node->get_parameter_names(),
+			body_node.get()
 		);
-	const auto &param_types = type->get_parameter_types();
-	const auto &param_names = type_node->get_parameter_names();
-	for (size_t i = 0; i < param_types.size(); ++i)
-		g.declare_value(param_names[i], g.create_value(param_types[i], args[i + has_receiver]));
-	body_node->codegen(g);
-	if (!body_node->has_return()) {
-		if (type->get_result_type() == g.get_context().get_void_type())
-			g.get_builder()->CreateRetVoid();
-		else g.error("Non-void function does not return a value");
-	}
-	g.pop_layer();
 	return g.get_context().get_void();
 }
 

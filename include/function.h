@@ -11,6 +11,11 @@
 
 namespace rin {
 
+#define INVOKE_ARGS \
+    Codegen &g, \
+    std::optional<Value> receiver, \
+    const std::vector<Value> &args
+
 class Codegen;
 
 class Function {
@@ -19,13 +24,13 @@ public:
 
 	class Static;
 
+	class Template;
+
 	virtual ~Function() = default;
 
-	virtual Value invoke(
-		Codegen &ctx,
-		std::optional<Value> receiver,
-		const std::vector<Value> &args
-	) const = 0;
+	virtual Function *instantiate(INVOKE_ARGS);
+
+	virtual Value invoke(INVOKE_ARGS) const = 0;
 
 	[[nodiscard]] virtual bool is_const_eval() const = 0;
 
@@ -40,21 +45,13 @@ private:
 
 class Function::Builtin final : public Function {
 public:
-	using FuncType = std::function<Value(
-		Codegen &,
-		std::optional<Value>,
-		const std::vector<Value> &
-	)>;
+	using FuncType = std::function<Value(INVOKE_ARGS)>;
 
 	Builtin(Type::Function *type, FuncType func):
 		Function(type),
 		function(std::move(func)) {}
 
-	Value invoke(
-		Codegen &g,
-		std::optional<Value> receiver,
-		const std::vector<Value> &args
-	) const override {
+	Value invoke(INVOKE_ARGS) const override {
 		return function(g, receiver, args);
 	}
 
@@ -72,17 +69,15 @@ public:
 		llvm(llvm::dyn_cast<llvm::Function>(func.get_llvm_value())),
 		const_eval(const_evaluated) {}
 
-	Value invoke(
-		Codegen &g,
-		std::optional<Value> receiver,
-		const std::vector<Value> &args
-	) const override;
+	Value invoke(INVOKE_ARGS) const override;
 
-	[[nodiscard]] llvm::Function* get_llvm_value() const { return llvm; }
+	[[nodiscard]] llvm::Function *get_llvm_value() const { return llvm; }
 	[[nodiscard]] bool is_const_eval() const override { return const_eval; }
 private:
 	llvm::Function *llvm;
 	bool const_eval;
 };
+
+#undef INVOKE_ARGS
 
 } // namespace rin
