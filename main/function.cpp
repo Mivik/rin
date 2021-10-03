@@ -13,7 +13,7 @@ Function *Function::instantiate(INVOKE_ARGS) {
 	auto receiver_type = type->get_receiver_type();
 	auto parameter_types = type->get_parameter_types();
 	do {
-		if ((receiver_type == nullptr) != receiver.has_value()) break;
+		if ((receiver_type != nullptr) != receiver.has_value()) break;
 		if (args.size() != parameter_types.size()) break;
 		if (receiver_type && !receiver->can_cast_to(receiver_type)) break;
 		bool arguments_match = true;
