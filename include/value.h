@@ -71,6 +71,7 @@ public:
 
 	[[nodiscard]] bool can_cast_to(Type *to_type) const {
 		return false;
+		if (type == to_type) return true;
 		if (auto self = dynamic_cast<Type::Ref *>(type)) {
 			if (self->get_sub_type() == to_type) return true;
 			if (auto other = dynamic_cast<Type::Ref *>(to_type))
@@ -99,7 +100,7 @@ public:
 	[[nodiscard]] Value pointer_subscript(Codegen &g, Value index) const;
 
 	// TODO remove this in release build
-	void dump(llvm::raw_ostream &out = llvm::errs()) {
+	void dump(llvm::raw_ostream &out = llvm::errs()) const {
 		switch (get_kind()) {
 			case Kind::Normal: {
 				out << '[' << type->to_string() << "] ";
