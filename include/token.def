@@ -71,6 +71,7 @@ TOKEN_KEYWORD(Var)
 TOKEN_KEYWORD(When)
 TOKEN_KEYWORD(While)
 
+TOKEN(Builtin)
 TOKEN(Eof)
 TOKEN(Newline)
 TOKEN(Identifier)

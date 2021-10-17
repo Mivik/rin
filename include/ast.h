@@ -19,6 +19,7 @@ public:
 	virtual ~ASTNode() = default;
 
 	[[nodiscard]] virtual bool has_return() const { return false; }
+	virtual void preserve_reference() {}
 	// TODO move const_eval to codegen?
 	virtual Value codegen(Codegen &g) const = 0;
 
@@ -30,7 +31,7 @@ public:
 
 class PhonyASTNode final : public ASTNode {
 public:
-	PhonyASTNode(Value value): ASTNode(SourceRange(-1)), value(value) {}
+	explicit PhonyASTNode(Value value): ASTNode(SourceRange(-1)), value(value) {}
 
 	[[nodiscard]] Value get_value() const { return value; }
 
@@ -78,23 +79,30 @@ public:
 	[[nodiscard]] const ASTNode *get_lhs_node() const { return lhs_node.get(); }
 	[[nodiscard]] const ASTNode *get_rhs_node() const { return rhs_node.get(); }
 
+	void preserve_reference() override { preserve_ref = true; }
+
 	OVERRIDE
 private:
 	Ptr<ASTNode> lhs_node, rhs_node;
 	TokenKind op;
+	bool preserve_ref = false;
 };
 
 class ValueNode final : public ASTNode {
 public:
-	ValueNode(const SourceRange &range, std::string name): ASTNode(range), name(std::move(name)) {}
+	ValueNode(const SourceRange &range, std::string name):
+		ASTNode(range), name(std::move(name)) {}
 	ValueNode(const Token &token, const Reader &input):
 		ASTNode(token.range), name(input.substr(token.range)) {}
 
 	[[nodiscard]] const std::string &get_name() const { return name; }
 
+	void preserve_reference() override { preserve_ref = true; }
+
 	OVERRIDE
 private:
 	std::string name;
+	bool preserve_ref = false;
 };
 
 class ArrayTypeNode final : public ASTNode {
@@ -154,11 +162,14 @@ public:
 	[[nodiscard]] const ASTNode *get_receiver_node() const { return receiver_node.get(); }
 	[[nodiscard]] const std::vector<Ptr<ASTNode>> &get_argument_nodes() const { return argument_nodes; }
 
+	void preserve_reference() override { preserve_ref = true; }
+
 	OVERRIDE
 private:
 	std::string name;
 	Ptr<ASTNode> receiver_node;
 	std::vector<Ptr<ASTNode>> argument_nodes;
+	bool preserve_ref = false;
 
 	friend class BinOpNode; // call with receiver
 };

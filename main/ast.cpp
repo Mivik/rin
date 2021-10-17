@@ -97,7 +97,7 @@ Value ValueNode::codegen(Codegen &g) const {
 	auto opt = g.lookup_value(name);
 	if (!opt.has_value()) g.error("Use of undeclared value: {}", name);
 	if (g.is_const_eval() && !opt->is_constant()) not_const_evaluated(g, this);
-	return *opt;
+	return preserve_ref? *opt: opt->deref(g);
 }
 
 Value UnaryOpNode::codegen(Codegen &g) const {
@@ -110,6 +110,7 @@ Value UnaryOpNode::codegen(Codegen &g) const {
 	};
 
 	auto &builder = *g.get_builder();
+	value_node->preserve_reference();
 	auto value = value_node->codegen(g);
 	// TODO remove this
 	assert(!g.is_const_eval() || value.is_constant());
@@ -122,10 +123,10 @@ Value UnaryOpNode::codegen(Codegen &g) const {
 			else {
 				auto v = value.deref(g);
 				if (auto ptr_type = dynamic_cast<Type::Pointer *>(v.get_type()))
-					return {
+					return g.create_ref_value(
 						g.get_context().get_ref_type(ptr_type->get_sub_type(), ptr_type->is_const()),
 						v.get_llvm_value()
-					};
+					);
 				else unary_op_fail(value, op);
 			}
 			break;
@@ -133,7 +134,8 @@ Value UnaryOpNode::codegen(Codegen &g) const {
 			if (value.deref(g).is_type_value())
 				return Value(g.get_context().get_ref_type(value.deref(g).get_type_value()));
 			else if (value.is_ref_value()) {
-				if (auto ref = dynamic_cast<Ref::Address *>(value.get_ref_value())) {
+				// TODO get address
+				/*if (auto ref = dynamic_cast<Ref::Address *>(value.get_ref_value())) {
 					auto ref_type = ref->get_type();
 					return {
 						g.get_context().get_pointer_type(ref_type->get_sub_type(), ref_type->is_const()),
@@ -143,7 +145,8 @@ Value UnaryOpNode::codegen(Codegen &g) const {
 					g.error(
 						"Cannot get the address of an abstract reference: {}",
 						value.get_type()->to_string()
-					);
+					);*/
+				return value;
 			} else unary_op_fail(value, op);
 			break;
 		default:
@@ -375,6 +378,7 @@ Value BinOpNode::codegen(Codegen &g) const {
 		auto value_node = dynamic_cast<ValueNode *>(rhs_node.get());
 		if (!value_node) g.error("Accessing invalid member of struct"); // TODO error message
 		auto name = value_node->get_name();
+		value_node->preserve_reference();
 		auto lhs = lhs_node->codegen(g);
 		Type::Struct *struct_type = nullptr;
 		auto ref_type = dynamic_cast<Type::Ref *>(lhs.get_type());
@@ -387,6 +391,7 @@ Value BinOpNode::codegen(Codegen &g) const {
 		else g.error("Unknown member of struct: {}", name);
 		return Value(lhs.get_ref_value()->get_element(g, 0, index));
 	}
+	lhs_node->preserve_reference();
 	auto lhs = lhs_node->codegen(g);
 	if (op == K::LBracket)
 		if (auto ref_type = dynamic_cast<Type::Ref *>(lhs.get_type()))
@@ -420,20 +425,25 @@ Value BinOpNode::codegen(Codegen &g) const {
 			if (lhs.is_ref_value())
 				return lhs.get_ref_value()->get_element(g, rhs.deref(g))->load(g);
 			if (auto ref_type = dynamic_cast<Type::Ref *>(lhs.get_type()))
-				if (dynamic_cast<Type::Array *>(ref_type->get_sub_type()))
-					return lhs.pointer_subscript(g, rhs.deref(g));
+				if (dynamic_cast<Type::Array *>(ref_type->get_sub_type())) {
+					auto res = lhs.pointer_subscript(g, rhs.deref(g));
+					return preserve_ref? res: res.deref(g);
+				}
 			if (g.is_const_eval()) {
 				if (auto array_type = dynamic_cast<Type::Array *>(lhs.get_type())) {
 					auto array = llvm::dyn_cast<llvm::ConstantArray>(lhs.get_llvm_value());
-					return {
+					auto res = Value(
 						array_type->get_element_type(),
 						array->getAggregateElement(llvm::dyn_cast<llvm::Constant>(rhs.get_llvm_value()))
-					};
+					);
+					return preserve_ref? res: res.deref(g);
 				}
 				not_const_evaluated(g, this);
 			}
-			if (dynamic_cast<Type::Pointer *>(lhs.get_type())) return lhs.pointer_subscript(g, rhs.deref(g));
-			else g.error("Attempt to subscript unknown type: {}", lhs.get_type()->to_string());
+			if (dynamic_cast<Type::Pointer *>(lhs.get_type())) {
+				auto res = lhs.pointer_subscript(g, rhs.deref(g));
+				return preserve_ref? res: res.deref(g);
+			} else g.error("Attempt to subscript unknown type: {}", lhs.get_type()->to_string());
 		}
 		default:
 			return bin_op_arithmetic_codegen(g, lhs, rhs, op);
@@ -555,26 +565,18 @@ Value CallNode::codegen(Codegen &g) const {
 			if (!func) continue;
 			if (!matching_function) matching_function = func;
 			else
-				g.error(
-					"Multiple candidate functions for calling: \n"
-					"  - {}\n"
-					"  - {}",
-					matching_function->get_type()->to_string(name),
-					func->get_type()->to_string(name)
-				);
+				g.error("Multiple candidate functions for calling"); // TODO
 		}
 	if (matching_function == nullptr)
 		g.error("No matching function for calling");
 	if (g.is_const_eval() && !matching_function->is_const_eval())
 		not_const_evaluated(g, this);
-	auto type = matching_function->get_type();
-	for (size_t i = 0; i < arguments.size(); ++i)
-		arguments[i] = *arguments[i].cast_to(g, type->get_parameter_types()[i]);
-	return matching_function->invoke(
+	auto res = matching_function->invoke(
 		g,
-		receiver? receiver->cast_to(g, type->get_receiver_type()): std::nullopt,
+		receiver,
 		arguments
 	);
+	return preserve_ref? res: res.deref(g);
 }
 
 Value StructNode::codegen(Codegen &g) const {

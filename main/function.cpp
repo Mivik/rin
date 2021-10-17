@@ -9,7 +9,7 @@
 
 namespace rin {
 
-Function *Function::instantiate(INVOKE_ARGS) {
+Function *Function::Static::instantiate(INVOKE_ARGS) {
 	auto receiver_type = type->get_receiver_type();
 	auto parameter_types = type->get_parameter_types();
 	do {

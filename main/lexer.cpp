@@ -1,8 +1,6 @@
 
 #include "lexer.h"
 
-#include <iostream>
-
 namespace rin {
 
 inline constexpr size_t string_hash(std::string_view str) {
@@ -12,6 +10,7 @@ inline constexpr size_t string_hash(std::string_view str) {
 }
 
 inline TokenKind word_kind(std::string_view str) {
+	if (str[0] == '@') return TokenKind::Builtin;
 #define CASE(s, k) case string_hash(s): if (str == s) return TokenKind::k; break;
 	switch (string_hash(str)) {
 		CASE("const", Const)
@@ -77,6 +76,7 @@ Token Lexer::lex() {
 		case 'a' ... 'z':
 		case 'A' ... 'Z':
 		case '$':
+		case '@':
 		case '_': {
 			while (!input.eof()) {
 				const char c = input.peek();

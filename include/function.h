@@ -28,28 +28,30 @@ public:
 
 	virtual ~Function() = default;
 
-	virtual Function *instantiate(INVOKE_ARGS);
+	virtual Function *instantiate(INVOKE_ARGS) = 0;
 
 	virtual Value invoke(INVOKE_ARGS) const = 0;
 
 	[[nodiscard]] virtual bool is_const_eval() const = 0;
 
-	[[nodiscard]] Type::Function *get_type() const { return type; }
-
 	DISABLE_COPY(Function)
 protected:
-	explicit Function(Type::Function *type): type(type) {}
-private:
-	Type::Function *type;
+	explicit Function() = default;
 };
 
 class Function::Builtin final : public Function {
 public:
+	using VerifierType = std::function<bool(INVOKE_ARGS)>;
 	using FuncType = std::function<Value(INVOKE_ARGS)>;
 
-	Builtin(Type::Function *type, FuncType func):
-		Function(type),
-		function(std::move(func)) {}
+	Builtin(VerifierType verifier, FuncType func):
+		verifier(std::move(verifier)),
+		function(std::move(func)){}
+
+	Function *instantiate(Codegen &g, std::optional<Value> receiver, const std::vector<Value> &args) override {
+		if (verifier(g, receiver, args)) return this;
+		return nullptr;
+	}
 
 	Value invoke(INVOKE_ARGS) const override {
 		return function(g, receiver, args);
@@ -59,21 +61,25 @@ public:
 	[[nodiscard]] bool is_const_eval() const override { return true; }
 
 private:
+	VerifierType verifier;
 	FuncType function;
 };
 
 class Function::Static final : public Function {
 public:
 	explicit Static(Value func, bool const_evaluated):
-		Function(dynamic_cast<Type::Function *>(func.get_type())),
+		type(dynamic_cast<Type::Function *>(func.get_type())),
 		llvm(llvm::dyn_cast<llvm::Function>(func.get_llvm_value())),
 		const_eval(const_evaluated) {}
 
+	Function *instantiate(INVOKE_ARGS) override;
 	Value invoke(INVOKE_ARGS) const override;
 
+	[[nodiscard]] Type::Function *get_type() const { return type; }
 	[[nodiscard]] llvm::Function *get_llvm_value() const { return llvm; }
 	[[nodiscard]] bool is_const_eval() const override { return const_eval; }
 private:
+	Type::Function *type;
 	llvm::Function *llvm;
 	bool const_eval;
 };

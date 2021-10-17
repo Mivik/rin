@@ -70,10 +70,7 @@ public:
 	T *declare_function(const std::string &name, Ptr<T> func) {
 		static_assert(std::is_base_of_v<Function, T>);
 		auto result = func.get();
-		auto type = func->get_type();
 		auto &vec = function_map.get_or_create(name);
-		for (const auto &element : vec) // TODO optimize this!!!
-			if (element->get_type() == type) return nullptr;
 		vec.push_back(std::move(func));
 		return result;
 	}
@@ -116,8 +113,14 @@ private:
 		std::vector<Ref *> refs;
 	};
 
-	void declare_builtin(const std::string &name, Type::Function *type, Function::Builtin::FuncType func) {
-		function_map.get_or_create(name).emplace_back(new Function::Builtin(type, std::move(func)));
+	void declare_builtin(
+		const std::string &name,
+		Function::Builtin::VerifierType verifier,
+		Function::Builtin::FuncType func
+	) {
+		function_map
+			.get_or_create("@" + name)
+			.emplace_back(new Function::Builtin(std::move(verifier), std::move(func)));
 	}
 
 	Context &ctx;
@@ -127,5 +130,18 @@ private:
 	LayerMap<std::string, std::vector<Ptr<Function>>> function_map;
 	uint32_t const_eval_depth;
 };
+
+template<>
+inline Function::Static *Codegen::declare_function(const std::string &name, Ptr<Function::Static> func) {
+	auto result = func.get();
+	auto type = func->get_type();
+	auto &vec = function_map.get_or_create(name);
+	for (const auto &element : vec) { // TODO optimize this!!!
+		auto target = dynamic_cast<Function::Static *>(element.get());
+		if (target && target->get_type() == type) return nullptr;
+	}
+	vec.push_back(std::move(func));
+	return result;
+}
 
 } // namespace rin

@@ -32,6 +32,7 @@ bool Value::is_constant() const {
 
 std::optional<Value> Value::cast_to(Codegen &g, Type *to_type) const {
 	if (type == to_type) return *this;
+	return std::nullopt;
 	if (auto ref_type = dynamic_cast<Type::Ref *>(type)) {
 		if (ref_type->get_sub_type() == to_type) return deref(g);
 		if (auto ref_to_type = dynamic_cast<Type::Ref *>(to_type))
@@ -60,13 +61,13 @@ Value Value::pointer_subscript(Codegen &g, Value index) const {
 	// TODO check signed index
 	if (!dynamic_cast<Type::Int *>(index.type))
 		g.error("Unknown type for pointer subscript: {}", index.type->to_string());
-	return {
+	return Value(
 		g.get_context().get_ref_type(
 			ptr_type->get_sub_type(),
 			ptr_type->is_const()
 		),
 		g.get_builder()->CreateGEP(llvm_value, index.llvm_value)
-	};
+	);
 }
 
 } // namespace rin

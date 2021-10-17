@@ -12,8 +12,23 @@ Codegen::Codegen(Context &ctx, const std::string &name):
 	module(std::make_unique<llvm::Module>(name, ctx.get_llvm())),
 	const_eval_depth(0) {
 	add_layer(std::make_unique<llvm::IRBuilder<>>(ctx.get_llvm()), nullptr);
-#define ARGS Codegen &g, std::optional<Value> recever, const std::vector<Value> &args
+#define ARGS Codegen &g, std::optional<Value> receiver, const std::vector<Value> &args
 	// TODO builtin functions here
+	declare_builtin("address", [](ARGS) {
+		return args.size() == 1 && args[0].is_ref_value() && dynamic_cast<Ref::Address *>(args[0].get_ref_value());
+	}, [&](ARGS) {
+		auto ref = args[0].get_ref_value();
+		auto type = ref->get_type();
+		return Value(
+			ctx.get_pointer_type(type->get_sub_type(), type->is_const()),
+			dynamic_cast<Ref::Address *>(ref)->get_address()
+		);
+	});
+	declare_builtin("type", [](ARGS) {
+		return args.size() == 1;
+	}, [](ARGS) {
+		return Value(args[0].get_type());
+	});
 #undef ARGS
 	// TODO more integer types
 #define TYPE(n) declare_value(#n, Value(ctx.get_##n##_type()));
@@ -52,7 +67,7 @@ llvm::Function *Codegen::get_llvm_function() const {
 }
 
 void Codegen::add_layer(
-	Ptr <llvm::IRBuilder<>> builder,
+	Ptr<llvm::IRBuilder<>> builder,
 	Function::Static *function
 ) {
 	layers.push_back(

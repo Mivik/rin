@@ -18,8 +18,7 @@ public:
 		std::vector<Value> parameter_types, // can be either concept or type
 		std::vector<std::string> parameter_names,
 		Ptr<BlockNode> body_node
-	): Function(nullptr),
-	   name(std::move(name)),
+	): name(std::move(name)),
 	   receiver_type(receiver_type),
 	   result_type(result_type),
 	   parameter_types(std::move(parameter_types)),

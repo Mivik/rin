@@ -56,6 +56,7 @@ Ptr<ASTNode> Parser::take_prim_inner() {
 			expect(lexer.take(), K::RPar);
 			return ret;
 		}
+		case K::Builtin:
 		case K::Identifier: {
 			lexer.take();
 			// TODO function object
