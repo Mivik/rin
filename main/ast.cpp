@@ -118,9 +118,14 @@ Value UnaryOpNode::codegen(Codegen &g) const {
 	// TODO array type
 	switch (op) {
 		case K::Pointer:
+		case K::PointerConst:
 			if (value.deref(g).is_type_value())
-				return Value(g.get_context().get_pointer_type(value.deref(g).get_type_value()));
+				return Value(g.get_context().get_pointer_type(
+					value.deref(g).get_type_value(),
+					op == K::PointerConst
+				));
 			else {
+				if (op == K::PointerConst) unary_op_fail(value, op);
 				auto v = value.deref(g);
 				if (auto ptr_type = dynamic_cast<Type::Pointer *>(v.get_type()))
 					return g.create_ref_value(
@@ -131,8 +136,12 @@ Value UnaryOpNode::codegen(Codegen &g) const {
 			}
 			break;
 		case K::Ref:
+		case K::RefConst:
 			if (value.deref(g).is_type_value())
-				return Value(g.get_context().get_ref_type(value.deref(g).get_type_value()));
+				return Value(g.get_context().get_ref_type(
+					value.deref(g).get_type_value(),
+					op == K::RefConst
+				));
 			else if (value.is_ref_value()) {
 				// TODO get address
 				/*if (auto ref = dynamic_cast<Ref::Address *>(value.get_ref_value())) {
@@ -146,6 +155,7 @@ Value UnaryOpNode::codegen(Codegen &g) const {
 						"Cannot get the address of an abstract reference: {}",
 						value.get_type()->to_string()
 					);*/
+				if (op == K::PointerConst) unary_op_fail(value, op);
 				return value;
 			} else unary_op_fail(value, op);
 			break;

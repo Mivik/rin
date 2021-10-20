@@ -70,6 +70,8 @@ inline int precedence_of(K op) {
 			// TODO think over it
 		H(Pointer):
 		H(Ref):
+		H(PointerConst):
+		H(RefConst):
 			return 2;
 		H(Mul):
 		H(Div):

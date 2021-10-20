@@ -110,10 +110,20 @@ Ptr<ASTNode> Parser::take_prim_inner() {
 				std::move(field_types)
 			);
 		}
+		
 		default: {
 			token.kind = token_kind::as_unary_op(token.kind);
 			if (token_kind::is_unary_op(token.kind)) {
 				lexer.take();
+				if (lexer.peek().kind == K::Const) {
+					if (token.kind == K::Pointer) {
+						lexer.take();
+						token.kind = K::PointerConst;
+					} else if (token.kind == K::Ref) {
+						lexer.take();
+						token.kind = K::RefConst;
+					}
+				}
 				return std::make_unique<UnaryOpNode>(take_prim(), token);
 			}
 			return nullptr;
@@ -327,7 +337,7 @@ Ptr<ASTNode> Parser::take_stmt() {
 				value_node = take_expr();
 			}
 			expect_end_of_stmt();
-			return std::make_unique<VarDeclNode>(
+			auto t = std::make_unique<VarDeclNode>(
 				SourceRange(begin, lexer.position()),
 				std::string(name),
 				std::move(type_node),
@@ -335,6 +345,7 @@ Ptr<ASTNode> Parser::take_stmt() {
 				kind == TokenKind::Var,
 				is_inline
 			);
+			return t;
 		}
 		case K::Return: {
 			lexer.take();
