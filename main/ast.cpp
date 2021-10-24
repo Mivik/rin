@@ -20,7 +20,7 @@ Value ArrayTypeNode::codegen(Codegen &g) const {
 	auto length_value = length_node->codegen(g);
 	auto constant = llvm::dyn_cast<llvm::ConstantInt>(length_value.get_llvm_value());
 	return Value(g.get_context().get_array_type(
-		sub_type_node->codegen(g).deref(g).get_type_value(),
+		sub_type_node->codegen(g).get_type_value(),
 		static_cast<uint32_t>(constant->getZExtValue())
 	));
 }
@@ -121,7 +121,7 @@ Value UnaryOpNode::codegen(Codegen &g) const {
 		case K::PointerConst:
 			if (value.deref(g).is_type_value())
 				return Value(g.get_context().get_pointer_type(
-					value.deref(g).get_type_value(),
+					value.get_type_value(),
 					op == K::PointerConst
 				));
 			else {
@@ -139,7 +139,7 @@ Value UnaryOpNode::codegen(Codegen &g) const {
 		case K::RefConst:
 			if (value.deref(g).is_type_value())
 				return Value(g.get_context().get_ref_type(
-					value.deref(g).get_type_value(),
+					value.get_type_value(),
 					op == K::RefConst
 				));
 			else if (value.is_ref_value()) {
@@ -465,7 +465,7 @@ Value VarDeclNode::codegen(Codegen &g) const {
 	// TODO val & var reference
 	auto cast_if_needed = [&](Value value) {
 		if (type_node) {
-			auto type = type_node->codegen(g).deref(g).get_type_value();
+			auto type = type_node->codegen(g).get_type_value();
 			if (value.get_type() != type)
 				g.error(
 					"Cannot initialize a variable of type {} with a value of type {}",
@@ -488,7 +488,7 @@ Value VarDeclNode::codegen(Codegen &g) const {
 			ref = g.create_ref<Ref::Memory>(g.get_context().get_ref_type(init.get_type(), !mutable_flag));
 			ref->store(g, init);
 		} else {
-			auto type = type_node->codegen(g).deref(g).get_type_value();
+			auto type = type_node->codegen(g).get_type_value();
 			if (dynamic_cast<rin::Type::Ref *>(type))
 				g.error("Variable of reference type must be initialized at declaration");
 			ref = g.create_ref<Ref::Memory>(g.get_context().get_ref_type(type, !mutable_flag));
@@ -506,7 +506,7 @@ Value VarDeclNode::codegen(Codegen &g) const {
 			}
 			g.allocate_stack(value.get_type(), value, !mutable_flag);
 		}): ({
-			auto type = type_node->codegen(g).deref(g).get_type_value();
+			auto type = type_node->codegen(g).get_type_value();
 			if (dynamic_cast<rin::Type::Ref *>(type))
 				g.error("Variable of reference type must be initialized at declaration");
 			g.allocate_stack(type, !mutable_flag);
@@ -526,7 +526,7 @@ void GlobalVarDeclNode::declare(Codegen &g) {
 		initial_value = value_node->codegen(g);
 		g.pop_const_eval();
 		if (type_node) {
-			auto target_type = type_node->codegen(g).deref(g).get_type_value();
+			auto target_type = type_node->codegen(g).get_type_value();
 			if (initial_value.get_type() != target_type)
 				g.error(
 					"Cannot initialize a variable of type {} with a value of type {}",
@@ -535,7 +535,7 @@ void GlobalVarDeclNode::declare(Codegen &g) {
 		}
 		type = initial_value.get_type();
 	} else {
-		type = type_node->codegen(g).deref(g).get_type_value();
+		type = type_node->codegen(g).get_type_value();
 		initial_value = Value::undef(type);
 	}
 	global_ref = g.create_ref_value(
@@ -593,14 +593,14 @@ Value StructNode::codegen(Codegen &g) const {
 		fields.push_back(
 			{
 				field_names[i],
-				field_types[i]->codegen(g).deref(g).get_type_value()
+				field_types[i]->codegen(g).get_type_value()
 			}
 		);
 	return Value(g.get_context().get_struct_type(fields));
 }
 
 Value StructValueNode::codegen(Codegen &g) const {
-	auto old_type = type_node->codegen(g).deref(g).get_type_value();
+	auto old_type = type_node->codegen(g).get_type_value();
 	auto type = dynamic_cast<Type::Struct *>(old_type);
 	if (!type) g.error("Expected a struct type, got {}", old_type->to_string());
 	auto fields = type->get_fields();
@@ -633,7 +633,7 @@ Value TupleNode::codegen(Codegen &g) const {
 	const size_t count = element_types.size();
 	std::vector<Type *> elements(count);
 	for (size_t i = 0; i < count; ++i)
-		elements[i] = element_types[i]->codegen(g).deref(g).get_type_value();
+		elements[i] = element_types[i]->codegen(g).get_type_value();
 	return Value(g.get_context().get_tuple_type(elements));
 }
 
@@ -679,24 +679,24 @@ Type *FunctionTypeNode::get_result_type(Codegen &g) const {
 }
 
 std::vector<Value> FunctionTypeNode::get_parameter_types(Codegen &g) const {
-	std::vector<Value> result(param_type_nodes.size());
+	std::vector<Value> result(parameter_type_nodes.size());
 	for (size_t i = 0; i < result.size(); ++i)
-		result[i] = param_type_nodes[i]->codegen(g);
+		result[i] = parameter_type_nodes[i]->codegen(g);
 	return result;
 }
 
 Value FunctionTypeNode::codegen(Codegen &g) const {
-	std::vector<Type *> param_types;
-	param_types.reserve(param_type_nodes.size());
-	for (const auto &param : param_type_nodes) {
+	std::vector<Type *> parameter_types;
+	parameter_types.reserve(parameter_type_nodes.size());
+	for (const auto &param : parameter_type_nodes) {
 		auto type = param->codegen(g).deref(g);
 		if (type.is_concept_value()) return g.get_context().get_void(); // TODO or abstract?
-		param_types.push_back(type.get_type_value());
+		parameter_types.push_back(type.get_type_value());
 	}
 	return Value(g.get_context().get_function_type(
 		get_receiver_type(g),
 		get_result_type(g),
-		param_types
+		parameter_types
 	));
 }
 
@@ -721,15 +721,16 @@ Value ReturnNode::codegen(Codegen &g) const {
 }
 
 void FunctionNode::declare(Codegen &g) {
-	auto result = type_node->codegen(g).deref(g);
+	auto result = type_node->codegen(g);
 	if (result.get_type() == g.get_context().get_void_type()) {
 		g.declare_function(
 			name,
 			std::make_unique<Function::Template>(
 				name,
-				type_node->get_receiver_type(g),
-				type_node->get_result_type(g),
-				type_node->get_parameter_types(g),
+				std::map<Concept *, std::string>(),
+				type_node->get_receiver_type_node(),
+				type_node->get_result_type_node(),
+				type_node->get_parameter_type_nodes(),
 				type_node->get_parameter_names(),
 				std::move(body_node)
 			)
@@ -737,7 +738,7 @@ void FunctionNode::declare(Codegen &g) {
 		return;
 	}
 	function_object = g.declare_function(
-		dynamic_cast<Type::Function *>(type_node->codegen(g).deref(g).get_type_value()),
+		dynamic_cast<Type::Function *>(type_node->codegen(g).get_type_value()),
 		name
 	);
 	if (!function_object)

@@ -14,15 +14,15 @@ public:
 	explicit Template(
 		std::string name,
 		std::map<Concept *, std::string> concepts,
-		Ptr<ASTNode> receiver_type_node,
-		Ptr<ASTNode> result_type_node,
-		std::vector<Ptr<ASTNode>> parameter_type_nodes, // can be either concept or type
+		ASTNode *receiver_type_node,
+		ASTNode *result_type_node,
+		std::vector<ASTNode *> parameter_type_nodes, // can be either concept or type
 		std::vector<std::string> parameter_names,
 		Ptr<BlockNode> body_node
 	): name(std::move(name)),
 	   concepts(std::move(concepts)),
-	   receiver_type_node(std::move(receiver_type_node)),
-	   result_type_node(std::move(result_type_node)),
+	   receiver_type_node(receiver_type_node),
+	   result_type_node(result_type_node),
 	   parameter_type_nodes(std::move(parameter_type_nodes)),
 	   parameter_names(std::move(parameter_names)),
 	   body_node(std::move(body_node)) {}
@@ -37,8 +37,8 @@ public:
 private:
 	std::string name;
 	std::map<Concept *, std::string> concepts;
-	Ptr<ASTNode> receiver_type_node, result_type_node;
-	std::vector<Ptr<ASTNode>> parameter_type_nodes;
+	ASTNode *receiver_type_node, *result_type_node;
+	std::vector<ASTNode *> parameter_type_nodes;
 	std::vector<std::string> parameter_names;
 	Ptr<BlockNode> body_node;
 };
