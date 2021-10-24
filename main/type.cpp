@@ -4,19 +4,6 @@
 
 namespace rin {
 
-Type *Type::common_type(Type *A, Type *B) {
-	if (A == B) return A;
-	if (auto A_ref = dynamic_cast<Type::Ref *>(A)) {
-		if (A_ref->get_sub_type() == B) return B;
-		if (auto B_ref = dynamic_cast<Type::Ref *>(B))
-			if (A_ref->get_sub_type() == B_ref->get_sub_type())
-				return A_ref->is_const()? A_ref: B_ref;
-	}
-	if (auto B_ref = dynamic_cast<Type::Ref *>(B))
-		if (B_ref->get_sub_type() == A) return A;
-	return nullptr;
-}
-
 Type *Type::deref() {
 	if (auto ref = dynamic_cast<Type::Ref *>(this))
 		return ref->get_sub_type();

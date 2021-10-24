@@ -69,18 +69,6 @@ public:
 	[[nodiscard]] bool is_type_value() const { return type == Type::Self::get_instance(); }
 	[[nodiscard]] bool is_ref_value() const { return dynamic_cast<Type::Ref *>(type); }
 
-	[[nodiscard]] bool can_cast_to(Type *to_type) const {
-		return false;
-		if (type == to_type) return true;
-		if (auto self = dynamic_cast<Type::Ref *>(type)) {
-			if (self->get_sub_type() == to_type) return true;
-			if (auto other = dynamic_cast<Type::Ref *>(to_type))
-				if (self->get_sub_type() == other->get_sub_type()) return true;
-		}
-		return false;
-	}
-	[[nodiscard]] std::optional<Value> cast_to(Codegen &g, Type *to_type) const;
-
 	[[nodiscard]] Type *get_type() const { return type; }
 	[[nodiscard]] llvm::Value *get_llvm_value() const;
 	[[nodiscard]] Concept *get_concept_value() const {

@@ -13,15 +13,17 @@ class Function::Template final : public Function {
 public:
 	explicit Template(
 		std::string name,
-		Type *receiver_type,
-		Type *result_type,
-		std::vector<Value> parameter_types, // can be either concept or type
+		std::map<Concept *, std::string> concepts,
+		Ptr<ASTNode> receiver_type_node,
+		Ptr<ASTNode> result_type_node,
+		std::vector<Ptr<ASTNode>> parameter_type_nodes, // can be either concept or type
 		std::vector<std::string> parameter_names,
 		Ptr<BlockNode> body_node
 	): name(std::move(name)),
-	   receiver_type(receiver_type),
-	   result_type(result_type),
-	   parameter_types(std::move(parameter_types)),
+	   concepts(std::move(concepts)),
+	   receiver_type_node(std::move(receiver_type_node)),
+	   result_type_node(std::move(result_type_node)),
+	   parameter_type_nodes(std::move(parameter_type_nodes)),
 	   parameter_names(std::move(parameter_names)),
 	   body_node(std::move(body_node)) {}
 
@@ -34,8 +36,9 @@ public:
 	[[nodiscard]] Function *instantiate(INVOKE_ARGS) override;
 private:
 	std::string name;
-	Type *receiver_type, *result_type;
-	std::vector<Value> parameter_types;
+	std::map<Concept *, std::string> concepts;
+	Ptr<ASTNode> receiver_type_node, result_type_node;
+	std::vector<Ptr<ASTNode>> parameter_type_nodes;
 	std::vector<std::string> parameter_names;
 	Ptr<BlockNode> body_node;
 };

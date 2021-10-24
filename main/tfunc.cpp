@@ -10,40 +10,46 @@ namespace rin {
     const std::vector<Value> &args
 
 Function *Function::Template::instantiate(INVOKE_ARGS) {
-	do {
-		if ((receiver_type != nullptr) != receiver.has_value()) break;
-		if (args.size() != parameter_types.size()) break;
-		if (receiver_type && !receiver->can_cast_to(receiver_type)) break;
-		bool arguments_match = true;
-		std::vector<Type *> actual_types(args.size());
-		for (size_t i = 0; i < args.size(); ++i) {
-			const auto &para = parameter_types[i];
-			if (para.is_concept_value()) {
-				if (!para.get_concept_value()->satisfy(args[i].get_type())) {
-					arguments_match = false;
-					break;
-				}
-				actual_types[i] = args[i].get_type();
-			} else if (para.is_type_value()) {
-				if (!args[i].can_cast_to(para.get_type_value())) {
-					arguments_match = false;
-					break;
-				}
-				actual_types[i] = para.get_type_value();
-			}
-		}
-		if (!arguments_match) break;
-		auto actual_type = g.get_context().get_function_type(
-			receiver_type,
-			result_type,
-			actual_types
-		);
-		auto function_object = g.declare_function(actual_type, name);
-		if (!function_object) return nullptr; // use functions that already exists first
-		g.implement_function(function_object, parameter_names, body_node.get());
-		return function_object;
-	} while (false);
-	return nullptr;
+	std::map<Concept *, Type *> inferred;
+	if ((receiver_type_node != nullptr) != receiver.has_value() || args.size() != parameter_type_nodes.size())
+		return nullptr;
+	for (size_t i = 0; i < args.size(); ++i) {
+		auto para = parameter_type_nodes[i]->codegen(g);
+		if (!para.is_concept_value()) continue;
+		auto iter = concepts.find(para.get_concept_value());
+		if (iter == concepts.end()) break;
+		auto inferred_iter = inferred.find(iter->first);
+		if (inferred_iter == inferred.end()) inferred[iter->first] = args[i].get_type();
+		else if (inferred_iter->second != args[i].get_type()) return nullptr;
+	}
+	if (inferred.size() != concepts.size()) return nullptr;
+	g.add_layer(nullptr);
+	for (auto &[value, type] : inferred) g.declare_value(concepts[value], Value(type));
+
+	auto receiver_type =
+		receiver_type_node
+		? receiver_type_node->codegen(g).get_type()
+		: nullptr;
+	auto result_type = result_type_node->codegen(g).get_type();
+	if (receiver_type && receiver->get_type() != receiver_type) {
+		g.pop_layer();
+		return nullptr;
+	}
+	std::vector<Type *> actual_types(args.size());
+	for (size_t i = 0; i < args.size(); ++i) {
+		actual_types[i] = parameter_type_nodes[i]->codegen(g).get_type();
+		if (args[i].get_type() != actual_types[i]) return nullptr;
+	}
+	g.pop_layer();
+	auto actual_type = g.get_context().get_function_type(
+		receiver_type,
+		result_type,
+		actual_types
+	);
+	auto function_object = g.declare_function(actual_type, name);
+	if (!function_object) return nullptr; // use functions that already exists first
+	g.implement_function(function_object, parameter_names, body_node.get());
+	return function_object;
 }
 
 } // namespace rin

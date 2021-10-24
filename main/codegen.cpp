@@ -11,7 +11,7 @@ Codegen::Codegen(Context &ctx, const std::string &name):
 	ctx(ctx),
 	module(std::make_unique<llvm::Module>(name, ctx.get_llvm())),
 	const_eval_depth(0) {
-	add_layer(std::make_unique<llvm::IRBuilder<>>(ctx.get_llvm()), nullptr);
+	add_layer(nullptr);
 #define ARGS Codegen &g, std::optional<Value> receiver, const std::vector<Value> &args
 	// TODO builtin functions here
 	declare_builtin("address", [](ARGS) {
@@ -49,7 +49,7 @@ Codegen::Codegen(Context &ctx, const std::string &name):
 	declare_value("void", Value(ctx.get_void_type()));
 	declare_value("type", Value(Type::Self::get_instance()));
 	declare_value("any", Value(ctx.get_any_concept())); // TODO remove this
-	add_layer(std::make_unique<llvm::IRBuilder<>>(ctx.get_llvm()), nullptr);
+	add_layer(nullptr);
 }
 
 Codegen::~Codegen() {
@@ -67,9 +67,10 @@ llvm::Function *Codegen::get_llvm_function() const {
 }
 
 void Codegen::add_layer(
-	Ptr<llvm::IRBuilder<>> builder,
-	Function::Static *function
+	Function::Static *function,
+	Ptr<llvm::IRBuilder<>> builder
 ) {
+	if (!builder) builder = std::make_unique<llvm::IRBuilder<>>(ctx.get_llvm());
 	layers.push_back(
 		{
 			std::move(builder),
@@ -134,14 +135,14 @@ void Codegen::implement_function(
 	auto llvm = function->get_llvm_value();
 	auto type = function->get_type();
 	add_layer(
+		function,
 		std::make_unique<llvm::IRBuilder<>>(
 			llvm::BasicBlock::Create(
 				get_llvm_context(),
 				"entry",
 				llvm
 			)
-		),
-		function
+		)
 	);
 	std::vector<llvm::Value *> args;
 	for (auto &arg : llvm->args())

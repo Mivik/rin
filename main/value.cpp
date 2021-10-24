@@ -30,17 +30,6 @@ bool Value::is_constant() const {
 	return get_type()->is_abstract() || llvm::isa<llvm::Constant>(llvm_value);
 }
 
-std::optional<Value> Value::cast_to(Codegen &g, Type *to_type) const {
-	if (type == to_type) return *this;
-	return std::nullopt;
-	if (auto ref_type = dynamic_cast<Type::Ref *>(type)) {
-		if (ref_type->get_sub_type() == to_type) return deref(g);
-		if (auto ref_to_type = dynamic_cast<Type::Ref *>(to_type))
-			return g.create_ref_value(ref_to_type, llvm_value);
-	}
-	return std::nullopt;
-}
-
 Value Value::pointer_subscript(Codegen &g) const {
 	auto ptr_type = dynamic_cast<Type::Pointer *>(type);
 	if (!ptr_type)

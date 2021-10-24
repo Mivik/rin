@@ -466,9 +466,7 @@ Value VarDeclNode::codegen(Codegen &g) const {
 	auto cast_if_needed = [&](Value value) {
 		if (type_node) {
 			auto type = type_node->codegen(g).deref(g).get_type_value();
-			if (auto opt = value.cast_to(g, type))
-				return *opt;
-			else
+			if (value.get_type() != type)
 				g.error(
 					"Cannot initialize a variable of type {} with a value of type {}",
 					type->to_string(), value.get_type()->to_string()
@@ -529,9 +527,7 @@ void GlobalVarDeclNode::declare(Codegen &g) {
 		g.pop_const_eval();
 		if (type_node) {
 			auto target_type = type_node->codegen(g).deref(g).get_type_value();
-			if (auto opt = initial_value.cast_to(g, target_type))
-				initial_value = *opt;
-			else
+			if (initial_value.get_type() != target_type)
 				g.error(
 					"Cannot initialize a variable of type {} with a value of type {}",
 					target_type->to_string(), initial_value.get_type()->to_string()
@@ -619,10 +615,13 @@ Value StructValueNode::codegen(Codegen &g) const {
 	auto &builder = *g.get_builder();
 	for (size_t i = 0; i < fields.size(); ++i) {
 		auto member = builder.CreateStructGEP(ptr.get_llvm_value(), i);
-		builder.CreateStore(
-			field_nodes[i]->codegen(g).cast_to(g, fields[i].type)->get_llvm_value(),
-			member
-		);
+		auto value = field_nodes[i]->codegen(g);
+		if (value.get_type() != fields[i].type)
+			g.error(
+				"Expected {}, got {} in struct initialization",
+				fields[i].type->to_string(), value.get_type()->to_string()
+			);
+		builder.CreateStore(value.get_llvm_value(), member);
 	}
 	return g.create_ref_value(
 		g.get_context().get_ref_type(type, true),
@@ -709,9 +708,14 @@ Value ReturnNode::codegen(Codegen &g) const {
 		if (value_node)
 			g.error("Returning a value in a void function: {}", func_type->to_string());
 		g.get_builder()->CreateRetVoid();
-	} else if (auto opt = value_node->codegen(g).cast_to(g, result_type)) {
-		// TODO TBH, are there such cases? a const return statement? wtf does that even mean?
-		g.get_builder()->CreateRet(opt->get_llvm_value());
+	} else {
+		auto value = value_node->codegen(g);
+		if (value.get_type() != result_type)
+			g.error(
+				"Returning a {} in a function that returns {}",
+				value.get_type()->to_string(), result_type->to_string()
+			);
+		g.get_builder()->CreateRet(value.get_llvm_value());
 	}
 	return g.get_context().get_void();
 }

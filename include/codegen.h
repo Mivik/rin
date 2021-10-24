@@ -104,7 +104,7 @@ public:
 		BlockNode *body_node
 	);
 
-	void add_layer(Ptr<llvm::IRBuilder<>> builder, Function::Static *function);
+	void add_layer(Function::Static *function, Ptr<llvm::IRBuilder<>> builder = nullptr);
 	void pop_layer();
 private:
 	struct Layer {

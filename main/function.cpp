@@ -15,10 +15,10 @@ Function *Function::Static::instantiate(INVOKE_ARGS) {
 	do {
 		if ((receiver_type != nullptr) != receiver.has_value()) break;
 		if (args.size() != parameter_types.size()) break;
-		if (receiver_type && !receiver->can_cast_to(receiver_type)) break;
+		if (receiver_type && receiver->get_type() != receiver_type) break;
 		bool arguments_match = true;
 		for (size_t i = 0; i < args.size(); ++i)
-			if (!args[i].can_cast_to(parameter_types[i])) {
+			if (args[i].get_type() != parameter_types[i]) {
 				arguments_match = false;
 				break;
 			}
