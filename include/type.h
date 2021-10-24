@@ -43,8 +43,6 @@ public:
 
 	class Void;
 
-	static Type *common_type(Type *A, Type *B);
-
 	[[nodiscard]] llvm::Type *get_llvm() const { return llvm; }
 	[[nodiscard]] bool is_abstract() const { return llvm == nullptr; }
 	[[nodiscard]] virtual Type *get_element(unsigned) const { // pass -1 if the index is dynamic

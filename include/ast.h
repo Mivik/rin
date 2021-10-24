@@ -196,20 +196,24 @@ public:
 		const SourceRange &range,
 		Ptr<ASTNode> receiver_type_node,
 		Ptr<ASTNode> result_type_node,
-		std::vector<Ptr<ASTNode>> param_type_nodes,
-		std::vector<std::string> param_names
+		std::vector<Ptr<ASTNode>> parameter_type_nodes,
+		std::vector<std::string> parameter_names
 	): ASTNode(range),
 	   receiver_type_node(std::move(receiver_type_node)),
 	   result_type_node(std::move(result_type_node)),
-	   param_type_nodes(std::move(param_type_nodes)),
-	   param_names(std::move(param_names)) {
-		assert_unique(param_names);
+	   parameter_type_nodes(std::move(parameter_type_nodes)),
+	   parameter_names(std::move(parameter_names)) {
+		assert_unique(parameter_names);
 	}
 
 	[[nodiscard]] ASTNode *get_receiver_type_node() const { return receiver_type_node.get(); }
 	[[nodiscard]] ASTNode *get_result_type_node() const { return result_type_node.get(); }
-	[[nodiscard]] const std::vector<Ptr<ASTNode>> &get_parameter_type_nodes() const { return param_type_nodes; }
-	[[nodiscard]] const std::vector<std::string> &get_parameter_names() const { return param_names; }
+	[[nodiscard]] std::vector<ASTNode *> get_parameter_type_nodes() const {
+		std::vector<ASTNode *> res(parameter_type_nodes.size());
+		for (size_t i = 0; i < res.size(); ++i) res[i] = parameter_type_nodes[i].get();
+		return res;
+	}
+	[[nodiscard]] const std::vector<std::string> &get_parameter_names() const { return parameter_names; }
 
 	[[nodiscard]] Type *get_receiver_type(Codegen &g) const;
 	[[nodiscard]] Type *get_result_type(Codegen &g) const;
@@ -218,8 +222,8 @@ public:
 	OVERRIDE
 private:
 	Ptr<ASTNode> receiver_type_node, result_type_node;
-	std::vector<Ptr<ASTNode>> param_type_nodes;
-	std::vector<std::string> param_names;
+	std::vector<Ptr<ASTNode>> parameter_type_nodes;
+	std::vector<std::string> parameter_names;
 };
 
 class StructNode final : public ASTNode {

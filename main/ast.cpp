@@ -670,12 +670,12 @@ Value BlockNode::codegen(Codegen &g) const {
 
 Type *FunctionTypeNode::get_receiver_type(Codegen &g) const {
 	return receiver_type_node
-		   ? receiver_type_node->codegen(g).deref(g).get_type_value()
+		   ? receiver_type_node->codegen(g).get_type_value()
 		   : nullptr;
 }
 
 Type *FunctionTypeNode::get_result_type(Codegen &g) const {
-	return result_type_node->codegen(g).deref(g).get_type_value();
+	return result_type_node->codegen(g).get_type_value();
 }
 
 std::vector<Value> FunctionTypeNode::get_parameter_types(Codegen &g) const {
@@ -778,12 +778,12 @@ Value IfNode::codegen(Codegen &g) const {
 		});
 		auto then_type = then_ret.get_type(), else_type = else_ret.get_type();
 		const auto merge_block = g.create_basic_block("merge");
-		auto type = Type::common_type(then_type, else_type);
+		auto type = then_type == else_type? then_type: nullptr;
 		(cond? else_block: then_block)->deleteValue();
 		builder.SetInsertPoint(cond? then_block: else_block);
 		if (!(cond? then_node: else_node)->has_return()) builder.CreateBr(merge_block);
 		builder.SetInsertPoint(merge_block);
-		return type? then_ret.cast_to(g, type).value(): g.get_context().get_void();
+		return type? (cond? then_ret: else_ret): g.get_context().get_void();
 	}
 	const auto
 		then_block = g.create_basic_block("then"),
@@ -810,7 +810,8 @@ Value IfNode::codegen(Codegen &g) const {
 			else_node->codegen(g);
 		});
 		auto then_type = then_ret.get_type(), else_type = else_ret.get_type();
-		if (auto type = Type::common_type(then_type, else_type)) {
+		if (then_type == else_type) {
+			auto type = then_type;
 			auto var = g.allocate_stack(type, false);
 			var = {
 				dynamic_cast<Type::Ref *>(type)
@@ -822,10 +823,10 @@ Value IfNode::codegen(Codegen &g) const {
 			const auto merge_block = g.create_basic_block("merge");
 
 			builder.SetInsertPoint(then_block);
-			builder.CreateStore(then_ret.cast_to(g, type).value().get_llvm_value(), var.get_llvm_value());
+			builder.CreateStore(then_ret.get_llvm_value(), var.get_llvm_value());
 			if (!then_node->has_return()) builder.CreateBr(merge_block);
 			builder.SetInsertPoint(else_block);
-			builder.CreateStore(else_ret.cast_to(g, type).value().get_llvm_value(), var.get_llvm_value());
+			builder.CreateStore(else_ret.get_llvm_value(), var.get_llvm_value());
 			if (!else_node->has_return()) builder.CreateBr(merge_block);
 
 			builder.SetInsertPoint(merge_block);
