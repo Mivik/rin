@@ -32,6 +32,10 @@ public:
 	Ptr<TopLevelNode> take_top_level();
 private:
 	Ptr<ASTNode> take_prim_inner();
+	std::string take_name() {
+		return std::string(expect(lexer.take(), TokenKind::Identifier)
+				.content(get_buffer()));
+	}
 
 	template<class...Args>
 	[[noreturn]] void error(const char *pattern, Args &&...args) const {

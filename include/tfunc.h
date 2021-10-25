@@ -13,7 +13,7 @@ class Function::Template final : public Function {
 public:
 	explicit Template(
 		std::string name,
-		std::map<Concept *, std::string> concepts,
+		std::map<std::string, Concept *> concepts,
 		ASTNode *receiver_type_node,
 		ASTNode *result_type_node,
 		std::vector<ASTNode *> parameter_type_nodes, // can be either concept or type
@@ -36,7 +36,7 @@ public:
 	[[nodiscard]] Function *instantiate(INVOKE_ARGS) override;
 private:
 	std::string name;
-	std::map<Concept *, std::string> concepts;
+	std::map<std::string, Concept *> concepts;
 	ASTNode *receiver_type_node, *result_type_node;
 	std::vector<ASTNode *> parameter_type_nodes;
 	std::vector<std::string> parameter_names;

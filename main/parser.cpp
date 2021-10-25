@@ -97,10 +97,7 @@ Ptr<ASTNode> Parser::take_prim_inner() {
 			std::vector<std::string> field_names;
 			std::vector<Ptr<ASTNode>> field_types;
 			process_list(K::LBrace, K::RBrace, K::Comma, [&]() {
-				field_names.emplace_back(
-					expect(lexer.take(), K::Identifier)
-						.content(get_buffer())
-				);
+				field_names.emplace_back(take_name());
 				expect(lexer.take(), K::Colon);
 				field_types.push_back(take_expr());
 			});
@@ -259,6 +256,17 @@ Ptr<BlockNode> Parser::take_block() {
 
 Ptr<FunctionNode> Parser::take_function() {
 	const auto begin = lexer.position();
+	std::vector<std::pair<std::string, Ptr<ASTNode>>> template_parameters;
+	if (lexer.peek().kind == K::Lt)
+		process_list(K::Lt, K::Gt, K::Comma, [&]() {
+			auto name = take_name();
+			Ptr<ASTNode> concept_node;
+			if (lexer.peek().kind == K::Colon) {
+				lexer.take();
+				concept_node = take_prim();
+			}
+			template_parameters.emplace_back(name, std::move(concept_node));
+		});
 	expect(lexer.take(), K::Fn);
 	Ptr<ASTNode> receiver_type;
 	if (lexer.peek().kind == K::LBracket) {
@@ -267,16 +275,13 @@ Ptr<FunctionNode> Parser::take_function() {
 		expect(lexer.take(), K::RBracket);
 		expect(lexer.take(), K::Period);
 	}
-	std::string name(expect(lexer.take(), K::Identifier).content(get_buffer()));
+	auto name = take_name();
 
 	std::vector<Ptr<ASTNode>> param_types;
 	std::vector<std::string> param_names;
 	Ptr<ASTNode> result_type;
 	process_list(K::LPar, K::RPar, K::Comma, [&]() {
-		param_names.emplace_back(
-			expect(lexer.take(), K::Identifier)
-				.content(get_buffer())
-		);
+		param_names.emplace_back(take_name());
 		expect(lexer.take(), K::Colon);
 		param_types.push_back(take_expr());
 	});
@@ -293,6 +298,7 @@ Ptr<FunctionNode> Parser::take_function() {
 	auto type_node =
 		std::make_unique<FunctionTypeNode>(
 			SourceRange(begin, lexer.position()),
+			std::move(template_parameters),
 			std::move(receiver_type),
 			std::move(result_type),
 			std::move(param_types),
@@ -326,7 +332,7 @@ Ptr<ASTNode> Parser::take_stmt() {
 				is_inline = true;
 				kind = TokenKind::Val;
 			} else is_inline = false;
-			auto name = expect(lexer.take(), K::Identifier).content(get_buffer());
+			auto name = take_name();
 			Ptr<ASTNode> type_node, value_node;
 			if (lexer.peek().kind == K::Colon) {
 				lexer.take();
@@ -406,7 +412,7 @@ Ptr<DeclNode> Parser::take_decl() {
 				is_inline = true;
 				kind = TokenKind::Val;
 			} else is_inline = false;
-			auto name = expect(lexer.take(), K::Identifier).content(get_buffer());
+			auto name = take_name();
 			Ptr<ASTNode> type_node, value_node;
 			if (lexer.peek().kind == K::Colon) {
 				lexer.take();
@@ -427,6 +433,7 @@ Ptr<DeclNode> Parser::take_decl() {
 			);
 		}
 		case K::Fn:
+		case K::Lt:
 			return take_function();
 		default:
 			error("Unexpected token: {}", lexer.peek().info(get_buffer()));

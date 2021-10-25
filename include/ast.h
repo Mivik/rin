@@ -194,11 +194,13 @@ class FunctionTypeNode final : public ASTNode {
 public:
 	FunctionTypeNode(
 		const SourceRange &range,
+		std::vector<std::pair<std::string, Ptr<ASTNode>>> template_parameters,
 		Ptr<ASTNode> receiver_type_node,
 		Ptr<ASTNode> result_type_node,
 		std::vector<Ptr<ASTNode>> parameter_type_nodes,
 		std::vector<std::string> parameter_names
 	): ASTNode(range),
+	   template_parameters(std::move(template_parameters)),
 	   receiver_type_node(std::move(receiver_type_node)),
 	   result_type_node(std::move(result_type_node)),
 	   parameter_type_nodes(std::move(parameter_type_nodes)),
@@ -206,6 +208,9 @@ public:
 		assert_unique(parameter_names);
 	}
 
+	[[nodiscard]] const std::vector<std::pair<std::string, Ptr<ASTNode>>> &get_template_parameters() const {
+		return template_parameters;
+	}
 	[[nodiscard]] ASTNode *get_receiver_type_node() const { return receiver_type_node.get(); }
 	[[nodiscard]] ASTNode *get_result_type_node() const { return result_type_node.get(); }
 	[[nodiscard]] std::vector<ASTNode *> get_parameter_type_nodes() const {
@@ -221,6 +226,7 @@ public:
 
 	OVERRIDE
 private:
+	std::vector<std::pair<std::string, Ptr<ASTNode>>> template_parameters;
 	Ptr<ASTNode> receiver_type_node, result_type_node;
 	std::vector<Ptr<ASTNode>> parameter_type_nodes;
 	std::vector<std::string> parameter_names;

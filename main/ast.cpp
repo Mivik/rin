@@ -1,4 +1,6 @@
 
+#include <set>
+
 #include "ast.h"
 #include "parser.h"
 #include "ref.h"
@@ -686,11 +688,12 @@ std::vector<Value> FunctionTypeNode::get_parameter_types(Codegen &g) const {
 }
 
 Value FunctionTypeNode::codegen(Codegen &g) const {
+	if (!template_parameters.empty()) // TODO or abstract?
+		return g.get_context().get_void();
 	std::vector<Type *> parameter_types;
 	parameter_types.reserve(parameter_type_nodes.size());
 	for (const auto &param : parameter_type_nodes) {
 		auto type = param->codegen(g).deref(g);
-		if (type.is_concept_value()) return g.get_context().get_void(); // TODO or abstract?
 		parameter_types.push_back(type.get_type_value());
 	}
 	return Value(g.get_context().get_function_type(
@@ -723,11 +726,25 @@ Value ReturnNode::codegen(Codegen &g) const {
 void FunctionNode::declare(Codegen &g) {
 	auto result = type_node->codegen(g);
 	if (result.get_type() == g.get_context().get_void_type()) {
+		std::map<std::string, Concept *> concepts;
+		std::set<std::string> occurred_strings;
+		for (auto &[name, node] : type_node->get_template_parameters()) {
+			Concept *concept_value;
+			if (node) {
+				auto value = node->codegen(g);
+				if (!value.is_concept_value())
+					g.error("Expected a concept value"); // TODO message
+				concept_value = value.get_concept_value();
+			} else concept_value = g.get_context().get_any_concept();
+			if (!occurred_strings.insert(name).second)
+				g.error("Duplicated name in template parameters: {}", name);
+			concepts[name] = concept_value;
+		}
 		g.declare_function(
 			name,
 			std::make_unique<Function::Template>(
 				name,
-				std::map<Concept *, std::string>(),
+				concepts,
 				type_node->get_receiver_type_node(),
 				type_node->get_result_type_node(),
 				type_node->get_parameter_type_nodes(),
