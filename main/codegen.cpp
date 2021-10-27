@@ -14,7 +14,7 @@ Codegen::Codegen(Context &ctx, const std::string &name):
 	add_layer(nullptr);
 #define ARGS Codegen &g, std::optional<Value> receiver, const std::vector<Value> &args
 	// TODO builtin functions here
-	declare_builtin("address", [](ARGS) {
+	declare_builtin("address", "fn (&T): *T", [](ARGS) {
 		return args.size() == 1 && args[0].is_ref_value() && dynamic_cast<Ref::Address *>(args[0].get_ref_value());
 	}, [&](ARGS) {
 		auto ref = args[0].get_ref_value();
@@ -24,7 +24,7 @@ Codegen::Codegen(Context &ctx, const std::string &name):
 			dynamic_cast<Ref::Address *>(ref)->get_address()
 		);
 	});
-	declare_builtin("type", [](ARGS) {
+	declare_builtin("type", "fn (T): type", [](ARGS) {
 		return args.size() == 1;
 	}, [](ARGS) {
 		return Value(args[0].get_type());
@@ -112,13 +112,12 @@ Function::Static *Codegen::declare_function(
 	Type::Function *type,
 	const std::string &name
 ) {
+	bool is_main =
+		name == "main" && type->get_parameter_types().empty();
 	auto llvm = llvm::Function::Create(
-		llvm::dyn_cast<llvm::FunctionType>(
-			type->get_llvm()
-		),
+		llvm::dyn_cast<llvm::FunctionType>(type->get_llvm()),
 		llvm::Function::ExternalLinkage,
-		// TODO mangle
-		name,
+		is_main? name: type->to_string(name, true),
 		module.get()
 	);
 	return declare_function(

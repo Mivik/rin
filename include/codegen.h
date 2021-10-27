@@ -115,12 +115,13 @@ private:
 
 	void declare_builtin(
 		const std::string &name,
+		std::string type_desc,
 		Function::Builtin::VerifierType verifier,
 		Function::Builtin::FuncType func
 	) {
 		function_map
 			.get_or_create("@" + name)
-			.emplace_back(new Function::Builtin(std::move(verifier), std::move(func)));
+			.emplace_back(new Function::Builtin(std::move(type_desc), std::move(verifier), std::move(func)));
 	}
 
 	Context &ctx;

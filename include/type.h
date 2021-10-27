@@ -195,6 +195,7 @@ public:
 		return fields[index].type;
 	}
 	[[nodiscard]] std::string to_string() const override;
+
 private:
 	Struct(Context *ctx, std::vector<FieldInfo> fields);
 
@@ -213,6 +214,7 @@ public:
 		return elements[index];
 	}
 	[[nodiscard]] std::string to_string() const override;
+
 private:
 	Tuple(Context *ctx, std::vector<Type *> elements);
 
@@ -226,10 +228,11 @@ public:
 	[[nodiscard]] Type *get_receiver_type() const { return receiver_type; }
 	[[nodiscard]] Type *get_result_type() const { return result_type; }
 	[[nodiscard]] std::vector<Type *> get_parameter_types() const { return param_types; }
-	[[nodiscard]] std::string to_string(const std::string &name) const;
+	[[nodiscard]] std::string to_string(const std::string &name, bool for_mangling = false) const;
 	[[nodiscard]] std::string to_string() const override {
 		return to_string("");
 	}
+
 private:
 	Function(Type *receiver_type, Type *result_type, const std::vector<Type *> &param_types);
 

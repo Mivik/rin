@@ -127,8 +127,8 @@ Type::Function::Function(
 	result_type(result_type),
 	param_types(param_types) {}
 
-std::string Type::Function::to_string(const std::string &name) const {
-	std::string ret = "fn ";
+std::string Type::Function::to_string(const std::string &name, bool for_mangling) const {
+	std::string ret = for_mangling? "": "fn ";
 	if (receiver_type) {
 		ret += '[';
 		ret += receiver_type->to_string();
@@ -137,12 +137,19 @@ std::string Type::Function::to_string(const std::string &name) const {
 	}
 	ret += name;
 	ret += '(';
-	for (size_t i = 0; i < param_types.size(); ++i) {
-		ret += param_types[i]->to_string();
-		if (i != param_types.size() - 1) ret += ", ";
+	if (for_mangling) {
+		for (size_t i = 0; i < param_types.size(); ++i) {
+			ret += param_types[i]->to_string();
+			if (i != param_types.size() - 1) ret += ',';
+		}
+	} else {
+		for (size_t i = 0; i < param_types.size(); ++i) {
+			ret += param_types[i]->to_string();
+			if (i != param_types.size() - 1) ret += ", ";
+		}
 	}
 	ret += ')';
-	if (!dynamic_cast<Type::Void *>(result_type)) {
+	if (!for_mangling && !dynamic_cast<Type::Void *>(result_type)) {
 		ret += ": ";
 		ret += result_type->to_string();
 	}

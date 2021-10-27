@@ -573,7 +573,11 @@ Value CallNode::codegen(Codegen &g) const {
 			if (!func) continue;
 			if (!matching_function) matching_function = func;
 			else
-				g.error("Multiple candidate functions for calling"); // TODO
+				g.error(
+					"Multiple candidate functions for calling: {} | {}",
+					matching_function->get_type_description(),
+					func->get_type_description()
+				); // TODO at least their names!!
 		}
 	if (matching_function == nullptr)
 		g.error("No matching function for calling");
@@ -726,7 +730,7 @@ Value ReturnNode::codegen(Codegen &g) const {
 void FunctionNode::declare(Codegen &g) {
 	auto result = type_node->codegen(g);
 	if (result.get_type() == g.get_context().get_void_type()) {
-		std::map<std::string, Concept *> concepts;
+		std::vector<std::pair<std::string, Concept *>> concepts;
 		std::set<std::string> occurred_strings;
 		for (auto &[name, node] : type_node->get_template_parameters()) {
 			Concept *concept_value;
@@ -738,7 +742,7 @@ void FunctionNode::declare(Codegen &g) {
 			} else concept_value = g.get_context().get_any_concept();
 			if (!occurred_strings.insert(name).second)
 				g.error("Duplicated name in template parameters: {}", name);
-			concepts[name] = concept_value;
+			concepts.emplace_back(name, concept_value);
 		}
 		g.declare_function(
 			name,
