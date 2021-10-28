@@ -13,13 +13,13 @@ inline TokenKind word_kind(std::string_view str) {
 	if (str[0] == '@') return TokenKind::Builtin;
 #define CASE(s, k) case string_hash(s): if (str == s) return TokenKind::k; break;
 	switch (string_hash(str)) {
-		CASE("const", Const)
 		CASE("do", Do)
 		CASE("else", Else)
 		CASE("enum", Enum)
 		CASE("false", False)
 		CASE("fn", Fn)
 		CASE("for", For)
+		CASE("mut", Mut)
 		CASE("if", If)
 		CASE("inline", Inline)
 		CASE("return", Return)

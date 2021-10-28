@@ -120,29 +120,34 @@ Value UnaryOpNode::codegen(Codegen &g) const {
 	// TODO array type
 	switch (op) {
 		case K::Pointer:
-		case K::PointerConst:
+		case K::PointerMut:
 			if (value.deref(g).is_type_value())
 				return Value(g.get_context().get_pointer_type(
 					value.get_type_value(),
-					op == K::PointerConst
+					op == K::Pointer
 				));
 			else {
-				if (op == K::PointerConst) unary_op_fail(value, op);
 				auto v = value.deref(g);
-				if (auto ptr_type = dynamic_cast<Type::Pointer *>(v.get_type()))
+				if (auto ptr_type = dynamic_cast<Type::Pointer *>(v.get_type())) {
+					if (op == K::PointerMut && ptr_type->is_const())
+						g.error(
+							"Attempt to get variable reference to const pointer: {}",
+							ptr_type->to_string()
+						);
 					return g.create_ref_value(
-						g.get_context().get_ref_type(ptr_type->get_sub_type(), ptr_type->is_const()),
+						g.get_context().get_ref_type(ptr_type->get_sub_type(), op == K::Pointer),
 						v.get_llvm_value()
 					);
+				}
 				else unary_op_fail(value, op);
 			}
 			break;
 		case K::Ref:
-		case K::RefConst:
+		case K::RefMut:
 			if (value.deref(g).is_type_value())
 				return Value(g.get_context().get_ref_type(
 					value.get_type_value(),
-					op == K::RefConst
+					op == K::Ref
 				));
 			else if (value.is_ref_value()) {
 				// TODO get address
@@ -157,7 +162,7 @@ Value UnaryOpNode::codegen(Codegen &g) const {
 						"Cannot get the address of an abstract reference: {}",
 						value.get_type()->to_string()
 					);*/
-				if (op == K::PointerConst) unary_op_fail(value, op);
+				if (op == K::RefMut) unary_op_fail(value, op);
 				return value;
 			} else unary_op_fail(value, op);
 			break;

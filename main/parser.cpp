@@ -112,13 +112,13 @@ Ptr<ASTNode> Parser::take_prim_inner() {
 			token.kind = token_kind::as_unary_op(token.kind);
 			if (token_kind::is_unary_op(token.kind)) {
 				lexer.take();
-				if (lexer.peek().kind == K::Const) {
+				if (lexer.peek().kind == K::Mut) {
 					if (token.kind == K::Pointer) {
 						lexer.take();
-						token.kind = K::PointerConst;
+						token.kind = K::PointerMut;
 					} else if (token.kind == K::Ref) {
 						lexer.take();
-						token.kind = K::RefConst;
+						token.kind = K::RefMut;
 					}
 				}
 				return std::make_unique<UnaryOpNode>(take_prim(), token);
@@ -194,13 +194,13 @@ Ptr<ASTNode> Parser::take_expr() {
 	while (true) {
 		auto token = lexer.peek();
 		auto &kind = token.kind;
-		if (kind == TokenKind::Eof) break;
+		if (kind == K::Eof) break;
 		if (last != Prim)
 			kind = token_kind::as_unary_op(kind);
-		if (kind == TokenKind::LBracket) {
+		if (kind == K::LBracket) {
 			lexer.take();
 			auto index = take_expr();
-			expect(lexer.take(), TokenKind::RBracket);
+			expect(lexer.take(), K::RBracket);
 			auto cur_pred = 2;
 			while (!ops.empty() &&
 				   ((precedence_of(ops.top().kind) < cur_pred) ||
@@ -320,18 +320,15 @@ Ptr<ASTNode> Parser::take_stmt() {
 			return take_block();
 		case K::Var:
 		case K::Val:
-		case K::Const:
 		case K::Inline: {
 			lexer.take();
-			bool is_inline;
-			if (kind == TokenKind::Inline) {
-				is_inline = true;
-				expect(lexer.take(), TokenKind::Var);
-				kind = TokenKind::Var;
-			} else if (kind == TokenKind::Const) {
-				is_inline = true;
-				kind = TokenKind::Val;
-			} else is_inline = false;
+			bool is_inline = kind == K::Inline;
+			if (is_inline) {
+				auto token = lexer.take();
+				kind = token.kind;
+				if (kind != K::Var && kind != K::Val)
+					error("Unexpected {} after inline", token.info(get_buffer()));
+			}
 			auto name = take_name();
 			Ptr<ASTNode> type_node, value_node;
 			if (lexer.peek().kind == K::Colon) {
@@ -348,7 +345,7 @@ Ptr<ASTNode> Parser::take_stmt() {
 				std::string(name),
 				std::move(type_node),
 				std::move(value_node),
-				kind == TokenKind::Var,
+				kind == K::Var,
 				is_inline
 			);
 			return t;
@@ -400,18 +397,15 @@ Ptr<DeclNode> Parser::take_decl() {
 	switch (auto kind = lexer.peek().kind) {
 		case K::Var:
 		case K::Val:
-		case K::Const:
 		case K::Inline: {
 			lexer.take();
-			bool is_inline;
-			if (kind == TokenKind::Inline) {
-				is_inline = true;
-				expect(lexer.peek(), TokenKind::Var);
-				kind = TokenKind::Var;
-			} else if (kind == TokenKind::Const) {
-				is_inline = true;
-				kind = TokenKind::Val;
-			} else is_inline = false;
+			bool is_inline = kind == K::Inline;
+			if (is_inline) {
+				auto token = lexer.take();
+				kind = token.kind;
+				if (kind != K::Var && kind != K::Val)
+					error("Unexpected {} after inline", token.info(get_buffer()));
+			}
 			auto name = take_name();
 			Ptr<ASTNode> type_node, value_node;
 			if (lexer.peek().kind == K::Colon) {
@@ -428,7 +422,7 @@ Ptr<DeclNode> Parser::take_decl() {
 				std::string(name),
 				std::move(type_node),
 				std::move(value_node),
-				kind == TokenKind::Var,
+				kind == K::Var,
 				is_inline
 			);
 		}

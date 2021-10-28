@@ -27,11 +27,11 @@ TEST(parser, basic) {
 
 	Parser(R"(
 	fn test_struct(): i32 {
-		const Point = struct {
+		val Point = struct {
 			x: i32,
 			y: i32
 		};
-		const Rect = struct {
+		val Rect = struct {
 			lt: Point,
 			rb: Point
 		};
