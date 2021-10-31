@@ -37,7 +37,7 @@ Ref *Ref::Address::get_element(Codegen &g, const std::vector<llvm::Value *> &ind
 	}
 	// TODO In bound?
 	return g.create_ref<Ref::Address>(
-		g.get_context().get_ref_type(result_type, type->is_const()),
+		g.get_context().get_ref_type(result_type, type->is_mutable()),
 		g.get_builder()->CreateGEP(address, indices)
 	);
 }
@@ -64,7 +64,7 @@ Ref *Ref::Memory::get_element(Codegen &g, const std::vector<llvm::Value *> &indi
 inline Type::Ref *get_sub_type_as_ref(Codegen &g, Type::Ref *father, unsigned index) {
 	return g.get_context().get_ref_type(
 		father->get_sub_type()->get_element(index),
-		father->is_const()
+		father->is_mutable()
 	);
 }
 

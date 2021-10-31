@@ -24,16 +24,16 @@ Type::Array::Array(Type *element_type, uint32_t size):
 	Type(element_type->is_abstract()? nullptr: llvm::ArrayType::get(element_type->llvm, size)),
 	element_type(element_type), size(size) {}
 
-Type::Pointer::Pointer(Type *sub_type, bool const_flag):
+Type::Pointer::Pointer(Type *sub_type, bool mutable_flag):
 	Type(sub_type->is_abstract()? nullptr: llvm::PointerType::get(sub_type->llvm, 0)),
-	sub_type(sub_type), const_flag(const_flag) {
+	sub_type(sub_type), mutable_flag(mutable_flag) {
 	if (dynamic_cast<Type::Ref *>(sub_type))
 		throw std::runtime_error("Cannot create a pointer to a reference: " + sub_type->to_string());
 }
 
-Type::Ref::Ref(Type *sub_type, bool const_flag):
+Type::Ref::Ref(Type *sub_type, bool mutable_flag):
 	Type(sub_type->is_abstract()? nullptr: llvm::PointerType::get(sub_type->llvm, 0)),
-	sub_type(sub_type), const_flag(const_flag) {
+	sub_type(sub_type), mutable_flag(mutable_flag) {
 	if (dynamic_cast<Type::Ref *>(sub_type))
 		throw std::runtime_error("Cannot create a reference to a reference: " + sub_type->to_string());
 }

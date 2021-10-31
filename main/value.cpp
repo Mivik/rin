@@ -35,10 +35,7 @@ Value Value::pointer_subscript(Codegen &g) const {
 	if (!ptr_type)
 		g.error("Subscripting a non-pointer type: {}", type->to_string());
 	return g.create_ref_value(
-		g.get_context().get_ref_type(
-			ptr_type->get_sub_type(),
-			ptr_type->is_const()
-		),
+		g.to_ref_type(ptr_type),
 		llvm_value
 	);
 }
@@ -51,10 +48,7 @@ Value Value::pointer_subscript(Codegen &g, Value index) const {
 	if (!dynamic_cast<Type::Int *>(index.type))
 		g.error("Unknown type for pointer subscript: {}", index.type->to_string());
 	return Value(
-		g.get_context().get_ref_type(
-			ptr_type->get_sub_type(),
-			ptr_type->is_const()
-		),
+		g.to_ref_type(ptr_type),
 		g.get_builder()->CreateGEP(llvm_value, index.llvm_value)
 	);
 }

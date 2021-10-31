@@ -20,7 +20,7 @@ Codegen::Codegen(Context &ctx, const std::string &name):
 		auto ref = args[0].get_ref_value();
 		auto type = ref->get_type();
 		return Value(
-			ctx.get_pointer_type(type->get_sub_type(), type->is_const()),
+			to_pointer_type(type),
 			dynamic_cast<Ref::Address *>(ref)->get_address()
 		);
 	});
@@ -90,14 +90,14 @@ void Codegen::pop_layer() {
 	function_map.pop_layer();
 }
 
-Value Codegen::allocate_stack(Type *type, bool is_const) {
+Value Codegen::allocate_stack(Type *type, bool is_mutable) {
 	type = type->deref();
 	auto func = get_llvm_function();
 	llvm::IRBuilder<> tmp_builder(ctx.get_llvm());
 	auto &entry = func->getEntryBlock();
 	tmp_builder.SetInsertPoint(&entry, entry.getFirstInsertionPt());
 	return {
-		ctx.get_pointer_type(type, is_const),
+		ctx.get_pointer_type(type, is_mutable),
 		tmp_builder.CreateAlloca(type->get_llvm(), 0, nullptr)
 	};
 }

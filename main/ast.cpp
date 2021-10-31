@@ -129,7 +129,7 @@ Value UnaryOpNode::codegen(Codegen &g) const {
 			else {
 				auto v = value.deref(g);
 				if (auto ptr_type = dynamic_cast<Type::Pointer *>(v.get_type())) {
-					if (op == K::PointerMut && ptr_type->is_const())
+					if (op == K::PointerMut && !ptr_type->is_mutable())
 						g.error(
 							"Attempt to get variable reference to const pointer: {}",
 							ptr_type->to_string()
@@ -348,7 +348,7 @@ inline Value assignment_codegen(Codegen &g, Value lhs, Value rhs, TokenKind op) 
 		);
 	auto ref = lhs.get_ref_value();
 	auto ref_type = ref->get_type();
-	if (ref_type->is_const())
+	if (!ref_type->is_mutable())
 		g.error("Attempt to assign to a const variable");
 	TokenKind bop = K::Assign;
 	switch (op) {
@@ -492,13 +492,13 @@ Value VarDeclNode::codegen(Codegen &g) const {
 				return g.get_context().get_void();
 			}
 			g.pop_const_eval();
-			ref = g.create_ref<Ref::Memory>(g.get_context().get_ref_type(init.get_type(), !mutable_flag));
+			ref = g.create_ref<Ref::Memory>(g.get_context().get_ref_type(init.get_type(), mutable_flag));
 			ref->store(g, init);
 		} else {
 			auto type = type_node->codegen(g).get_type_value();
 			if (dynamic_cast<rin::Type::Ref *>(type))
 				g.error("Variable of reference type must be initialized at declaration");
-			ref = g.create_ref<Ref::Memory>(g.get_context().get_ref_type(type, !mutable_flag));
+			ref = g.create_ref<Ref::Memory>(g.get_context().get_ref_type(type, mutable_flag));
 		}
 		g.declare_value(name, Value(ref));
 		return g.get_context().get_void();
@@ -546,7 +546,7 @@ void GlobalVarDeclNode::declare(Codegen &g) {
 		initial_value = Value::undef(type);
 	}
 	global_ref = g.create_ref_value(
-		g.get_context().get_ref_type(type, !mutable_flag),
+		g.get_context().get_ref_type(type, mutable_flag),
 		new llvm::GlobalVariable(
 			*g.get_module(),
 			type->get_llvm(),
@@ -635,7 +635,7 @@ Value StructValueNode::codegen(Codegen &g) const {
 		builder.CreateStore(value.get_llvm_value(), member);
 	}
 	return g.create_ref_value(
-		g.get_context().get_ref_type(type, true),
+		g.get_context().get_ref_type(type, false),
 		ptr.get_llvm_value()
 	);
 }
@@ -668,7 +668,7 @@ Value TupleValueNode::codegen(Codegen &g) const {
 		);
 	}
 	return g.create_ref_value(
-		g.get_context().get_ref_type(type, true),
+		g.get_context().get_ref_type(type, false),
 		ptr.get_llvm_value()
 	);
 }

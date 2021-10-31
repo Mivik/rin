@@ -41,15 +41,15 @@ Type::Array *Context::get_array_type(Type *element_type, uint32_t size) {
 	return value;
 }
 
-Type::Ref *Context::get_ref_type(Type *type, bool const_flag) {
-	auto &value = ref_type_map[{ type, const_flag }];
-	if (!value) value = new Type::Ref(type, const_flag);
+Type::Ref *Context::get_ref_type(Type *type, bool mutable_flag) {
+	auto &value = ref_type_map[{ type, mutable_flag }];
+	if (!value) value = new Type::Ref(type, mutable_flag);
 	return value;
 }
 
-Type::Pointer *Context::get_pointer_type(Type *type, bool const_flag) {
-	auto &value = pointer_type_map[{ type, const_flag }];
-	if (!value) value = new Type::Pointer(type, const_flag);
+Type::Pointer *Context::get_pointer_type(Type *type, bool mutable_flag) {
+	auto &value = pointer_type_map[{ type, mutable_flag }];
+	if (!value) value = new Type::Pointer(type, mutable_flag);
 	return value;
 }
 

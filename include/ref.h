@@ -48,7 +48,7 @@ public:
 	}
 
 	[[nodiscard]] Type::Ref *get_type() const { return type; }
-	[[nodiscard]] bool is_const() const { return type->is_const(); }
+	[[nodiscard]] bool is_mutable() const { return type->is_mutable(); }
 protected:
 	explicit Ref(Type::Ref *type): type(type) {}
 

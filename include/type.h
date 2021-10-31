@@ -128,15 +128,15 @@ class Type::Pointer final : public Type {
 public:
 	[[nodiscard]] Type *get_element(unsigned) const override { return sub_type; }
 	[[nodiscard]] Type *get_sub_type() const { return sub_type; }
-	[[nodiscard]] bool is_const() const { return const_flag; }
+	[[nodiscard]] bool is_mutable() const { return mutable_flag; }
 	[[nodiscard]] std::string to_string() const override {
-		return (const_flag? "*const ": "*") + sub_type->to_string();
+		return (mutable_flag? "*mut ": "*") + sub_type->to_string();
 	}
 private:
-	Pointer(Type *sub_type, bool const_flag);
+	Pointer(Type *sub_type, bool mutable_flag);
 
 	Type *sub_type;
-	bool const_flag;
+	bool mutable_flag;
 
 	friend class Context;
 };
@@ -144,15 +144,15 @@ private:
 class Type::Ref final : public Type {
 public:
 	[[nodiscard]] Type *get_sub_type() const { return sub_type; }
-	[[nodiscard]] bool is_const() const { return const_flag; }
+	[[nodiscard]] bool is_mutable() const { return mutable_flag; }
 	[[nodiscard]] std::string to_string() const override {
-		return (const_flag? "&const ": "&") + sub_type->to_string();
+		return (mutable_flag? "&mut ": "&") + sub_type->to_string();
 	}
 private:
-	Ref(Type *sub_type, bool const_flag);
+	Ref(Type *sub_type, bool mutable_flag);
 
 	Type *sub_type;
-	bool const_flag;
+	bool mutable_flag;
 
 	friend class Context;
 };

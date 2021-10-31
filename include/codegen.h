@@ -54,6 +54,14 @@ public:
 		throw CodegenException(fmt::format(pattern, std::forward<Args>(args)...));
 	}
 
+	[[nodiscard]] Type::Pointer* to_pointer_type(Type::Ref *ref) {
+		return ctx.get_pointer_type(ref->get_sub_type(), ref->is_mutable());
+	}
+
+	[[nodiscard]] Type::Ref* to_ref_type(Type::Pointer *ptr) {
+		return ctx.get_ref_type(ptr->get_sub_type(), ptr->is_mutable());
+	}
+
 	void declare_value(const std::string &name, const Value &value) {
 		value_map.set(name, value);
 	}
@@ -91,7 +99,7 @@ public:
 		return llvm::BasicBlock::Create(ctx.get_llvm(), name, get_llvm_function());
 	}
 
-	Value allocate_stack(Type *type, bool is_const);
+	Value allocate_stack(Type *type, bool is_mutable);
 	Value allocate_stack(Type *type, const Value &default_value, bool is_const);
 
 	Function::Static *declare_function(

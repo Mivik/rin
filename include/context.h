@@ -36,8 +36,8 @@ public:
 	Type::Real *get_double_type() { return &double_type; }
 	Type::Int *get_int_type(unsigned int bit_width, bool is_signed = true);
 	Type::Array *get_array_type(Type *element_type, uint32_t size);
-	Type::Ref *get_ref_type(Type *type, bool const_flag = false);
-	Type::Pointer *get_pointer_type(Type *type, bool const_flag = false);
+	Type::Ref *get_ref_type(Type *type, bool mutable_flag = false);
+	Type::Pointer *get_pointer_type(Type *type, bool mutable_flag = false);
 	Type::Struct *get_struct_type(const std::vector<Type::Struct::FieldInfo> &fields);
 	Type::Tuple *get_tuple_type(const std::vector<Type *> &types);
 	Type::Function *get_function_type(
