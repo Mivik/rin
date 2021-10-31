@@ -179,7 +179,7 @@ Ptr<ASTNode> Parser::take_expr() {
 				amount, st.size()
 			);
 	};
-	auto process_op = [&](std::stack<Ptr<ASTNode>> &st, const Token &token) {
+	auto process_op = [&](std::stack<Ptr<ASTNode>> &st, Token token) {
 		const TokenKind op = token.kind;
 		if (token_kind::is_unary_op(op)) {
 			require(1);
@@ -219,12 +219,23 @@ Ptr<ASTNode> Parser::take_expr() {
 				|| (is_binary && (last != Prim)))
 				error("Illegal operator: {}", token_kind::name(kind));
 			lexer.take();
+			if (lexer.peek().kind == K::Mut) {
+				if (kind == K::Pointer) {
+					lexer.take();
+					kind = K::PointerMut;
+				} else if (kind == K::Ref) {
+					lexer.take();
+					kind = K::RefMut;
+				}
+			}
 			auto cur_pred = precedence_of(kind);
 			while (!ops.empty() &&
 				   ((precedence_of(ops.top().kind) < cur_pred) ||
 					(precedence_of(ops.top().kind) == cur_pred && !is_right_associative(cur_pred)))
 				)
 				process_op(st, pop_stack(ops));
+			if (token.kind == K::Pointer)
+				error("IMPOSSIBLE");
 			ops.push(token);
 			last = is_unary? UnaryOp: BinOp;
 		} else if (last != Prim) {
