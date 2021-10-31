@@ -123,7 +123,7 @@ Function::Static *Codegen::declare_function(
 	);
 	return declare_function(
 		name,
-		std::make_unique<Function::Static>(Value(type, llvm), const_evaluated)
+		std::make_unique<Function::Static>(Value(type, llvm)) // TODO const eval
 	);
 }
 

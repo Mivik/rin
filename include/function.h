@@ -71,10 +71,9 @@ private:
 
 class Function::Static final : public Function {
 public:
-	explicit Static(Value func, bool const_evaluated):
+	explicit Static(Value func):
 		type(dynamic_cast<Type::Function *>(func.get_type())),
-		llvm(llvm::dyn_cast<llvm::Function>(func.get_llvm_value())),
-		const_eval(const_evaluated) {}
+		llvm(llvm::dyn_cast<llvm::Function>(func.get_llvm_value())) {}
 
 	Function *instantiate(INVOKE_ARGS) override;
 	Value invoke(INVOKE_ARGS) const override;
@@ -82,7 +81,7 @@ public:
 	[[nodiscard]] Type::Function *get_type() const { return type; }
 	[[nodiscard]] llvm::Function *get_llvm_value() const { return llvm; }
 
-	[[nodiscard]] bool is_const_eval() const override { return const_eval; }
+	[[nodiscard]] bool is_const_eval() const override { return false; }
 	[[nodiscard]] std::string get_type_description() const override {
 		return type->to_string();
 	}
@@ -90,7 +89,6 @@ public:
 private:
 	Type::Function *type;
 	llvm::Function *llvm;
-	bool const_eval;
 };
 
 #undef INVOKE_ARGS

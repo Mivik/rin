@@ -588,7 +588,8 @@ Value CallNode::codegen(Codegen &g) const {
 		g.error("No matching function for calling");
 	if (g.is_const_eval()) {
 		if (!matching_function->is_const_eval()) not_const_evaluated(g, this);
-
+		// TODO barrier
+		
 	}
 	auto res = matching_function->invoke(
 		g,
