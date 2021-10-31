@@ -124,7 +124,7 @@ Value UnaryOpNode::codegen(Codegen &g) const {
 			if (value.deref(g).is_type_value())
 				return Value(g.get_context().get_pointer_type(
 					value.get_type_value(),
-					op == K::Pointer
+					op == K::PointerMut
 				));
 			else {
 				auto v = value.deref(g);
@@ -147,7 +147,7 @@ Value UnaryOpNode::codegen(Codegen &g) const {
 			if (value.deref(g).is_type_value())
 				return Value(g.get_context().get_ref_type(
 					value.get_type_value(),
-					op == K::Ref
+					op == K::RefMut
 				));
 			else if (value.is_ref_value()) {
 				// TODO get address
@@ -511,12 +511,12 @@ Value VarDeclNode::codegen(Codegen &g) const {
 				g.declare_value(name, value);
 				return g.get_context().get_void();
 			}
-			g.allocate_stack(value.get_type(), value, !mutable_flag);
+			g.allocate_stack(value.get_type(), value, mutable_flag);
 		}): ({
 			auto type = type_node->codegen(g).get_type_value();
 			if (dynamic_cast<rin::Type::Ref *>(type))
 				g.error("Variable of reference type must be initialized at declaration");
-			g.allocate_stack(type, !mutable_flag);
+			g.allocate_stack(type, mutable_flag);
 		});
 	g.declare_value(name, ptr.pointer_subscript(g));
 	return g.get_context().get_void();
@@ -704,10 +704,8 @@ Value FunctionTypeNode::codegen(Codegen &g) const {
 		return g.get_context().get_void();
 	std::vector<Type *> parameter_types;
 	parameter_types.reserve(parameter_type_nodes.size());
-	for (const auto &param : parameter_type_nodes) {
-		auto type = param->codegen(g).deref(g);
-		parameter_types.push_back(type.get_type_value());
-	}
+	for (const auto &param : parameter_type_nodes)
+		parameter_types.push_back(param->codegen(g).get_type_value());
 	return Value(g.get_context().get_function_type(
 		get_receiver_type(g),
 		get_result_type(g),
