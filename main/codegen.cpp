@@ -110,7 +110,8 @@ Value Codegen::allocate_stack(Type *type, const Value &value, bool is_const) {
 
 Function::Static *Codegen::declare_function(
 	Type::Function *type,
-	const std::string &name
+	const std::string &name,
+	bool const_evaluated
 ) {
 	bool is_main =
 		name == "main" && type->get_parameter_types().empty();
@@ -122,7 +123,7 @@ Function::Static *Codegen::declare_function(
 	);
 	return declare_function(
 		name,
-		std::make_unique<Function::Static>(Value(type, llvm), false) // TODO const eval
+		std::make_unique<Function::Static>(Value(type, llvm), const_evaluated)
 	);
 }
 

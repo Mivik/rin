@@ -56,7 +56,7 @@ Function *Function::Template::instantiate(INVOKE_ARGS) {
 		if (i != inferred.size() - 1) new_name += ',';
 	}
 	new_name += '>';
-	auto function_object = g.declare_function(actual_type, new_name);
+	auto function_object = g.declare_function(actual_type, new_name, inline_flag);
 	if (!function_object) return nullptr; // use functions that already exists first
 	g.implement_function(function_object, parameter_names, content_node.get());
 	return function_object;

@@ -336,17 +336,20 @@ public:
 		const SourceRange &range,
 		std::string name,
 		Ptr<FunctionTypeNode> type_node,
-		Ptr<ASTNode> content_node
+		Ptr<ASTNode> content_node,
+		bool inline_flag
 	): DeclNode(range),
 	   name(std::move(name)),
 	   type_node(std::move(type_node)),
 	   content_node(std::move(content_node)),
 	   function_object(nullptr),
-	   type(nullptr) {}
+	   type(nullptr),
+	   inline_flag(inline_flag) {}
 
 	[[nodiscard]] const std::string &get_name() const { return name; }
 	[[nodiscard]] const ASTNode *get_type_node() const { return type_node.get(); }
 	[[nodiscard]] const ASTNode *get_content_node() const { return content_node.get(); }
+	[[nodiscard]] bool is_inline() const { return inline_flag; }
 
 	OVERRIDE
 
@@ -359,6 +362,8 @@ private:
 	// Initialize at declaration
 	Function::Static *function_object;
 	Type::Function *type;
+
+	bool inline_flag;
 };
 
 class GlobalVarDeclNode final : public DeclNode {

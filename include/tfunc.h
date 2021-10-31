@@ -18,19 +18,23 @@ public:
 		ASTNode *result_type_node,
 		std::vector<ASTNode *> parameter_type_nodes, // can be either concept or type
 		std::vector<std::string> parameter_names,
-		Ptr<ASTNode> content_node
+		Ptr<ASTNode> content_node,
+		bool inline_flag
 	): name(std::move(name)),
 	   receiver_type_node(receiver_type_node),
 	   result_type_node(result_type_node),
 	   parameter_type_nodes(std::move(parameter_type_nodes)),
 	   parameter_names(std::move(parameter_names)),
-	   content_node(std::move(content_node)) {
+	   content_node(std::move(content_node)),
+	   inline_flag(inline_flag) {
 		this->concepts.reserve(concepts.size());
 		for (auto &[name, concept_value] : concepts) {
 			cached_indices[name] = this->concepts.size();
 			this->concepts.push_back(concept_value);
 		}
 	}
+
+	[[nodiscard]] bool is_inline() const { return inline_flag; }
 
 	[[nodiscard]] Value invoke(INVOKE_ARGS) const override {
 		g.error("Trying to invoke an abstract template function");
@@ -49,6 +53,7 @@ private:
 	std::vector<ASTNode *> parameter_type_nodes;
 	std::vector<std::string> parameter_names;
 	Ptr<ASTNode> content_node;
+	bool inline_flag;
 };
 
 #undef INVOKE_ARGS

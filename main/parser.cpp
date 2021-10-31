@@ -265,7 +265,7 @@ Ptr<BlockNode> Parser::take_block() {
 	);
 }
 
-Ptr<FunctionNode> Parser::take_function() {
+Ptr<FunctionNode> Parser::take_function(bool is_inline) {
 	const auto begin = lexer.position();
 	std::vector<std::pair<std::string, Ptr<ASTNode>>> template_parameters;
 	if (lexer.peek().kind == K::Lt)
@@ -327,7 +327,8 @@ Ptr<FunctionNode> Parser::take_function() {
 		SourceRange(begin, lexer.position()),
 		name,
 		std::move(type_node),
-		std::move(content)
+		std::move(content),
+		is_inline
 	);
 }
 
@@ -340,6 +341,7 @@ Ptr<ASTNode> Parser::take_stmt() {
 		case K::Val:
 		case K::Inline: {
 			lexer.take();
+			if (lexer.peek().kind == K::Fn) return take_function(true);
 			bool is_inline = kind == K::Inline;
 			if (is_inline) {
 				auto token = lexer.take();

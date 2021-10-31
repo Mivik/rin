@@ -586,8 +586,10 @@ Value CallNode::codegen(Codegen &g) const {
 		}
 	if (matching_function == nullptr)
 		g.error("No matching function for calling");
-	if (g.is_const_eval() && !matching_function->is_const_eval())
-		not_const_evaluated(g, this);
+	if (g.is_const_eval()) {
+		if (!matching_function->is_const_eval()) not_const_evaluated(g, this);
+
+	}
 	auto res = matching_function->invoke(
 		g,
 		receiver,
@@ -758,14 +760,16 @@ void FunctionNode::declare(Codegen &g) {
 				type_node->get_result_type_node(),
 				type_node->get_parameter_type_nodes(),
 				type_node->get_parameter_names(),
-				std::move(content_node)
+				std::move(content_node),
+				inline_flag
 			)
 		);
 		return;
 	}
 	function_object = g.declare_function(
 		dynamic_cast<Type::Function *>(type_node->codegen(g).get_type_value()),
-		name
+		name,
+		inline_flag
 	);
 	if (!function_object)
 		g.error("Redefinition of {} with same parameter types", name); // TODO detailed message

@@ -27,7 +27,7 @@ public:
 	Ptr<ASTNode> take_expr();
 	Ptr<ASTNode> take_stmt();
 	Ptr<BlockNode> take_block();
-	Ptr<FunctionNode> take_function();
+	Ptr<FunctionNode> take_function(bool is_inline = false);
 	Ptr<DeclNode> take_decl();
 	Ptr<TopLevelNode> take_top_level();
 private:

@@ -104,7 +104,8 @@ public:
 
 	Function::Static *declare_function(
 		Type::Function *type,
-		const std::string &name
+		const std::string &name,
+		bool const_evaluated
 	);
 	void implement_function(
 		Function::Static *function,

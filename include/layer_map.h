@@ -16,7 +16,7 @@ public:
 	LayerMap() = default;
 
 	[[nodiscard]] bool empty() const { return keys.empty(); }
-	[[nodiscard]] int get_depth() const { return keys.size(); }
+	[[nodiscard]] size_t get_depth() const { return keys.size() - 1; }
 	void add_layer() { keys.emplace_back(); }
 	void pop_layer() {
 		assert(!empty());
