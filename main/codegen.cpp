@@ -129,7 +129,7 @@ Function::Static *Codegen::declare_function(
 void Codegen::implement_function(
 	Function::Static *function,
 	const std::vector<std::string> &param_names,
-	BlockNode *body_node
+	ASTNode *content_node
 ) {
 	auto llvm = function->get_llvm_value();
 	auto type = function->get_type();
@@ -156,12 +156,23 @@ void Codegen::implement_function(
 	const auto &param_types = type->get_parameter_types();
 	for (size_t i = 0; i < param_types.size(); ++i)
 		declare_value(param_names[i], create_value(param_types[i], args[i + has_receiver]));
-	body_node->codegen(*this);
-	if (!body_node->has_return()) {
-		if (type->get_result_type() == ctx.get_void_type())
-			get_builder()->CreateRetVoid();
-		else error("Non-void function does not return a value");
+	if (auto body_node = dynamic_cast<BlockNode *>(content_node)) {
+		body_node->codegen(*this);
+		if (!body_node->has_return()) {
+			if (type->get_result_type() == ctx.get_void_type())
+				get_builder()->CreateRetVoid();
+			else error("Non-void function does not return a value");
+		}
+	} else {
+		auto result = content_node->codegen(*this);
+		if (result.get_type() != type->get_result_type())
+			error(
+				"Returning a {} in a function that returns {}",
+				result.get_type()->to_string(), type->get_result_type()->to_string()
+			);
+		get_builder()->CreateRet(result.get_llvm_value());
 	}
+
 	pop_layer();
 }
 

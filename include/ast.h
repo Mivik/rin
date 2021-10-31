@@ -336,17 +336,17 @@ public:
 		const SourceRange &range,
 		std::string name,
 		Ptr<FunctionTypeNode> type_node,
-		Ptr<BlockNode> body_node
+		Ptr<ASTNode> content_node
 	): DeclNode(range),
 	   name(std::move(name)),
 	   type_node(std::move(type_node)),
-	   body_node(std::move(body_node)),
+	   content_node(std::move(content_node)),
 	   function_object(nullptr),
 	   type(nullptr) {}
 
 	[[nodiscard]] const std::string &get_name() const { return name; }
 	[[nodiscard]] const ASTNode *get_type_node() const { return type_node.get(); }
-	[[nodiscard]] const BlockNode *get_body_node() const { return body_node.get(); }
+	[[nodiscard]] const ASTNode *get_content_node() const { return content_node.get(); }
 
 	OVERRIDE
 
@@ -354,7 +354,7 @@ public:
 private:
 	std::string name;
 	Ptr<FunctionTypeNode> type_node;
-	Ptr<BlockNode> body_node;
+	Ptr<ASTNode> content_node;
 
 	// Initialize at declaration
 	Function::Static *function_object;

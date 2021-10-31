@@ -107,7 +107,7 @@ Ptr<ASTNode> Parser::take_prim_inner() {
 				std::move(field_types)
 			);
 		}
-		
+
 		default: {
 			token.kind = token_kind::as_unary_op(token.kind);
 			if (token_kind::is_unary_op(token.kind)) {
@@ -315,12 +315,19 @@ Ptr<FunctionNode> Parser::take_function() {
 			std::move(param_types),
 			std::move(param_names)
 		);
-	auto block = take_block();
+	Ptr<ASTNode> content;
+	if (lexer.peek().kind == K::Assign) {
+		lexer.take();
+		content = take_expr();
+	} else {
+		expect(lexer.peek(), K::LBrace);
+		content = take_block();
+	}
 	return std::make_unique<FunctionNode>(
 		SourceRange(begin, lexer.position()),
 		name,
 		std::move(type_node),
-		std::move(block)
+		std::move(content)
 	);
 }
 

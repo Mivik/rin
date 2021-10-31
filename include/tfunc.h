@@ -18,13 +18,13 @@ public:
 		ASTNode *result_type_node,
 		std::vector<ASTNode *> parameter_type_nodes, // can be either concept or type
 		std::vector<std::string> parameter_names,
-		Ptr<BlockNode> body_node
+		Ptr<ASTNode> content_node
 	): name(std::move(name)),
 	   receiver_type_node(receiver_type_node),
 	   result_type_node(result_type_node),
 	   parameter_type_nodes(std::move(parameter_type_nodes)),
 	   parameter_names(std::move(parameter_names)),
-	   body_node(std::move(body_node)) {
+	   content_node(std::move(content_node)) {
 		this->concepts.reserve(concepts.size());
 		for (auto &[name, concept_value] : concepts) {
 			cached_indices[name] = this->concepts.size();
@@ -48,7 +48,7 @@ private:
 	ASTNode *receiver_type_node, *result_type_node;
 	std::vector<ASTNode *> parameter_type_nodes;
 	std::vector<std::string> parameter_names;
-	Ptr<BlockNode> body_node;
+	Ptr<ASTNode> content_node;
 };
 
 #undef INVOKE_ARGS

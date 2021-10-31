@@ -11,7 +11,7 @@
 
 namespace rin {
 
-class BlockNode;
+class ASTNode;
 
 class CodegenException : public std::exception {
 public:
@@ -101,7 +101,7 @@ public:
 	void implement_function(
 		Function::Static *function,
 		const std::vector<std::string> &parameter_names,
-		BlockNode *body_node
+		ASTNode *content_node
 	);
 
 	void add_layer(Function::Static *function, Ptr<llvm::IRBuilder<>> builder = nullptr);

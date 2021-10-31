@@ -758,7 +758,7 @@ void FunctionNode::declare(Codegen &g) {
 				type_node->get_result_type_node(),
 				type_node->get_parameter_type_nodes(),
 				type_node->get_parameter_names(),
-				std::move(body_node)
+				std::move(content_node)
 			)
 		);
 		return;
@@ -776,7 +776,7 @@ Value FunctionNode::codegen(Codegen &g) const {
 		g.implement_function(
 			function_object,
 			type_node->get_parameter_names(),
-			body_node.get()
+			content_node.get()
 		);
 	return g.get_context().get_void();
 }
