@@ -32,7 +32,7 @@ public:
 
 	virtual Value invoke(INVOKE_ARGS) const = 0;
 
-	[[nodiscard]] virtual bool is_const_eval() const = 0;
+	[[nodiscard]] virtual bool is_inlined() const = 0;
 	[[nodiscard]] virtual std::string get_type_description() const = 0;
 
 	DISABLE_COPY(Function)
@@ -60,7 +60,7 @@ public:
 	}
 
 	// TODO is it?
-	[[nodiscard]] bool is_const_eval() const override { return true; }
+	[[nodiscard]] bool is_inlined() const override { return true; }
 	[[nodiscard]] std::string get_type_description() const override { return type_description; }
 
 private:
@@ -81,7 +81,7 @@ public:
 	[[nodiscard]] Type::Function *get_type() const { return type; }
 	[[nodiscard]] llvm::Function *get_llvm_value() const { return llvm; }
 
-	[[nodiscard]] bool is_const_eval() const override { return false; }
+	[[nodiscard]] bool is_inlined() const override { return false; }
 	[[nodiscard]] std::string get_type_description() const override {
 		return type->to_string();
 	}

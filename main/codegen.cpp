@@ -10,7 +10,7 @@ namespace rin {
 Codegen::Codegen(Context &ctx, const std::string &name):
 	ctx(ctx),
 	module(std::make_unique<llvm::Module>(name, ctx.get_llvm())),
-	const_eval_depth(0) {
+	inline_depth(0) {
 	add_layer(nullptr);
 #define ARGS Codegen &g, std::optional<Value> receiver, const std::vector<Value> &args
 	// TODO builtin functions here

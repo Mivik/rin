@@ -10,7 +10,7 @@ namespace rin {
 
 using K = TokenKind;
 
-[[noreturn]] void not_const_evaluated(Codegen &g, const ASTNode *node) {
+[[noreturn]] void not_inlineuated(Codegen &g, const ASTNode *node) {
 	// TODO wtf is this
 	g.error(
 		"Part of the code ({} ~ {}) is not const evaluated",
@@ -98,7 +98,7 @@ Value ConstantNode::codegen(Codegen &g) const {
 Value ValueNode::codegen(Codegen &g) const {
 	auto opt = g.lookup_value(name);
 	if (!opt.has_value()) g.error("Use of undeclared value: {}", name);
-	if (g.is_const_eval() && !opt->is_constant()) not_const_evaluated(g, this);
+	if (g.is_inlined() && !opt->is_constant()) not_inlineuated(g, this);
 	return preserve_ref? *opt: opt->deref(g);
 }
 
@@ -115,7 +115,7 @@ Value UnaryOpNode::codegen(Codegen &g) const {
 	value_node->preserve_reference();
 	auto value = value_node->codegen(g);
 	// TODO remove this
-	assert(!g.is_const_eval() || value.is_constant());
+	assert(!g.is_inlined() || value.is_constant());
 	// TODO const pointer/reference
 	// TODO array type
 	switch (op) {
@@ -413,16 +413,16 @@ Value BinOpNode::codegen(Codegen &g) const {
 	if (op == K::LBracket)
 		if (auto ref_type = dynamic_cast<Type::Ref *>(lhs.get_type()))
 			if (dynamic_cast<Type::Tuple *>(ref_type->get_sub_type())) {
-				g.push_const_eval();
+				g.push_inline();
 				auto rhs = rhs_node->codegen(g);
-				g.pop_const_eval();
+				g.pop_inline();
 				auto constant = llvm::dyn_cast<llvm::ConstantInt>(rhs.get_llvm_value());
 				auto index = constant->getZExtValue();
 				return Value(lhs.get_ref_value()->get_element(g, 0, index));
 			}
 	auto rhs = rhs_node->codegen(g);
 	// TODO remove this
-	assert(!g.is_const_eval() || (lhs.is_constant() && rhs.is_constant()));
+	assert(!g.is_inlined() || (lhs.is_constant() && rhs.is_constant()));
 	switch (op) {
 		case K::Assign:
 		case K::AddA:
@@ -446,7 +446,7 @@ Value BinOpNode::codegen(Codegen &g) const {
 					auto res = lhs.pointer_subscript(g, rhs.deref(g));
 					return preserve_ref? res: res.deref(g);
 				}
-			if (g.is_const_eval()) {
+			if (g.is_inlined()) {
 				if (auto array_type = dynamic_cast<Type::Array *>(lhs.get_type())) {
 					auto array = llvm::dyn_cast<llvm::ConstantArray>(lhs.get_llvm_value());
 					auto res = Value(
@@ -455,7 +455,7 @@ Value BinOpNode::codegen(Codegen &g) const {
 					);
 					return preserve_ref? res: res.deref(g);
 				}
-				not_const_evaluated(g, this);
+				not_inlineuated(g, this);
 			}
 			if (dynamic_cast<Type::Pointer *>(lhs.get_type())) {
 				auto res = lhs.pointer_subscript(g, rhs.deref(g));
@@ -485,13 +485,13 @@ Value VarDeclNode::codegen(Codegen &g) const {
 	if (inline_flag) {
 		Ref::Memory *ref;
 		if (value_node) {
-			g.push_const_eval();
+			g.push_inline();
 			auto init = cast_if_needed(value_node->codegen(g));
 			if (init.is_ref_value()) {
 				g.declare_value(name, init);
 				return g.get_context().get_void();
 			}
-			g.pop_const_eval();
+			g.pop_inline();
 			ref = g.create_ref<Ref::Memory>(g.get_context().get_ref_type(init.get_type(), mutable_flag));
 			ref->store(g, init);
 		} else {
@@ -525,13 +525,13 @@ Value VarDeclNode::codegen(Codegen &g) const {
 void GlobalVarDeclNode::declare(Codegen &g) {
 	// TODO const
 	// TODO cycle
-	if (g.is_const_eval()) not_const_evaluated(g, this);
+	if (g.is_inlined()) not_inlineuated(g, this);
 	if (inline_flag) g.error("Inline variable at global scope is not supported yet");
 	Type *type;
 	if (value_node) {
-		g.push_const_eval();
+		g.push_inline();
 		initial_value = value_node->codegen(g);
-		g.pop_const_eval();
+		g.pop_inline();
 		if (type_node) {
 			auto target_type = type_node->codegen(g).get_type_value();
 			if (initial_value.get_type() != target_type)
@@ -586,8 +586,8 @@ Value CallNode::codegen(Codegen &g) const {
 		}
 	if (matching_function == nullptr)
 		g.error("No matching function for calling");
-	if (g.is_const_eval()) {
-		if (!matching_function->is_const_eval()) not_const_evaluated(g, this);
+	if (g.is_inlined()) {
+		if (!matching_function->is_inlined()) not_inlineuated(g, this);
 		// TODO barrier
 		
 	}
@@ -624,7 +624,7 @@ Value StructValueNode::codegen(Codegen &g) const {
 			fields.size(), field_nodes.size()
 		);
 	// TODO const
-	if (g.is_const_eval()) not_const_evaluated(g, this);
+	if (g.is_inlined()) not_inlineuated(g, this);
 	auto ptr = g.allocate_stack(type, true);
 	auto &builder = *g.get_builder();
 	for (size_t i = 0; i < fields.size(); ++i) {
@@ -786,7 +786,7 @@ Value FunctionNode::codegen(Codegen &g) const {
 
 Value IfNode::codegen(Codegen &g) const {
 	auto &builder = *g.get_builder();
-	if (g.is_const_eval()) {
+	if (g.is_inlined()) {
 		auto cond_value = condition_node->codegen(g);
 		assert(cond_value.is_constant() && cond_value.get_type() == g.get_context().get_boolean_type());
 		// TODO all one or?

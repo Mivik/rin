@@ -40,7 +40,7 @@ public:
 		g.error("Trying to invoke an abstract template function");
 	}
 
-	[[nodiscard]] bool is_const_eval() const override { return false; } // TODO
+	[[nodiscard]] bool is_inlined() const override { return false; } // TODO
 	// TODO type description of tfunc should not be used, but we should implement it
 	[[nodiscard]] std::string get_type_description() const override { return ""; }
 

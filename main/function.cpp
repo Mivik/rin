@@ -29,7 +29,7 @@ Function *Function::Static::instantiate(INVOKE_ARGS) {
 }
 
 Value Function::Static::invoke(INVOKE_ARGS) const {
-	if (g.is_const_eval()) throw std::runtime_error("Not Implemented");
+	if (g.is_inlined()) throw std::runtime_error("Not Implemented");
 	std::vector<llvm::Value *> llvm_args;
 	const bool has_receiver = receiver.has_value();
 	llvm_args.resize(args.size() + has_receiver);
