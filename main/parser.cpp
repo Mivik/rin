@@ -333,6 +333,7 @@ Ptr<FunctionNode> Parser::take_function(bool is_inline) {
 }
 
 Ptr<ASTNode> Parser::take_stmt() {
+	while (lexer.peek().kind == K::Semicolon) lexer.take();
 	const auto begin = lexer.position();
 	switch (auto kind = lexer.peek().kind) {
 		case K::LBrace:
@@ -406,7 +407,8 @@ Ptr<ASTNode> Parser::take_stmt() {
 		}
 		default: {
 			auto res = take_expr();
-			expect_end_of_stmt();
+			// TODO ?
+			// expect_end_of_stmt();
 			return res;
 		}
 	}

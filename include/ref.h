@@ -18,6 +18,7 @@ public:
 	[[nodiscard]] virtual Value load(Codegen &g) = 0;
 	virtual void store(Codegen &g, Value value) = 0;
 	[[nodiscard]] virtual Ref *get_element(Codegen &g, const std::vector<llvm::Value *> &indices) = 0;
+	[[nodiscard]] virtual Ref *cast(Codegen &g, bool mutable_flag) = 0;
 
 	[[nodiscard]] Ref *get_element(Codegen &g, unsigned index) {
 		return get_element(g, std::vector<llvm::Value *>{ g.get_constant_int(index) });
@@ -55,13 +56,17 @@ protected:
 	Type::Ref *type;
 };
 
+#define OVERRIDE \
+	[[nodiscard]] Value load(Codegen &g) override; \
+	void store(Codegen &g, Value value) override; \
+	[[nodiscard]] Ref *get_element(Codegen &g, const std::vector<llvm::Value *> &indices) override; \
+	[[nodiscard]] Ref *cast(Codegen &g, bool mutable_flag) override;
+
 class Ref::Address final : public Ref {
 public:
 	[[nodiscard]] llvm::Value *get_address() const { return address; }
 
-	[[nodiscard]] Value load(Codegen &g) override;
-	void store(Codegen &g, Value value) override;
-	[[nodiscard]] Ref *get_element(Codegen &g, const std::vector<llvm::Value *> &indices) override;
+	OVERRIDE
 private:
 	Address(Type::Ref *type, llvm::Value *address):
 		Ref(type),
@@ -76,12 +81,11 @@ class Ref::Memory final : public Ref {
 public:
 	class Sub final : public Ref {
 	public:
-		[[nodiscard]] Value load(Codegen &g) override;
-		void store(Codegen &g, Value value) override;
-		[[nodiscard]] Ref *get_element(Codegen &g, const std::vector<llvm::Value *> &indices) override;
+		OVERRIDE
 	private:
 		Sub(Codegen &g, Memory *root, unsigned index);
 		Sub(Codegen &g, Sub *father, unsigned index);
+		Sub(Type::Ref *type, bool is_first, unsigned index, void *any);
 
 		[[nodiscard]] std::pair<Memory *, std::vector<unsigned>> collect(Codegen &g) const;
 
@@ -90,6 +94,7 @@ public:
 		union {
 			Memory *root;
 			Sub *father;
+			void *any;
 		};
 
 		friend class Codegen;
@@ -100,9 +105,7 @@ public:
 		return llvm::dyn_cast<llvm::Constant>(ptr->get_llvm_value());
 	}
 
-	[[nodiscard]] Value load(Codegen &g) override;
-	void store(Codegen &g, Value value) override;
-	[[nodiscard]] Ref *get_element(Codegen &g, const std::vector<llvm::Value *> &indices) override;
+	OVERRIDE
 private:
 	explicit Memory(Type::Ref *type): Memory(type, std::make_shared<Value>()) {}
 	Memory(Type::Ref *type, SPtr <Value> ptr):

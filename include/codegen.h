@@ -27,6 +27,7 @@ private:
 class Codegen {
 public:
 	explicit Codegen(Context &ctx, const std::string &name = "program");
+	explicit Codegen(Codegen *parent);
 	~Codegen();
 
 	[[nodiscard]] Context &get_context() const { return ctx; }
@@ -112,6 +113,8 @@ public:
 		const std::vector<std::string> &parameter_names,
 		ASTNode *content_node
 	);
+	
+	void create_return(Value value);
 
 	void add_layer(Function::Static *function, Ptr<llvm::IRBuilder<>> builder = nullptr);
 	void pop_layer();
@@ -132,13 +135,17 @@ private:
 			.get_or_create("@" + name)
 			.emplace_back(new Function::Builtin(std::move(type_desc), std::move(verifier), std::move(func)));
 	}
+	
+	void init_env();
 
 	Context &ctx;
+	Codegen *parent;
 	Ptr<llvm::Module> module;
 	std::vector<Layer> layers;
 	LayerMap<std::string, Value> value_map;
 	LayerMap<std::string, std::vector<Ptr<Function>>> function_map;
 	uint32_t inline_depth;
+	llvm::PHINode *inline_call_result;
 };
 
 template<>

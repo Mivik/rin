@@ -8,9 +8,24 @@
 namespace rin {
 
 Codegen::Codegen(Context &ctx, const std::string &name):
-	ctx(ctx),
+	ctx(ctx), parent(nullptr),
 	module(std::make_unique<llvm::Module>(name, ctx.get_llvm())),
-	inline_depth(0) {
+	inline_depth(0), inline_call_result(nullptr) {
+	init_env();
+}
+
+Codegen::Codegen(Codegen *parent):
+	ctx(parent->get_context()), parent(parent),
+	module(parent->get_module()),
+	inline_depth(0), inline_call_result(nullptr) {
+	init_env();
+}
+
+Codegen::~Codegen() {
+	while (!layers.empty()) pop_layer();
+}
+
+void Codegen::init_env() {
 	add_layer(nullptr);
 #define ARGS Codegen &g, std::optional<Value> receiver, const std::vector<Value> &args
 	// TODO builtin functions here
@@ -50,10 +65,6 @@ Codegen::Codegen(Context &ctx, const std::string &name):
 	declare_value("type", Value(Type::Self::get_instance()));
 	declare_value("any", Value(ctx.get_any_concept())); // TODO remove this
 	add_layer(nullptr);
-}
-
-Codegen::~Codegen() {
-	while (!layers.empty()) pop_layer();
 }
 
 Value Codegen::create_ref_value(Type::Ref *type, llvm::Value *llvm) {
@@ -175,6 +186,18 @@ void Codegen::implement_function(
 	}
 
 	pop_layer();
+}
+
+void Codegen::create_return(Value value) {
+	if (parent) {
+		assert(parent->inline_call_result);
+		parent->inline_call_result->addIncoming(
+			value.get_llvm_value(),
+			get_builder()->GetInsertBlock()
+		);
+	} else if (value.get_type() == ctx.get_void_type())
+		get_builder()->CreateRetVoid();
+	else get_builder()->CreateRet(value.get_llvm_value());
 }
 
 } // namespace rin

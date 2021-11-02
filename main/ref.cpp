@@ -42,6 +42,14 @@ Ref *Ref::Address::get_element(Codegen &g, const std::vector<llvm::Value *> &ind
 	);
 }
 
+Ref *Ref::Address::cast(Codegen &g, bool mutable_flag) {
+	if (mutable_flag == type->is_mutable()) return this;
+	return g.create_ref<Ref::Address>(
+		g.get_context().get_ref_type(type->get_sub_type(), mutable_flag),
+		address
+	);
+}
+
 Value Ref::Memory::load(Codegen &) { return *ptr; }
 
 void Ref::Memory::store(Codegen &g, Value value) {
@@ -61,6 +69,14 @@ Ref *Ref::Memory::get_element(Codegen &g, const std::vector<llvm::Value *> &indi
 	return current;
 }
 
+Ref *Ref::Memory::cast(Codegen &g, bool mutable_flag) {
+	if (mutable_flag == type->is_mutable()) return this;
+	return g.create_ref<Ref::Memory>(
+		g.get_context().get_ref_type(type->get_sub_type(), mutable_flag),
+		ptr
+	);
+}
+
 inline Type::Ref *get_sub_type_as_ref(Codegen &g, Type::Ref *father, unsigned index) {
 	return g.get_context().get_ref_type(
 		father->get_sub_type()->get_element(index),
@@ -73,6 +89,9 @@ Ref::Memory::Sub::Sub(Codegen &g, Memory *root, unsigned int index) // NOLINT(cp
 
 Ref::Memory::Sub::Sub(Codegen &g, Sub *father, unsigned int index) // NOLINT(cppcoreguidelines-pro-type-member-init)
 	: Ref(get_sub_type_as_ref(g, father->get_type(), index)), is_first(false), index(index), father(father) {}
+
+Ref::Memory::Sub::Sub(Type::Ref *type, bool is_first, unsigned index, void *any) // NOLINT(cppcoreguidelines-pro-type-member-init)
+	: Ref(type), is_first(is_first), index(index), any(any) {}
 
 std::pair<Ref::Memory *, std::vector<unsigned>> Ref::Memory::Sub::collect(Codegen &g) const {
 	std::vector<unsigned> indices;
@@ -117,6 +136,14 @@ Ref *Ref::Memory::Sub::get_element(Codegen &g, const std::vector<llvm::Value *> 
 		current = g.create_ref<Sub>(g, current, this_index);
 	}
 	return current;
+}
+
+Ref *Ref::Memory::Sub::cast(Codegen &g, bool mutable_flag) {
+	if (mutable_flag == type->is_mutable()) return this;
+	return g.create_ref<Ref::Memory::Sub>(
+		g.get_context().get_ref_type(type->get_sub_type(), mutable_flag),
+		is_first, index, any
+	);
 }
 
 } // namespace rin

@@ -162,8 +162,9 @@ Value UnaryOpNode::codegen(Codegen &g) const {
 						"Cannot get the address of an abstract reference: {}",
 						value.get_type()->to_string()
 					);*/
-				if (op == K::RefMut) unary_op_fail(value, op);
-				return value;
+				auto ref = value.get_ref_value();
+				if (op == K::RefMut && !ref->is_mutable()) unary_op_fail(value, op);
+				return Value(value.get_ref_value()->cast(g, op == K::RefMut));
 			} else unary_op_fail(value, op);
 			break;
 		default:
@@ -717,19 +718,20 @@ Value ReturnNode::codegen(Codegen &g) const {
 	auto func_type = g.get_function()->get_type();
 	auto result_type = func_type->get_result_type();
 	// TODO function name in error message
+	Value result;
 	if (result_type == g.get_context().get_void_type()) {
 		if (value_node)
 			g.error("Returning a value in a void function: {}", func_type->to_string());
-		g.get_builder()->CreateRetVoid();
+		result = g.get_context().get_void();
 	} else {
-		auto value = value_node->codegen(g);
-		if (value.get_type() != result_type)
+		result = value_node->codegen(g);
+		if (result.get_type() != result_type)
 			g.error(
 				"Returning a {} in a function that returns {}",
-				value.get_type()->to_string(), result_type->to_string()
+				result.get_type()->to_string(), result_type->to_string()
 			);
-		g.get_builder()->CreateRet(value.get_llvm_value());
 	}
+	g.create_return(result);
 	return g.get_context().get_void();
 }
 
@@ -832,48 +834,27 @@ Value IfNode::codegen(Codegen &g) const {
 		builder.SetInsertPoint(else_block);
 		return g.get_context().get_void();
 	} else {
+		const auto merge_block = g.create_basic_block("merge");
 		const auto then_ret = ({
 			builder.SetInsertPoint(then_block);
-			then_node->codegen(g);
+			auto res = then_node->codegen(g);
+			if (!then_node->has_return()) builder.CreateBr(merge_block);
+			res;
 		}), else_ret = ({
 			builder.SetInsertPoint(else_block);
-			else_node->codegen(g);
+			auto res = else_node->codegen(g);
+			if (!else_node->has_return()) builder.CreateBr(merge_block);
+			res;
 		});
 		auto then_type = then_ret.get_type(), else_type = else_ret.get_type();
+		builder.SetInsertPoint(merge_block);
 		if (then_type == else_type) {
 			auto type = then_type;
-			auto var = g.allocate_stack(type, false);
-			var = {
-				dynamic_cast<Type::Ref *>(type)
-				? type
-				: g.get_context().get_ref_type(type),
-				var.get_llvm_value()
-			};
-
-			const auto merge_block = g.create_basic_block("merge");
-
-			builder.SetInsertPoint(then_block);
-			builder.CreateStore(then_ret.get_llvm_value(), var.get_llvm_value());
-			if (!then_node->has_return()) builder.CreateBr(merge_block);
-			builder.SetInsertPoint(else_block);
-			builder.CreateStore(else_ret.get_llvm_value(), var.get_llvm_value());
-			if (!else_node->has_return()) builder.CreateBr(merge_block);
-
-			builder.SetInsertPoint(merge_block);
-			return var;
-		} else {
-			if (!then_node->has_return() || !else_node->has_return()) {
-				const auto merge_block = g.create_basic_block("merge");
-
-				builder.SetInsertPoint(then_block);
-				if (!then_node->has_return()) builder.CreateBr(merge_block);
-				builder.SetInsertPoint(else_block);
-				if (!else_node->has_return()) builder.CreateBr(merge_block);
-
-				builder.SetInsertPoint(merge_block);
-			}
-			return g.get_context().get_void();
-		}
+			auto phi = builder.CreatePHI(type->get_llvm(), 2);
+			phi->addIncoming(then_ret.get_llvm_value(), then_block);
+			phi->addIncoming(else_ret.get_llvm_value(), else_block);
+			return { type, phi };
+		} else return g.get_context().get_void();
 	}
 }
 
