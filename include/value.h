@@ -37,12 +37,6 @@ public:
 
 	Value(): type(nullptr), llvm_value(nullptr) {} // NOLINT(cppcoreguidelines-pro-type-member-init)
 
-	Value(Type *type, llvm::Value *llvm): // NOLINT(cppcoreguidelines-pro-type-member-init)
-		type(type), llvm_value(llvm) {
-		if (dynamic_cast<Type::Ref *>(type))
-			throw std::runtime_error("Ref value cannot be created directly");
-	}
-
 	explicit Value(Concept *concept_value): // NOLINT(cppcoreguidelines-pro-type-member-init)
 		type(Type::Concept::get_instance()), concept_value(concept_value) {}
 
@@ -111,6 +105,12 @@ public:
 		out << '\n';
 	}
 private:
+	Value(Type *type, llvm::Value *llvm): // NOLINT(cppcoreguidelines-pro-type-member-init)
+		type(type), llvm_value(llvm) {
+		if (dynamic_cast<Type::Ref *>(type))
+			throw std::runtime_error("Ref value cannot be created directly");
+	}
+
 	Type *type;
 	union {
 		llvm::Value *llvm_value;
@@ -118,6 +118,8 @@ private:
 		Type *type_value;
 		Ref *ref_value;
 	};
+
+	friend class Codegen;
 };
 
 } // namespace rin

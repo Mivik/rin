@@ -10,22 +10,22 @@ namespace rin {
 Codegen::Codegen(Context &ctx, const std::string &name):
 	ctx(ctx), parent(nullptr),
 	module(std::make_unique<llvm::Module>(name, ctx.get_llvm())),
-	inline_depth(0), inline_call_result(nullptr) {
-	init_env();
+	inline_depth(0), inline_call_result(nullptr), inline_call_dest(nullptr) {
+	init();
 }
 
 Codegen::Codegen(Codegen *parent):
 	ctx(parent->get_context()), parent(parent),
 	module(parent->get_module()),
-	inline_depth(0), inline_call_result(nullptr) {
-	init_env();
+	inline_depth(0), inline_call_result(nullptr), inline_call_dest(nullptr) {
+	init();
 }
 
 Codegen::~Codegen() {
 	while (!layers.empty()) pop_layer();
 }
 
-void Codegen::init_env() {
+void Codegen::init() {
 	add_layer(nullptr);
 #define ARGS Codegen &g, std::optional<Value> receiver, const std::vector<Value> &args
 	// TODO builtin functions here
@@ -78,10 +78,10 @@ llvm::Function *Codegen::get_llvm_function() const {
 }
 
 void Codegen::add_layer(
-	Function::Static *function,
-	Ptr<llvm::IRBuilder<>> builder
+	Type::Function *function,
+	SPtr<llvm::IRBuilder<>> builder
 ) {
-	if (!builder) builder = std::make_unique<llvm::IRBuilder<>>(ctx.get_llvm());
+	if (!builder) builder = std::make_shared<llvm::IRBuilder<>>(ctx.get_llvm());
 	layers.push_back(
 		{
 			std::move(builder),
@@ -121,8 +121,7 @@ Value Codegen::allocate_stack(Type *type, const Value &value, bool is_const) {
 
 Function::Static *Codegen::declare_function(
 	Type::Function *type,
-	const std::string &name,
-	bool const_evaluated
+	const std::string &name
 ) {
 	bool is_main =
 		name == "main" && type->get_parameter_types().empty();
@@ -140,13 +139,13 @@ Function::Static *Codegen::declare_function(
 
 void Codegen::implement_function(
 	Function::Static *function,
-	const std::vector<std::string> &param_names,
+	const std::vector<std::string> &parameter_names,
 	ASTNode *content_node
 ) {
 	auto llvm = function->get_llvm_value();
 	auto type = function->get_type();
 	add_layer(
-		function,
+		function->get_type(),
 		std::make_unique<llvm::IRBuilder<>>(
 			llvm::BasicBlock::Create(
 				get_llvm_context(),
@@ -155,24 +154,36 @@ void Codegen::implement_function(
 			)
 		)
 	);
-	std::vector<llvm::Value *> args;
-	for (auto &arg : llvm->args())
-		args.push_back(&arg);
+	auto param_types = type->get_parameter_types();
 	auto receiver_type = type->get_receiver_type();
-	const bool has_receiver = receiver_type;
-	if (receiver_type)
-		declare_value(
-			"this",
-			create_value(receiver_type, args[0])
-		);
-	const auto &param_types = type->get_parameter_types();
-	for (size_t i = 0; i < param_types.size(); ++i)
-		declare_value(param_names[i], create_value(param_types[i], args[i + has_receiver]));
+	std::optional<Value> receiver = std::nullopt;
+	std::vector<Value> args;
+	args.reserve(param_types.size());
+	size_t index = -(receiver_type != nullptr);
+	for (auto &arg : llvm->args()) {
+		if (index == -1) receiver = create_value(receiver_type, &arg);
+		else args.push_back(create_value(param_types[index], &arg));
+		++index;
+	}
+	implement_function(type, parameter_names, receiver, args, content_node);
+	pop_layer();
+}
+
+void Codegen::implement_function(
+	Type::Function *type,
+	const std::vector<std::string> &parameter_names,
+	std::optional<Value> receiver,
+	const std::vector<Value> &arguments,
+	ASTNode *content_node
+) {
+	if (receiver) declare_value("this", receiver.value());
+	for (size_t i = 0; i < arguments.size(); ++i)
+		declare_value(parameter_names[i], arguments[i]);
 	if (auto body_node = dynamic_cast<BlockNode *>(content_node)) {
 		body_node->codegen(*this);
 		if (!body_node->has_return()) {
 			if (type->get_result_type() == ctx.get_void_type())
-				get_builder()->CreateRetVoid();
+				create_return(ctx.get_void());
 			else error("Non-void function does not return a value");
 		}
 	} else {
@@ -182,10 +193,8 @@ void Codegen::implement_function(
 				"Returning a {} in a function that returns {}",
 				result.get_type()->to_string(), type->get_result_type()->to_string()
 			);
-		get_builder()->CreateRet(result.get_llvm_value());
+		create_return(result);
 	}
-
-	pop_layer();
 }
 
 void Codegen::create_return(Value value) {
@@ -195,9 +204,27 @@ void Codegen::create_return(Value value) {
 			value.get_llvm_value(),
 			get_builder()->GetInsertBlock()
 		);
+		get_builder()->CreateBr(parent->inline_call_dest);
 	} else if (value.get_type() == ctx.get_void_type())
 		get_builder()->CreateRetVoid();
 	else get_builder()->CreateRet(value.get_llvm_value());
+}
+
+Codegen *Codegen::derive_inline_context(Type *type, Value &result) {
+	assert(!having_inline_call());
+	inline_call_dest = llvm::BasicBlock::Create(
+		ctx.get_llvm(), "sub_merge", get_builder()->GetInsertBlock()->getParent()
+	);
+	get_builder()->SetInsertPoint(inline_call_dest);
+	inline_call_result = get_builder()->CreatePHI(type->get_llvm(), 0);
+	result = { type, inline_call_result };
+	return new Codegen(this);
+}
+
+void Codegen::dispose_inline_context(Codegen *g) {
+	delete g;
+	inline_call_result = nullptr;
+	inline_call_dest = nullptr;
 }
 
 } // namespace rin

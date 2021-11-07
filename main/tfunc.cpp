@@ -1,5 +1,6 @@
 
 #include "codegen.h"
+#include "ifunc.h"
 #include "tfunc.h"
 
 namespace rin {
@@ -15,8 +16,8 @@ Function *Function::Template::instantiate(INVOKE_ARGS) {
 		return nullptr;
 	for (size_t i = 0; i < args.size(); ++i)
 		if (auto name_node = dynamic_cast<ValueNode *>(parameter_type_nodes[i])) {
-			auto name = name_node->get_name();
-			auto iter = cached_indices.find(name);
+			auto &param_name = name_node->get_name();
+			auto iter = cached_indices.find(param_name);
 			if (iter != cached_indices.end()) {
 				auto index = iter->second;
 				if (!inferred[index]) {
@@ -56,7 +57,12 @@ Function *Function::Template::instantiate(INVOKE_ARGS) {
 		if (i != inferred.size() - 1) new_name += ',';
 	}
 	new_name += '>';
-	auto function_object = g.declare_function(actual_type, new_name, inline_flag);
+	if (inline_flag)
+		return g.declare_function(
+			new_name,
+			std::make_unique<Inline>(actual_type, parameter_names, content_node.get())
+		);
+	auto function_object = g.declare_function(actual_type, new_name);
 	if (!function_object) return nullptr; // use functions that already exists first
 	g.implement_function(function_object, parameter_names, content_node.get());
 	return function_object;

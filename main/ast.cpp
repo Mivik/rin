@@ -4,13 +4,14 @@
 #include "ast.h"
 #include "parser.h"
 #include "ref.h"
+#include "ifunc.h"
 #include "tfunc.h"
 
 namespace rin {
 
 using K = TokenKind;
 
-[[noreturn]] void not_inlineuated(Codegen &g, const ASTNode *node) {
+[[noreturn]] void not_inlined(Codegen &g, const ASTNode *node) {
 	// TODO wtf is this
 	g.error(
 		"Part of the code ({} ~ {}) is not const evaluated",
@@ -62,10 +63,10 @@ Value ConstantNode::codegen(Codegen &g) const {
 	auto &ctx = g.get_context();
 	if (content == "true" || content == "false") {
 		auto type = ctx.get_boolean_type();
-		return {
+		return g.create_value(
 			type,
 			direct_cast<llvm::Value>(llvm::ConstantInt::get(type->get_llvm(), content == "true"))
-		};
+		);
 	}
 	if (isdigit(content[0])) {
 		auto tmp = content;
@@ -85,12 +86,12 @@ Value ConstantNode::codegen(Codegen &g) const {
 			assert(!tmp.empty());
 			type = ctx.get_u32_type();
 		}
-		return { type, direct_cast<llvm::Value>(
+		return g.create_value(type, direct_cast<llvm::Value>(
 			llvm::ConstantInt::get(
 				direct_cast<llvm::IntegerType>(type->get_llvm()),
 				tmp, 10
 			)
-		) };
+		));
 	}
 	g.error("Unknown constant: {}", content);
 }
@@ -98,7 +99,7 @@ Value ConstantNode::codegen(Codegen &g) const {
 Value ValueNode::codegen(Codegen &g) const {
 	auto opt = g.lookup_value(name);
 	if (!opt.has_value()) g.error("Use of undeclared value: {}", name);
-	if (g.is_inlined() && !opt->is_constant()) not_inlineuated(g, this);
+	if (g.is_inlined() && !opt->is_constant()) not_inlined(g, this);
 	return preserve_ref? *opt: opt->deref(g);
 }
 
@@ -138,8 +139,7 @@ Value UnaryOpNode::codegen(Codegen &g) const {
 						g.get_context().get_ref_type(ptr_type->get_sub_type(), op == K::Pointer),
 						v.get_llvm_value()
 					);
-				}
-				else unary_op_fail(value, op);
+				} else unary_op_fail(value, op);
 			}
 			break;
 		case K::Ref:
@@ -177,7 +177,7 @@ Value UnaryOpNode::codegen(Codegen &g) const {
 			case K::UAdd:
 				return value;
 			case K::USub:
-				return { type, builder.CreateFNeg(value.get_llvm_value()) };
+				return g.create_value(type, builder.CreateFNeg(value.get_llvm_value()));
 			default:
 				unary_op_fail(value, op);
 		}
@@ -186,14 +186,14 @@ Value UnaryOpNode::codegen(Codegen &g) const {
 			case K::UAdd:
 				return value;
 			case K::USub:
-				return { type, builder.CreateNeg(value.get_llvm_value()) };
+				return g.create_value(type, builder.CreateNeg(value.get_llvm_value()));
 			case K::Not:
-				return { type, builder.CreateNot(value.get_llvm_value()) };
+				return g.create_value(type, builder.CreateNot(value.get_llvm_value()));
 			default:
 				unary_op_fail(value, op);
 		}
 	} else if (value.get_type() == g.get_context().get_boolean_type()) {
-		if (op == K::LNot) return { type, builder.CreateNot(value.get_llvm_value()) };
+		if (op == K::LNot) return g.create_value(type, builder.CreateNot(value.get_llvm_value()));
 		else unary_op_fail(value, op);
 	} else unary_op_fail(value, op);
 	RIN_UNREACHABLE();
@@ -262,9 +262,9 @@ inline Value bin_op_arithmetic_codegen(Codegen &g, Value lhs, Value rhs, TokenKi
 	}
 	if (cmp != cmp_op::FCMP_FALSE) {
 		if (real_result_type)
-			return { bool_type, builder.CreateFCmp(cmp, lhs.get_llvm_value(), rhs.get_llvm_value()) };
+			return g.create_value(bool_type, builder.CreateFCmp(cmp, lhs.get_llvm_value(), rhs.get_llvm_value()));
 		else
-			return { bool_type, builder.CreateICmp(cmp, lhs.get_llvm_value(), rhs.get_llvm_value()) };
+			return g.create_value(bool_type, builder.CreateICmp(cmp, lhs.get_llvm_value(), rhs.get_llvm_value()));
 	}
 
 	bin_op llvm_op;
@@ -334,11 +334,10 @@ inline Value bin_op_arithmetic_codegen(Codegen &g, Value lhs, Value rhs, TokenKi
 				bin_op_fail(g, lhs, rhs, op);
 		}
 	}
-	return
-		{
-			type,
-			builder.CreateBinOp(llvm_op, lhs.get_llvm_value(), rhs.get_llvm_value())
-		};
+	return g.create_value(
+		type,
+		builder.CreateBinOp(llvm_op, lhs.get_llvm_value(), rhs.get_llvm_value())
+	);
 }
 
 inline Value assignment_codegen(Codegen &g, Value lhs, Value rhs, TokenKind op) {
@@ -450,13 +449,13 @@ Value BinOpNode::codegen(Codegen &g) const {
 			if (g.is_inlined()) {
 				if (auto array_type = dynamic_cast<Type::Array *>(lhs.get_type())) {
 					auto array = llvm::dyn_cast<llvm::ConstantArray>(lhs.get_llvm_value());
-					auto res = Value(
+					auto res = g.create_value(
 						array_type->get_element_type(),
 						array->getAggregateElement(llvm::dyn_cast<llvm::Constant>(rhs.get_llvm_value()))
 					);
 					return preserve_ref? res: res.deref(g);
 				}
-				not_inlineuated(g, this);
+				not_inlined(g, this);
 			}
 			if (dynamic_cast<Type::Pointer *>(lhs.get_type())) {
 				auto res = lhs.pointer_subscript(g, rhs.deref(g));
@@ -526,7 +525,7 @@ Value VarDeclNode::codegen(Codegen &g) const {
 void GlobalVarDeclNode::declare(Codegen &g) {
 	// TODO const
 	// TODO cycle
-	if (g.is_inlined()) not_inlineuated(g, this);
+	if (g.is_inlined()) not_inlined(g, this);
 	if (inline_flag) g.error("Inline variable at global scope is not supported yet");
 	Type *type;
 	if (value_node) {
@@ -588,9 +587,7 @@ Value CallNode::codegen(Codegen &g) const {
 	if (matching_function == nullptr)
 		g.error("No matching function for calling");
 	if (g.is_inlined()) {
-		if (!matching_function->is_inlined()) not_inlineuated(g, this);
-		// TODO barrier
-		
+
 	}
 	auto res = matching_function->invoke(
 		g,
@@ -625,7 +622,7 @@ Value StructValueNode::codegen(Codegen &g) const {
 			fields.size(), field_nodes.size()
 		);
 	// TODO const
-	if (g.is_inlined()) not_inlineuated(g, this);
+	if (g.is_inlined()) not_inlined(g, this);
 	auto ptr = g.allocate_stack(type, true);
 	auto &builder = *g.get_builder();
 	for (size_t i = 0; i < fields.size(); ++i) {
@@ -715,7 +712,7 @@ Value FunctionTypeNode::codegen(Codegen &g) const {
 }
 
 Value ReturnNode::codegen(Codegen &g) const {
-	auto func_type = g.get_function()->get_type();
+	auto func_type = g.get_function_type();
 	auto result_type = func_type->get_result_type();
 	// TODO function name in error message
 	Value result;
@@ -767,19 +764,25 @@ void FunctionNode::declare(Codegen &g) {
 		);
 		return;
 	}
-	function_object = g.declare_function(
-		dynamic_cast<Type::Function *>(type_node->codegen(g).get_type_value()),
-		name,
-		inline_flag
-	);
+	auto function_type = dynamic_cast<Type::Function *>(result.get_type_value());
+	if (inline_flag)
+		function_object = g.declare_function(
+			name,
+			std::make_unique<Function::Inline>(
+				function_type,
+				type_node->get_parameter_names(),
+				content_node.get()
+			)
+		);
+	else function_object = g.declare_function(function_type, name);
 	if (!function_object)
 		g.error("Redefinition of {} with same parameter types", name); // TODO detailed message
 }
 
 Value FunctionNode::codegen(Codegen &g) const {
-	if (function_object)
+	if (auto static_function = dynamic_cast<Function::Static *>(function_object))
 		g.implement_function(
-			function_object,
+			static_function,
 			type_node->get_parameter_names(),
 			content_node.get()
 		);
@@ -853,7 +856,7 @@ Value IfNode::codegen(Codegen &g) const {
 			auto phi = builder.CreatePHI(type->get_llvm(), 2);
 			phi->addIncoming(then_ret.get_llvm_value(), then_block);
 			phi->addIncoming(else_ret.get_llvm_value(), else_block);
-			return { type, phi };
+			return g.create_value(type, phi);
 		} else return g.get_context().get_void();
 	}
 }

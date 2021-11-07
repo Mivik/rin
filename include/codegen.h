@@ -32,11 +32,11 @@ public:
 
 	[[nodiscard]] Context &get_context() const { return ctx; }
 	[[nodiscard]] llvm::LLVMContext &get_llvm_context() const { return ctx.get_llvm(); }
-	[[nodiscard]] llvm::Module *get_module() const { return module.get(); }
+	[[nodiscard]] SPtr<llvm::Module> get_module() const { return module; }
 	[[nodiscard]] bool is_inlined() const { return inline_depth; }
 	void push_inline() { ++inline_depth; }
 	void pop_inline() { --inline_depth; }
-	Function::Static *get_function() const { return layers.back().function; }
+	Type::Function *get_function_type() const { return layers.back().function_type; }
 	llvm::IRBuilder<> *get_builder() const { return layers.back().builder.get(); }
 
 	[[nodiscard]] llvm::ConstantInt *get_constant_int(unsigned value) const {
@@ -55,11 +55,11 @@ public:
 		throw CodegenException(fmt::format(pattern, std::forward<Args>(args)...));
 	}
 
-	[[nodiscard]] Type::Pointer* to_pointer_type(Type::Ref *ref) {
+	[[nodiscard]] Type::Pointer *to_pointer_type(Type::Ref *ref) {
 		return ctx.get_pointer_type(ref->get_sub_type(), ref->is_mutable());
 	}
 
-	[[nodiscard]] Type::Ref* to_ref_type(Type::Pointer *ptr) {
+	[[nodiscard]] Type::Ref *to_ref_type(Type::Pointer *ptr) {
 		return ctx.get_ref_type(ptr->get_sub_type(), ptr->is_mutable());
 	}
 
@@ -76,7 +76,7 @@ public:
 	}
 
 	template<class T>
-	T *declare_function(const std::string &name, Ptr<T> func) {
+	T *declare_function(const std::string &name, Ptr<T> func) { // TODO conflict?
 		static_assert(std::is_base_of_v<Function, T>);
 		auto result = func.get();
 		auto &vec = function_map.get_or_create(name);
@@ -94,7 +94,7 @@ public:
 
 	[[nodiscard]] llvm::Function *get_llvm_function() const;
 
-	[[nodiscard]] Ptr<llvm::Module> finalize() { return std::move(module); }
+	[[nodiscard]] SPtr<llvm::Module> finalize() { return std::move(module); }
 
 	llvm::BasicBlock *create_basic_block(const std::string &name) const {
 		return llvm::BasicBlock::Create(ctx.get_llvm(), name, get_llvm_function());
@@ -103,25 +103,33 @@ public:
 	Value allocate_stack(Type *type, bool is_mutable);
 	Value allocate_stack(Type *type, const Value &default_value, bool is_const);
 
-	Function::Static *declare_function(
-		Type::Function *type,
-		const std::string &name,
-		bool const_evaluated
-	);
+	Function::Static *declare_function(Type::Function *type, const std::string &name);
 	void implement_function(
 		Function::Static *function,
 		const std::vector<std::string> &parameter_names,
 		ASTNode *content_node
 	);
-	
+	void implement_function(
+		Type::Function *type,
+		const std::vector<std::string> &parameter_names,
+		std::optional<Value> receiver,
+		const std::vector<Value> &arguments,
+		ASTNode *content_node
+	);
+
 	void create_return(Value value);
 
-	void add_layer(Function::Static *function, Ptr<llvm::IRBuilder<>> builder = nullptr);
+	void add_layer(Type::Function *function, SPtr<llvm::IRBuilder<>> builder = nullptr);
 	void pop_layer();
+
+	Codegen *derive_inline_context(Type *type, Value &result);
+	void dispose_inline_context(Codegen *g);
+
+	bool having_inline_call() { return inline_call_result; }
 private:
 	struct Layer {
-		Ptr<llvm::IRBuilder<>> builder;
-		Function::Static *function;
+		SPtr<llvm::IRBuilder<>> builder;
+		Type::Function *function_type;
 		std::vector<Ref *> refs;
 	};
 
@@ -135,17 +143,18 @@ private:
 			.get_or_create("@" + name)
 			.emplace_back(new Function::Builtin(std::move(type_desc), std::move(verifier), std::move(func)));
 	}
-	
-	void init_env();
+
+	void init();
 
 	Context &ctx;
 	Codegen *parent;
-	Ptr<llvm::Module> module;
+	SPtr<llvm::Module> module;
 	std::vector<Layer> layers;
 	LayerMap<std::string, Value> value_map;
 	LayerMap<std::string, std::vector<Ptr<Function>>> function_map;
 	uint32_t inline_depth;
 	llvm::PHINode *inline_call_result;
+	llvm::BasicBlock *inline_call_dest{};
 };
 
 template<>

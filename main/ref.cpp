@@ -15,10 +15,10 @@ inline unsigned as_int(llvm::Value *value) {
 }
 
 Value Ref::Address::load(Codegen &g) {
-	return {
+	return g.create_value(
 		type->get_sub_type(),
 		g.get_builder()->CreateLoad(address)
-	};
+	);
 }
 
 void Ref::Address::store(Codegen &g, Value value) {
@@ -90,7 +90,8 @@ Ref::Memory::Sub::Sub(Codegen &g, Memory *root, unsigned int index) // NOLINT(cp
 Ref::Memory::Sub::Sub(Codegen &g, Sub *father, unsigned int index) // NOLINT(cppcoreguidelines-pro-type-member-init)
 	: Ref(get_sub_type_as_ref(g, father->get_type(), index)), is_first(false), index(index), father(father) {}
 
-Ref::Memory::Sub::Sub(Type::Ref *type, bool is_first, unsigned index, void *any) // NOLINT(cppcoreguidelines-pro-type-member-init)
+Ref::Memory::Sub::Sub(Type::Ref *type, bool is_first, unsigned index,
+					  void *any) // NOLINT(cppcoreguidelines-pro-type-member-init)
 	: Ref(type), is_first(is_first), index(index), any(any) {}
 
 std::pair<Ref::Memory *, std::vector<unsigned>> Ref::Memory::Sub::collect(Codegen &g) const {
@@ -110,21 +111,24 @@ std::pair<Ref::Memory *, std::vector<unsigned>> Ref::Memory::Sub::collect(Codege
 
 Value Ref::Memory::Sub::load(Codegen &g) {
 	auto[root, indices] = collect(g);
-	return { type->get_sub_type(), llvm::ConstantExpr::getExtractValue(root->get_as_constant(), indices) };
+	return g.create_value(
+		type->get_sub_type(),
+		llvm::ConstantExpr::getExtractValue(root->get_as_constant(), indices)
+	);
 }
 
 void Ref::Memory::Sub::store(Codegen &g, Value value) {
 	assert(value.get_type() == type->get_sub_type());
 	assert(value.is_constant());
 	auto[root, indices] = collect(g);
-	root->store(g, {
+	root->store(g, g.create_value(
 		root->type->get_sub_type(),
 		llvm::ConstantExpr::getInsertValue(
 			root->get_as_constant(),
 			llvm::dyn_cast<llvm::Constant>(value.get_llvm_value()),
 			indices
 		)
-	});
+	));
 }
 
 Ref *Ref::Memory::Sub::get_element(Codegen &g, const std::vector<llvm::Value *> &indices) {

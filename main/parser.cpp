@@ -170,7 +170,13 @@ Ptr<ASTNode> Parser::take_expr() {
 
 	using token_kind::precedence_of;
 
-	std::stack<Ptr<ASTNode>> st;
+	auto first = lexer.peek();
+	if (lexer.peek().content(get_buffer()) == "ddd") {
+		llvm::outs() << "WOW\n";
+	}
+
+	std::stack<Ptr < ASTNode>>
+	st;
 	std::stack<Token> ops;
 	auto require = [&](size_t amount) {
 		if (st.size() < amount)
@@ -179,15 +185,16 @@ Ptr<ASTNode> Parser::take_expr() {
 				amount, st.size()
 			);
 	};
-	auto process_op = [&](std::stack<Ptr<ASTNode>> &st, Token token) {
+	auto process_op = [&](std::stack<Ptr < ASTNode>> & st, Token
+	token) {
 		const TokenKind op = token.kind;
 		if (token_kind::is_unary_op(op)) {
 			require(1);
-			Ptr<ASTNode> value(pop_stack(st));
+			Ptr <ASTNode> value(pop_stack(st));
 			st.push(std::make_unique<UnaryOpNode>(std::move(value), token));
 		} else {
 			require(2);
-			Ptr<ASTNode> rhs(pop_stack(st)), lhs(pop_stack(st));
+			Ptr <ASTNode> rhs(pop_stack(st)), lhs(pop_stack(st));
 			st.push(std::make_unique<BinOpNode>(std::move(lhs), std::move(rhs), op));
 		}
 	};
@@ -234,8 +241,6 @@ Ptr<ASTNode> Parser::take_expr() {
 					(precedence_of(ops.top().kind) == cur_pred && !is_right_associative(cur_pred)))
 				)
 				process_op(st, pop_stack(ops));
-			if (token.kind == K::Pointer)
-				error("IMPOSSIBLE");
 			ops.push(token);
 			last = is_unary? UnaryOp: BinOp;
 		} else if (last != Prim) {
@@ -246,7 +251,8 @@ Ptr<ASTNode> Parser::take_expr() {
 		} else break;
 	}
 	while (!ops.empty()) process_op(st, pop_stack(ops));
-	if (st.empty()) error("Missing operand");
+	if (st.empty())
+		error("Missing operand");
 	assert(ops.empty() && st.size() == 1);
 	return std::move(st.top());
 }
@@ -407,8 +413,7 @@ Ptr<ASTNode> Parser::take_stmt() {
 		}
 		default: {
 			auto res = take_expr();
-			// TODO ?
-			// expect_end_of_stmt();
+			expect_end_of_stmt();
 			return res;
 		}
 	}
@@ -421,6 +426,7 @@ Ptr<DeclNode> Parser::take_decl() {
 		case K::Val:
 		case K::Inline: {
 			lexer.take();
+			if (lexer.peek().kind == K::Fn) return take_function(true);
 			bool is_inline = kind == K::Inline;
 			if (is_inline) {
 				auto token = lexer.take();

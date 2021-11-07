@@ -13,7 +13,7 @@ class Function::Template final : public Function {
 public:
 	explicit Template(
 		std::string name,
-		std::vector<std::pair<std::string, Concept *>> concepts,
+		const std::vector<std::pair<std::string, Concept *>> &concepts,
 		ASTNode *receiver_type_node,
 		ASTNode *result_type_node,
 		std::vector<ASTNode *> parameter_type_nodes, // can be either concept or type
@@ -40,7 +40,6 @@ public:
 		g.error("Trying to invoke an abstract template function");
 	}
 
-	[[nodiscard]] bool is_inlined() const override { return false; } // TODO
 	// TODO type description of tfunc should not be used, but we should implement it
 	[[nodiscard]] std::string get_type_description() const override { return ""; }
 

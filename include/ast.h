@@ -360,7 +360,7 @@ private:
 	Ptr<ASTNode> content_node;
 
 	// Initialize at declaration
-	Function::Static *function_object;
+	Function *function_object;
 	Type::Function *type;
 
 	bool inline_flag;
