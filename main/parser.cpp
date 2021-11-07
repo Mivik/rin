@@ -325,10 +325,8 @@ Ptr<FunctionNode> Parser::take_function(bool is_inline) {
 	if (lexer.peek().kind == K::Assign) {
 		lexer.take();
 		content = take_expr();
-	} else {
-		expect(lexer.peek(), K::LBrace);
-		content = take_block();
-	}
+	} else if (lexer.peek().kind == K::LBrace) content = take_block();
+	else expect(lexer.take(), K::Semicolon);
 	return std::make_unique<FunctionNode>(
 		SourceRange(begin, lexer.position()),
 		name,

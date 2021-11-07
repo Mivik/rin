@@ -62,7 +62,7 @@ Function *Function::Template::instantiate(INVOKE_ARGS) {
 			new_name,
 			std::make_unique<Inline>(actual_type, parameter_names, content_node.get())
 		);
-	auto function_object = g.declare_function(actual_type, new_name);
+	auto function_object = g.declare_function(actual_type, new_name, false);
 	if (!function_object) return nullptr; // use functions that already exists first
 	g.implement_function(function_object, parameter_names, content_node.get());
 	return function_object;

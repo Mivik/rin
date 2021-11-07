@@ -735,6 +735,7 @@ Value ReturnNode::codegen(Codegen &g) const {
 void FunctionNode::declare(Codegen &g) {
 	auto result = type_node->codegen(g);
 	if (result.get_type() == g.get_context().get_void_type()) {
+		if (!content_node) g.error("Extern template function is not implemented");
 		std::vector<std::pair<std::string, Concept *>> concepts;
 		std::set<std::string> occurred_strings;
 		for (auto &[name, node] : type_node->get_template_parameters()) {
@@ -765,7 +766,8 @@ void FunctionNode::declare(Codegen &g) {
 		return;
 	}
 	auto function_type = dynamic_cast<Type::Function *>(result.get_type_value());
-	if (inline_flag)
+	if (inline_flag) {
+		if (!content_node) g.error("External inline function is not implemented");
 		function_object = g.declare_function(
 			name,
 			std::make_unique<Function::Inline>(
@@ -774,18 +776,25 @@ void FunctionNode::declare(Codegen &g) {
 				content_node.get()
 			)
 		);
-	else function_object = g.declare_function(function_type, name);
+	} else
+		function_object =
+			g.declare_function(
+				function_type,
+				name,
+				!content_node || (name == "main" && function_type->get_parameter_types().empty())
+			);
 	if (!function_object)
 		g.error("Redefinition of {} with same parameter types", name); // TODO detailed message
 }
 
 Value FunctionNode::codegen(Codegen &g) const {
-	if (auto static_function = dynamic_cast<Function::Static *>(function_object))
-		g.implement_function(
-			static_function,
-			type_node->get_parameter_names(),
-			content_node.get()
-		);
+	if (content_node)
+		if (auto static_function = dynamic_cast<Function::Static *>(function_object))
+			g.implement_function(
+				static_function,
+				type_node->get_parameter_names(),
+				content_node.get()
+			);
 	return g.get_context().get_void();
 }
 

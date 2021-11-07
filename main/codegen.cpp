@@ -121,14 +121,13 @@ Value Codegen::allocate_stack(Type *type, const Value &value, bool is_const) {
 
 Function::Static *Codegen::declare_function(
 	Type::Function *type,
-	const std::string &name
+	const std::string &name,
+	bool no_mangle
 ) {
-	bool is_main =
-		name == "main" && type->get_parameter_types().empty();
 	auto llvm = llvm::Function::Create(
 		llvm::dyn_cast<llvm::FunctionType>(type->get_llvm()),
 		llvm::Function::ExternalLinkage,
-		is_main? name: type->to_string(name, true),
+		no_mangle? name: type->to_string(name, true),
 		module.get()
 	);
 	return declare_function(

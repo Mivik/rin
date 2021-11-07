@@ -103,7 +103,7 @@ public:
 	Value allocate_stack(Type *type, bool is_mutable);
 	Value allocate_stack(Type *type, const Value &default_value, bool is_const);
 
-	Function::Static *declare_function(Type::Function *type, const std::string &name);
+	Function::Static *declare_function(Type::Function *type, const std::string &name, bool no_mangle);
 	void implement_function(
 		Function::Static *function,
 		const std::vector<std::string> &parameter_names,
