@@ -44,6 +44,17 @@ void Codegen::init() {
 	}, [](ARGS) {
 		return Value(args[0].get_type());
 	});
+	declare_builtin("cast", "fn [Int].(T): T", [](ARGS) {
+		return receiver
+			   && dynamic_cast<Type::Int *>(receiver->get_type())
+			   && args.size() == 1 && args[0].is_type_value() && dynamic_cast<Type::Int *>(args[0].get_type_value());
+	}, [](ARGS) {
+		auto dest = args[0].get_type_value();
+		return g.create_value(
+			dest,
+			g.get_builder()->CreateZExtOrTrunc(receiver->get_llvm_value(), dest->get_llvm())
+		);
+	});
 #undef ARGS
 	// TODO more integer types
 #define TYPE(n) declare_value(#n, Value(ctx.get_##n##_type()));
@@ -90,7 +101,6 @@ void Codegen::add_layer(
 		}
 	);
 	value_map.add_layer();
-	function_map.add_layer();
 }
 
 void Codegen::pop_layer() {
@@ -98,7 +108,6 @@ void Codegen::pop_layer() {
 		delete ref;
 	layers.pop_back();
 	value_map.pop_layer();
-	function_map.pop_layer();
 }
 
 Value Codegen::allocate_stack(Type *type, bool is_mutable) {
@@ -224,6 +233,16 @@ void Codegen::dispose_inline_context(Codegen *g) {
 	delete g;
 	inline_call_result = nullptr;
 	inline_call_dest = nullptr;
+}
+
+Function::Static *Codegen::find_function(const std::string &name, Type::Function *type) {
+	auto iter = function_map.find(name);
+	if (iter == function_map.end()) return nullptr;
+	for (const auto &element : iter->second) { // TODO optimize this!!!
+		auto target = dynamic_cast<Function::Static *>(element.get());
+		if (target && target->get_type() == type) return target;
+	}
+	return nullptr;
 }
 
 } // namespace rin

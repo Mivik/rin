@@ -70,17 +70,18 @@ public:
 		return value_map.try_get(name);
 	}
 
-	[[nodiscard]] bool has_function(const std::string &name) const { return function_map.has(name); }
-	[[nodiscard]] const std::vector<std::vector<Ptr<Function>>> &lookup_functions(const std::string &name) const {
-		return function_map.get_all(name);
+	[[nodiscard]] bool has_function(const std::string &name) const { return function_map.count(name); }
+	[[nodiscard]] const std::vector<Ptr<Function>> &lookup_functions(const std::string &name) const {
+		auto iter = function_map.find(name);
+		assert(iter != function_map.end());
+		return iter->second;
 	}
 
 	template<class T>
 	T *declare_function(const std::string &name, Ptr<T> func) { // TODO conflict?
 		static_assert(std::is_base_of_v<Function, T>);
 		auto result = func.get();
-		auto &vec = function_map.get_or_create(name);
-		vec.push_back(std::move(func));
+		function_map[name].push_back(std::move(func));
 		return result;
 	}
 
@@ -117,6 +118,8 @@ public:
 		ASTNode *content_node
 	);
 
+	Function::Static *find_function(const std::string &name, Type::Function *type);
+
 	void create_return(Value value);
 
 	void add_layer(Type::Function *function, SPtr<llvm::IRBuilder<>> builder = nullptr);
@@ -139,8 +142,7 @@ private:
 		Function::Builtin::VerifierType verifier,
 		Function::Builtin::FuncType func
 	) {
-		function_map
-			.get_or_create("@" + name)
+		function_map["@" + name]
 			.emplace_back(new Function::Builtin(std::move(type_desc), std::move(verifier), std::move(func)));
 	}
 
@@ -151,7 +153,7 @@ private:
 	SPtr<llvm::Module> module;
 	std::vector<Layer> layers;
 	LayerMap<std::string, Value> value_map;
-	LayerMap<std::string, std::vector<Ptr<Function>>> function_map;
+	std::map<std::string, std::vector<Ptr<Function>>> function_map;
 	uint32_t inline_depth;
 	llvm::PHINode *inline_call_result;
 	llvm::BasicBlock *inline_call_dest{};
@@ -160,13 +162,8 @@ private:
 template<>
 inline Function::Static *Codegen::declare_function(const std::string &name, Ptr<Function::Static> func) {
 	auto result = func.get();
-	auto type = func->get_type();
-	auto &vec = function_map.get_or_create(name);
-	for (const auto &element : vec) { // TODO optimize this!!!
-		auto target = dynamic_cast<Function::Static *>(element.get());
-		if (target && target->get_type() == type) return nullptr;
-	}
-	vec.push_back(std::move(func));
+	if (find_function(name, func->get_type())) return nullptr;
+	function_map[name].push_back(std::move(func));
 	return result;
 }
 

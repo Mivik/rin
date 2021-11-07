@@ -44,7 +44,6 @@ Function *Function::Template::instantiate(INVOKE_ARGS) {
 		actual_types[i] = parameter_type_nodes[i]->codegen(g).get_type_value();
 		if (args[i].get_type() != actual_types[i]) return nullptr;
 	}
-	g.pop_layer();
 	auto actual_type = g.get_context().get_function_type(
 		receiver_type,
 		result_type,
@@ -57,14 +56,20 @@ Function *Function::Template::instantiate(INVOKE_ARGS) {
 		if (i != inferred.size() - 1) new_name += ',';
 	}
 	new_name += '>';
-	if (inline_flag)
+	if (inline_flag) {
+		g.pop_layer(); // TODO !!!!!!!!!!!! ADD PARAMETERS TO INLINE
 		return g.declare_function(
 			new_name,
 			std::make_unique<Inline>(actual_type, parameter_names, content_node.get())
 		);
+	}
+	if (auto func = g.find_function(new_name, actual_type)) { // use functions that already exists
+		g.pop_layer();
+		return func;
+	}
 	auto function_object = g.declare_function(actual_type, new_name, false);
-	if (!function_object) return nullptr; // use functions that already exists first
 	g.implement_function(function_object, parameter_names, content_node.get());
+	g.pop_layer();
 	return function_object;
 }
 

@@ -170,13 +170,7 @@ Ptr<ASTNode> Parser::take_expr() {
 
 	using token_kind::precedence_of;
 
-	auto first = lexer.peek();
-	if (lexer.peek().content(get_buffer()) == "ddd") {
-		llvm::outs() << "WOW\n";
-	}
-
-	std::stack<Ptr < ASTNode>>
-	st;
+	std::stack<Ptr<ASTNode>> st;
 	std::stack<Token> ops;
 	auto require = [&](size_t amount) {
 		if (st.size() < amount)
@@ -185,16 +179,16 @@ Ptr<ASTNode> Parser::take_expr() {
 				amount, st.size()
 			);
 	};
-	auto process_op = [&](std::stack<Ptr < ASTNode>> & st, Token
+	auto process_op = [&](std::stack<Ptr<ASTNode>> &st, Token
 	token) {
 		const TokenKind op = token.kind;
 		if (token_kind::is_unary_op(op)) {
 			require(1);
-			Ptr <ASTNode> value(pop_stack(st));
+			Ptr<ASTNode> value(pop_stack(st));
 			st.push(std::make_unique<UnaryOpNode>(std::move(value), token));
 		} else {
 			require(2);
-			Ptr <ASTNode> rhs(pop_stack(st)), lhs(pop_stack(st));
+			Ptr<ASTNode> rhs(pop_stack(st)), lhs(pop_stack(st));
 			st.push(std::make_unique<BinOpNode>(std::move(lhs), std::move(rhs), op));
 		}
 	};
@@ -325,6 +319,7 @@ Ptr<FunctionNode> Parser::take_function(bool is_inline) {
 	if (lexer.peek().kind == K::Assign) {
 		lexer.take();
 		content = take_expr();
+		expect_end_of_stmt();
 	} else if (lexer.peek().kind == K::LBrace) content = take_block();
 	else expect(lexer.take(), K::Semicolon);
 	return std::make_unique<FunctionNode>(
@@ -378,6 +373,7 @@ Ptr<ASTNode> Parser::take_stmt() {
 		case K::Return: {
 			lexer.take();
 			if (lexer.peek().kind == K::Semicolon) {
+				lexer.take();
 				return std::make_unique<ReturnNode>(
 					SourceRange(begin, lexer.position()),
 					nullptr

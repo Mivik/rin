@@ -388,7 +388,6 @@ inline Value assignment_codegen(Codegen &g, Value lhs, Value rhs, TokenKind op) 
 Value BinOpNode::codegen(Codegen &g) const {
 	if (op == K::Period) {
 		if (auto call_node = dynamic_cast<CallNode *>(rhs_node.get())) {
-			assert(!call_node->receiver_node);
 			call_node->receiver_node = std::make_unique<PhonyASTNode>(lhs_node->codegen(g));
 			return call_node->codegen(g);
 		}
@@ -572,8 +571,8 @@ Value CallNode::codegen(Codegen &g) const {
 		g.error("No function named {}", name);
 	Function *matching_function = nullptr;
 	// TODO error message (where?)
-	for (auto &_ : g.lookup_functions(name))
-		for (auto &func_ptr : _) {
+	if (g.has_function(name))
+		for (auto &func_ptr : g.lookup_functions(name)) {
 			auto func = func_ptr->instantiate(g, receiver, arguments);
 			if (!func) continue;
 			if (!matching_function) matching_function = func;
@@ -586,9 +585,6 @@ Value CallNode::codegen(Codegen &g) const {
 		}
 	if (matching_function == nullptr)
 		g.error("No matching function for calling");
-	if (g.is_inlined()) {
-
-	}
 	auto res = matching_function->invoke(
 		g,
 		receiver,
