@@ -157,7 +157,7 @@ private:
 	SPtr<std::map<std::string, std::vector<Ptr<Function>>>> function_map;
 	uint32_t inline_depth;
 	llvm::PHINode *inline_call_result;
-	llvm::BasicBlock *inline_call_dest{};
+	llvm::BasicBlock *inline_call_dest;
 };
 
 template<>
