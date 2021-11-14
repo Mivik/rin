@@ -10,6 +10,7 @@ namespace rin {
 Codegen::Codegen(Context &ctx, const std::string &name):
 	ctx(ctx), parent(nullptr),
 	module(std::make_unique<llvm::Module>(name, ctx.get_llvm())),
+	function_map(std::make_shared<decltype(function_map)::element_type>()),
 	inline_depth(0), inline_call_result(nullptr), inline_call_dest(nullptr) {
 	init();
 }
@@ -17,6 +18,7 @@ Codegen::Codegen(Context &ctx, const std::string &name):
 Codegen::Codegen(Codegen *parent):
 	ctx(parent->get_context()), parent(parent),
 	module(parent->get_module()),
+	function_map(parent->function_map),
 	inline_depth(0), inline_call_result(nullptr), inline_call_dest(nullptr) {
 	init();
 }
@@ -236,8 +238,8 @@ void Codegen::dispose_inline_context(Codegen *g) {
 }
 
 Function::Static *Codegen::find_function(const std::string &name, Type::Function *type) {
-	auto iter = function_map.find(name);
-	if (iter == function_map.end()) return nullptr;
+	auto iter = function_map->find(name);
+	if (iter == function_map->end()) return nullptr;
 	for (const auto &element : iter->second) { // TODO optimize this!!!
 		auto target = dynamic_cast<Function::Static *>(element.get());
 		if (target && target->get_type() == type) return target;

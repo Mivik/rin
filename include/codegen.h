@@ -70,10 +70,10 @@ public:
 		return value_map.try_get(name);
 	}
 
-	[[nodiscard]] bool has_function(const std::string &name) const { return function_map.count(name); }
+	[[nodiscard]] bool has_function(const std::string &name) const { return function_map->count(name); }
 	[[nodiscard]] const std::vector<Ptr<Function>> &lookup_functions(const std::string &name) const {
-		auto iter = function_map.find(name);
-		assert(iter != function_map.end());
+		auto iter = function_map->find(name);
+		assert(iter != function_map->end());
 		return iter->second;
 	}
 
@@ -81,7 +81,7 @@ public:
 	T *declare_function(const std::string &name, Ptr<T> func) { // TODO conflict?
 		static_assert(std::is_base_of_v<Function, T>);
 		auto result = func.get();
-		function_map[name].push_back(std::move(func));
+		(*function_map)[name].push_back(std::move(func));
 		return result;
 	}
 
@@ -142,8 +142,9 @@ private:
 		Function::Builtin::VerifierType verifier,
 		Function::Builtin::FuncType func
 	) {
-		function_map["@" + name]
-			.emplace_back(new Function::Builtin(std::move(type_desc), std::move(verifier), std::move(func)));
+		auto &vec = (*function_map)["@" + name];
+		if (vec.empty()) vec.push_back(nullptr);
+		vec[0] = std::make_unique<Function::Builtin>(std::move(type_desc), std::move(verifier), std::move(func));
 	}
 
 	void init();
@@ -153,7 +154,7 @@ private:
 	SPtr<llvm::Module> module;
 	std::vector<Layer> layers;
 	LayerMap<std::string, Value> value_map;
-	std::map<std::string, std::vector<Ptr<Function>>> function_map;
+	SPtr<std::map<std::string, std::vector<Ptr<Function>>>> function_map;
 	uint32_t inline_depth;
 	llvm::PHINode *inline_call_result;
 	llvm::BasicBlock *inline_call_dest{};
@@ -163,7 +164,7 @@ template<>
 inline Function::Static *Codegen::declare_function(const std::string &name, Ptr<Function::Static> func) {
 	auto result = func.get();
 	if (find_function(name, func->get_type())) return nullptr;
-	function_map[name].push_back(std::move(func));
+	(*function_map)[name].push_back(std::move(func));
 	return result;
 }
 
