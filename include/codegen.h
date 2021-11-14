@@ -5,6 +5,7 @@
 
 #include <llvm/IR/IRBuilder.h>
 
+#include "concept_impl.h"
 #include "context.h"
 #include "function.h"
 #include "layer_map.h"
@@ -117,6 +118,19 @@ public:
 		const std::vector<Value> &arguments,
 		ASTNode *content_node
 	);
+	void implement_concept(Type *type, Concept *concept_value, const Concept::Implementation &impl) {
+		auto &map = (*concept_impl_map)[type];
+		auto iter = map.find(concept_value);
+		if (iter != map.end()) error("Re-implementation of concept"); // TODO
+		map[concept_value] = impl;
+	}
+	std::optional<Concept::Implementation> find_impl(Type *type, Concept *concept_value) {
+		if (concept_value == ctx.get_any_concept()) return (Concept::Implementation){};
+		auto &map = (*concept_impl_map)[type];
+		auto iter = map.find(concept_value);
+		if (iter == map.end()) return std::nullopt;
+		return iter->second;
+	}
 
 	Function::Static *find_function(const std::string &name, Type::Function *type);
 
@@ -155,6 +169,7 @@ private:
 	std::vector<Layer> layers;
 	LayerMap<std::string, Value> value_map;
 	SPtr<std::map<std::string, std::vector<Ptr<Function>>>> function_map;
+	SPtr<std::map<Type *, std::map<Concept *, Concept::Implementation>>> concept_impl_map;
 	uint32_t inline_depth;
 	llvm::PHINode *inline_call_result;
 	llvm::BasicBlock *inline_call_dest;

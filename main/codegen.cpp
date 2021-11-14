@@ -11,6 +11,7 @@ Codegen::Codegen(Context &ctx, const std::string &name):
 	ctx(ctx), parent(nullptr),
 	module(std::make_unique<llvm::Module>(name, ctx.get_llvm())),
 	function_map(std::make_shared<decltype(function_map)::element_type>()),
+	concept_impl_map(std::make_shared<decltype(concept_impl_map)::element_type>()),
 	inline_depth(0), inline_call_result(nullptr), inline_call_dest(nullptr) {
 	init();
 }
@@ -19,6 +20,7 @@ Codegen::Codegen(Codegen *parent):
 	ctx(parent->get_context()), parent(parent),
 	module(parent->get_module()),
 	function_map(parent->function_map),
+	concept_impl_map(parent->concept_impl_map),
 	inline_depth(0), inline_call_result(nullptr), inline_call_dest(nullptr) {
 	init();
 }

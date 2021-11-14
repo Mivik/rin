@@ -107,6 +107,21 @@ Ptr<ASTNode> Parser::take_prim_inner() {
 				std::move(field_types)
 			);
 		}
+		case K::Concept: {
+			lexer.take();
+			std::vector<std::pair<Ptr<FunctionTypeNode>, std::string>> function_nodes;
+			expect(lexer.take(), K::LBrace);
+			while (lexer.peek().kind != K::RBrace) {
+				function_nodes.push_back(take_prototype());
+				expect_end_of_stmt();
+			}
+			lexer.take();
+			// TODO check duplicate
+			return std::make_unique<ConceptNode>(
+				SourceRange(begin, lexer.position()),
+				std::move(function_nodes)
+			);
+		}
 
 		default: {
 			token.kind = token_kind::as_unary_op(token.kind);
@@ -265,8 +280,8 @@ Ptr<BlockNode> Parser::take_block() {
 	);
 }
 
-Ptr<FunctionNode> Parser::take_function(bool is_inline) {
-	const auto begin = lexer.position();
+std::pair<Ptr<FunctionTypeNode>, std::string> Parser::take_prototype() {
+	auto begin = lexer.position();
 	std::vector<std::pair<std::string, Ptr<ASTNode>>> template_parameters;
 	if (lexer.peek().kind == K::Lt)
 		process_list(K::Lt, K::Gt, K::Comma, [&]() {
@@ -306,7 +321,7 @@ Ptr<FunctionNode> Parser::take_function(bool is_inline) {
 				SourceRange(lexer.position()),
 				"void"
 			);
-	auto type_node =
+	return {
 		std::make_unique<FunctionTypeNode>(
 			SourceRange(begin, lexer.position()),
 			std::move(template_parameters),
@@ -314,7 +329,13 @@ Ptr<FunctionNode> Parser::take_function(bool is_inline) {
 			std::move(result_type),
 			std::move(param_types),
 			std::move(param_names)
-		);
+		), name
+	};
+}
+
+Ptr<FunctionNode> Parser::take_function(bool is_inline) {
+	const auto begin = lexer.position();
+	auto[type_node, name] = take_prototype();
 	Ptr<ASTNode> content;
 	if (lexer.peek().kind == K::Assign) {
 		lexer.take();
@@ -451,6 +472,23 @@ Ptr<DeclNode> Parser::take_decl() {
 		case K::Fn:
 		case K::Lt:
 			return take_function();
+		case K::Impl: {
+			lexer.take();
+			auto concept_node = take_prim_inner();
+			expect(lexer.take(), K::For);
+			auto type_node = take_prim_inner();
+			expect(lexer.take(), K::LBrace);
+			std::vector<Ptr<FunctionNode>> function_nodes;
+			while (lexer.peek().kind != K::RBrace)
+				function_nodes.push_back(take_function());
+			lexer.take();
+			return std::make_unique<ImplNode>(
+				SourceRange(begin, lexer.position()),
+				std::move(type_node),
+				std::move(concept_node),
+				std::move(function_nodes)
+			);
+		}
 		default:
 			error("Unexpected token: {}", lexer.peek().info(get_buffer()));
 	}

@@ -12,6 +12,7 @@ Context::Context():
 	u8(this, 8, false), u16(this, 16, false),
 	u32(this, 32, false), u64(this, 64, false),
 	u128(this, 128, false),
+	any_concept({}),
 	float_type(llvm::Type::getFloatTy(llvm), "float"),
 	double_type(llvm::Type::getDoubleTy(llvm), "double") {}
 
@@ -59,7 +60,7 @@ Type::Struct *Context::get_struct_type(const std::vector<Type::Struct::FieldInfo
 	return value;
 }
 
-Type::Tuple * Context::get_tuple_type(const std::vector<Type *> &types) {
+Type::Tuple *Context::get_tuple_type(const std::vector<Type *> &types) {
 	auto &value = tuple_type_map[types];
 	if (!value) value = new Type::Tuple(this, types);
 	return value;
@@ -93,6 +94,7 @@ Context::~Context() {
 		delete value;
 	for (auto &[_, value] : function_type_map)
 		delete value;
+	for (auto value : concepts) delete value;
 }
 
 } // namespace rin

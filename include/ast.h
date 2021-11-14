@@ -346,16 +346,17 @@ public:
 	   type(nullptr),
 	   inline_flag(inline_flag) {}
 
-	[[nodiscard]] const std::string &get_name() const { return name; }
-	[[nodiscard]] const ASTNode *get_type_node() const { return type_node.get(); }
+	[[nodiscard]] const FunctionTypeNode *get_type_node() const { return type_node.get(); }
 	[[nodiscard]] const ASTNode *get_content_node() const { return content_node.get(); }
+	[[nodiscard]] Function *get_function_object() const { return function_object; }
 	[[nodiscard]] bool is_inline() const { return inline_flag; }
 
 	OVERRIDE
 
 	void declare(Codegen &g) override;
-private:
+
 	std::string name;
+private:
 	Ptr<FunctionTypeNode> type_node;
 	Ptr<ASTNode> content_node;
 
@@ -433,6 +434,43 @@ public:
 private:
 	Ptr<ASTNode> condition_node, then_node, else_node;
 	bool has_return_flag;
+};
+
+class ConceptNode final : public ASTNode {
+public:
+	ConceptNode(
+		const SourceRange &range,
+		std::vector<std::pair<Ptr<FunctionTypeNode>, std::string>> function_nodes
+	): ASTNode(range),
+	   function_nodes(std::move(function_nodes)) {}
+
+	OVERRIDE
+private:
+	std::vector<std::pair<Ptr<FunctionTypeNode>, std::string>> function_nodes;
+};
+
+class ImplNode final : public DeclNode {
+public:
+	ImplNode(
+		const SourceRange &range,
+		Ptr<ASTNode> type_node,
+		Ptr<ASTNode> concept_node,
+		std::vector<Ptr<FunctionNode>> function_nodes
+	): DeclNode(range),
+	   type_node(std::move(type_node)),
+	   concept_node(std::move(concept_node)),
+	   function_nodes(std::move(function_nodes)) {}
+
+	[[nodiscard]] const ASTNode *get_type_node() const { return type_node.get(); }
+	[[nodiscard]] const ASTNode *get_concept_node() const { return concept_node.get(); }
+	[[nodiscard]] const std::vector<Ptr<FunctionNode>> &get_function_nodes() const { return function_nodes; }
+
+	void declare(Codegen &g) override {}
+
+	OVERRIDE
+private:
+	Ptr<ASTNode> type_node, concept_node;
+	std::vector<Ptr<FunctionNode>> function_nodes;
 };
 
 #undef OVERRIDE

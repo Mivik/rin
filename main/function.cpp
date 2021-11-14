@@ -64,7 +64,7 @@ Function *Function::Template::instantiate(INVOKE_ARGS) {
 			if (iter != cached_indices.end()) {
 				auto index = iter->second;
 				if (!inferred[index]) {
-					if (!concepts[index]->satisfy(args[i].get_type())) return nullptr;
+					if (!g.find_impl(args[i].get_type(), concepts[index]).has_value()) return nullptr;
 					inferred[index] = args[i].get_type();
 				} else if (inferred[index] != args[i].get_type()) return nullptr;
 				continue;

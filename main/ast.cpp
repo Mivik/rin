@@ -525,7 +525,39 @@ void GlobalVarDeclNode::declare(Codegen &g) {
 	// TODO const
 	// TODO cycle
 	if (g.is_inlined()) not_inlined(g, this);
-	if (inline_flag) g.error("Inline variable at global scope is not supported yet");
+	if (inline_flag) {
+		// TODO remove redundant code
+		auto cast_if_needed = [&](Value value) {
+			if (type_node) {
+				auto type = type_node->codegen(g).get_type_value();
+				if (value.get_type() != type)
+					g.error(
+						"Cannot initialize a variable of type {} with a value of type {}",
+						type->to_string(), value.get_type()->to_string()
+					);
+			}
+			return value;
+		};
+		Ref::Memory *ref;
+		if (value_node) {
+			g.push_inline();
+			auto init = cast_if_needed(value_node->codegen(g));
+			if (init.is_ref_value()) {
+				g.declare_value(name, init);
+				return;
+			}
+			g.pop_inline();
+			ref = g.create_ref<Ref::Memory>(g.get_context().get_ref_type(init.get_type(), mutable_flag));
+			ref->store(g, init);
+		} else {
+			auto type = type_node->codegen(g).get_type_value();
+			if (dynamic_cast<rin::Type::Ref *>(type))
+				g.error("Variable of reference type must be initialized at declaration");
+			ref = g.create_ref<Ref::Memory>(g.get_context().get_ref_type(type, mutable_flag));
+		}
+		g.declare_value(name, Value(ref));
+		return;
+	}
 	Type *type;
 	if (value_node) {
 		g.push_inline();
@@ -869,6 +901,50 @@ Value IfNode::codegen(Codegen &g) const {
 Value TopLevelNode::codegen(Codegen &g) const {
 	for (auto &decl : child_nodes) decl->declare(g);
 	for (auto &decl : child_nodes) decl->codegen(g);
+	return g.get_context().get_void();
+}
+
+Value ConceptNode::codegen(Codegen &g) const {
+	std::vector<Concept::FunctionItem> function_items;
+	function_items.reserve(function_nodes.size());
+	for (auto &[node, name] : function_nodes) {
+		auto type = dynamic_cast<Type::Function *>(node->codegen(g).get_type_value());
+		assert(type);
+		function_items.push_back({ type, name });
+	}
+	return Value(g.get_context().create_concept(function_items));
+}
+
+Value ImplNode::codegen(Codegen &g) const {
+	auto type = type_node->codegen(g).get_type_value();
+	auto concept_value = concept_node->codegen(g).get_concept_value();
+	auto &req_functions = concept_value->get_function_items();
+	if (req_functions.size() != function_nodes.size())
+		g.error("Wrong number of implementations"); // TODO
+	std::vector<Function::Static *> functions(req_functions.size());
+	// TODO speed up
+	for (auto &node : function_nodes) {
+		auto name = node->name;
+		node->name = "";
+		node->declare(g);
+		node->codegen(g);
+		auto func = dynamic_cast<Function::Static *>(node->get_function_object());
+		bool implemented = false;
+		for (size_t i = 0; i < functions.size(); ++i) {
+			auto &[req_type, req_name] = req_functions[i];
+			if (req_type != func->get_type() || req_name != name) continue;
+			if (functions[i] != nullptr) g.error("Duplicate implementation");
+			functions[i] = func;
+			implemented = true;
+			break;
+		}
+		if (!implemented) g.error("Unknown implementation"); // TODO
+	}
+	g.implement_concept(
+		type,
+		concept_value,
+		Concept::Implementation(functions)
+	);
 	return g.get_context().get_void();
 }
 

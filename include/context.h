@@ -44,6 +44,11 @@ public:
 		Type *receiver_type, Type *result_type,
 		const std::vector<Type *> &param_types
 	);
+	template<class...Args>
+	Concept *create_concept(Args &&...args) {
+		concepts.push_back(new Concept(std::forward<Args>(args)...));
+		return concepts.back();
+	}
 
 	[[nodiscard]] Value get_void();
 
@@ -107,6 +112,8 @@ private:
 			PairHash<Type *, Type *>, ArrayHash<Type *>
 		>
 	> function_type_map;
+
+	std::vector<Concept *> concepts;
 };
 
 } // namespace rin
